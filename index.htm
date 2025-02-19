@@ -4,42 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR con marcador Hiro</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/ar.js@1.5.0/aframe/build/aframe-ar.min.js"></script>
+    <!-- Importar A-Frame -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Importar AR.js -->
+    <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/ar.js/aframe/build/aframe-ar.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true;">
+    <!-- Escena de A-Frame con AR.js -->
+    <a-scene embedded arjs>
         <!-- Marcador Hiro -->
-        <a-marker preset="hiro" id="markerHiro">
+        <a-marker preset="hiro">
             <!-- Modelo 3D: Caja -->
             <a-box position="0 0.5 0" rotation="0 45 0" scale="2 2 2" color="#4CC3D9"></a-box>
         </a-marker>
         <!-- Cámara AR -->
         <a-entity camera></a-entity>
     </a-scene>
-
-    <!-- Script para verificar eventos de AR.js -->
-    <script>
-        const marker = document.querySelector('#markerHiro');
-
-        marker.addEventListener('markerFound', () => {
-            console.log('Marcador detectado');
-        });
-        marker.addEventListener('markerLost', () => {
-            console.log('Marcador perdido');
-        });
-
-        window.addEventListener('arjs-loaded', function() {
-            console.log('AR.js ha sido cargado correctamente');
-        });
-
-        window.addEventListener('arjs-processed', function() {
-            console.log('AR.js está procesando la escena');
-        });
-
-        window.addEventListener('arjs-camera', function() {
-            console.log('Cámara de AR.js está activa');
-        });
-    </script>
 </body>
 </html>
