@@ -45,6 +45,8 @@
         let hearts = [];
         let lastShakeTime = 0;
         const shakeCooldown = 500; // 500ms entre shakes
+        let touchCount = 0;
+        const resetThreshold = 3; // Número de toques para resetear
 
         // Detectar movimiento del dispositivo
         window.addEventListener('devicemotion', handleMotion);
@@ -63,10 +65,6 @@
         }
 
         function createHeart() {
-            // Remover corazones existentes
-            hearts.forEach(heart => container.removeChild(heart));
-            hearts = [];
-
             const heart = document.createElement('div');
             heart.className = 'heart';
             
@@ -117,6 +115,23 @@
             requestAnimationFrame(animate);
         }
 
+        // Resetear al tocar varias veces
+        document.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            touchCount++;
+            
+            if (touchCount >= resetThreshold) {
+                hearts.forEach(heart => container.removeChild(heart));
+                hearts = [];
+                touchCount = 0;
+            }
+            
+            // Reiniciar contador después de 1 segundo sin toques
+            setTimeout(() => {
+                touchCount = 0;
+            }, 1000);
+        }, { passive: false });
+
         // Solicitar permiso para el sensor en iOS
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
             document.body.addEventListener('click', function() {
@@ -132,13 +147,6 @@
 
         // Iniciar animación
         animate();
-
-        // Prevenir zoom en móviles
-        document.addEventListener('touchstart', function(e) {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>
