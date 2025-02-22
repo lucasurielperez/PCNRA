@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formas Rebotando</title>
+    <title>Corazones Rebotando</title>
     <style>
         body {
             margin: 0;
@@ -16,22 +16,24 @@
             width: 100vw;
             height: 100vh;
         }
-        .shape {
+        .heart {
             position: absolute;
             width: 50px;
             height: 50px;
-        }
-        .circle {
-            border-radius: 50%;
-        }
-        .square {
-            border-radius: 0;
-        }
-        .star {
-            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-        }
-        .triangle {
-            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            clip-path: polygon(
+                50% 20%,
+                70% 10%,
+                90% 20%,
+                100% 40%,
+                90% 60%,
+                70% 70%,
+                50% 90%,
+                30% 70%,
+                10% 60%,
+                0% 40%,
+                10% 20%,
+                30% 10%
+            );
         }
     </style>
 </head>
@@ -40,73 +42,76 @@
 
     <script>
         const container = document.getElementById('container');
-        let shapes = [];
-        let shapeIndex = 0;
-        const shapeTypes = ['circle', 'square', 'star', 'triangle'];
+        let hearts = [];
+        let lastShakeTime = 0;
+        const shakeCooldown = 500; // 500ms entre shakes
 
         // Detectar movimiento del dispositivo
         window.addEventListener('devicemotion', handleMotion);
 
         function handleMotion(event) {
+            const currentTime = Date.now();
+            if (currentTime - lastShakeTime < shakeCooldown) return;
+
             const acceleration = event.accelerationIncludingGravity;
             const threshold = 15;
 
             if (acceleration.x > threshold || acceleration.y > threshold || acceleration.z > threshold) {
-                createShape();
+                createHeart();
+                lastShakeTime = currentTime;
             }
         }
 
-        function createShape() {
-            const shape = document.createElement('div');
-            shape.className = 'shape';
-            
-            // Seleccionar forma
-            const currentShape = shapeTypes[shapeIndex];
-            shape.classList.add(currentShape);
-            shapeIndex = (shapeIndex + 1) % shapeTypes.length;
+        function createHeart() {
+            // Remover corazones existentes
+            hearts.forEach(heart => container.removeChild(heart));
+            hearts = [];
+
+            const heart = document.createElement('div');
+            heart.className = 'heart';
             
             // Color aleatorio
             const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-            shape.style.backgroundColor = randomColor;
+            heart.style.backgroundColor = randomColor;
             
             // Posición inicial aleatoria
             const maxX = window.innerWidth - 50;
             const maxY = window.innerHeight - 50;
-            shape.x = Math.random() * maxX;
-            shape.y = Math.random() * maxY;
-            shape.style.left = shape.x + 'px';
-            shape.style.top = shape.y + 'px';
+            heart.x = Math.random() * maxX;
+            heart.y = Math.random() * maxY;
+            heart.style.left = heart.x + 'px';
+            heart.style.top = heart.y + 'px';
             
             // Velocidad aleatoria
-            shape.dx = (Math.random() - 0.5) * 8;
-            shape.dy = (Math.random() - 0.5) * 8;
+            heart.dx = (Math.random() - 0.5) * 8;
+            heart.dy = (Math.random() - 0.5) * 8;
 
-            container.appendChild(shape);
-            shapes.push(shape);
+            container.appendChild(heart);
+            hearts.push(heart);
         }
 
-        // Animación de las formas
+        // Animación de los corazones
         function animate() {
-            shapes.forEach(shape => {
+            hearts.forEach(heart => {
                 // Actualizar posición
-                shape.x += shape.dx;
-                shape.y += shape.dy;
+                heart.x += heart.dx;
+                heart.y += heart.dy;
 
                 // Colisión con bordes
-                if (shape.x + 50 > window.innerWidth || shape.x < 0) {
-                    shape.dx = -shape.dx;
+                if (heart.x + 50 > window.innerWidth || heart.x < 0) {
+                    heart.dx = -heart.dx;
                 }
-                if (shape.y + 50 > window.innerHeight || shape.y < 0) {
-                    shape.dy = -shape.dy;
+                if (heart.y + 50 > window.innerHeight || heart.y < 0) {
+                    heart.dy = -heart.dy;
                 }
 
                 // Mantener dentro de los límites
-                shape.x = Math.max(0, Math.min(shape.x, window.innerWidth - 50));
-                shape.y = Math.max(0, Math.min(shape.y, window.innerHeight - 50));
+                heart.x = Math.max(0, Math.min(heart.x, window.innerWidth - 50));
+                heart.y = Math.max(0, Math.min(heart.y, window.innerHeight - 50));
 
                 // Aplicar nueva posición
-                shape.style.left = shape.x + 'px';
-                shape.style.top = shape.y + 'px';
+                heart.style.left = heart.x + 'px';
+                heart.style.top = heart.y + 'px';
             });
 
             requestAnimationFrame(animate);
