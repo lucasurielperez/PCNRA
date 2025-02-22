@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formas Rebotando</title>
+    <title>Formas Colisionando</title>
     <style>
         body {
             margin: 0;
@@ -105,16 +105,45 @@
             // Velocidad aleatoria
             shape.dx = (Math.random() - 0.5) * 8;
             shape.dy = (Math.random() - 0.5) * 8;
-            shape.size = size; // Guardar tamaño para colisiones
+            shape.size = size;
 
             container.appendChild(shape);
             shapes.push(shape);
         }
 
+        function checkCollision(shape1, shape2) {
+            const dx = (shape1.x + shape1.size/2) - (shape2.x + shape2.size/2);
+            const dy = (shape1.y + shape1.size/2) - (shape2.y + shape2.size/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = (shape1.size + shape2.size) / 2;
+
+            if (distance < minDistance) {
+                // Calcular ángulo de colisión
+                const angle = Math.atan2(dy, dx);
+                const sin = Math.sin(angle);
+                const cos = Math.cos(angle);
+
+                // Intercambiar velocidades (colisión elástica simple)
+                const tempDx1 = shape1.dx;
+                const tempDy1 = shape1.dy;
+                shape1.dx = shape2.dx * cos - shape2.dy * sin;
+                shape1.dy = shape2.dx * sin + shape2.dy * cos;
+                shape2.dx = tempDx1 * cos - tempDy1 * sin;
+                shape2.dy = tempDx1 * sin + tempDy1 * cos;
+
+                // Separar las formas para evitar que se queden pegadas
+                const overlap = minDistance - distance;
+                shape1.x += (overlap * cos) / 2;
+                shape1.y += (overlap * sin) / 2;
+                shape2.x -= (overlap * cos) / 2;
+                shape2.y -= (overlap * sin) / 2;
+            }
+        }
+
         // Animación de las formas
         function animate() {
+            // Actualizar posiciones y colisiones con bordes
             shapes.forEach(shape => {
-                // Actualizar posición
                 shape.x += shape.dx;
                 shape.y += shape.dy;
 
@@ -129,8 +158,17 @@
                 // Mantener dentro de los límites
                 shape.x = Math.max(0, Math.min(shape.x, window.innerWidth - shape.size));
                 shape.y = Math.max(0, Math.min(shape.y, window.innerHeight - shape.size));
+            });
 
-                // Aplicar nueva posición
+            // Verificar colisiones entre formas
+            for (let i = 0; i < shapes.length; i++) {
+                for (let j = i + 1; j < shapes.length; j++) {
+                    checkCollision(shapes[i], shapes[j]);
+                }
+            }
+
+            // Aplicar nuevas posiciones
+            shapes.forEach(shape => {
                 shape.style.left = shape.x + 'px';
                 shape.style.top = shape.y + 'px';
             });
