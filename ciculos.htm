@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Círculos Rebotando</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script>
+        const container = document.getElementById('container');
+        let circles = [];
+
+        // Detectar movimiento del dispositivo
+        window.addEventListener('devicemotion', handleMotion);
+
+        function handleMotion(event) {
+            const acceleration = event.accelerationIncludingGravity;
+            const threshold = 15; // Umbral para detectar una "sacudida"
+
+            if (acceleration.x > threshold || acceleration.y > threshold || acceleration.z > threshold) {
+                createCircle();
+            }
+        }
+
+        function createCircle() {
+            const circle = document.createElement('div');
+            circle.className = 'circle';
+            
+            // Color aleatorio
+            const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+            circle.style.backgroundColor = randomColor;
+            
+            // Posición inicial aleatoria
+            const maxX = window.innerWidth - 50;
+            const maxY = window.innerHeight - 50;
+            circle.x = Math.random() * maxX;
+            circle.y = Math.random() * maxY;
+            circle.style.left = circle.x + 'px';
+            circle.style.top = circle.y + 'px';
+            
+            // Velocidad aleatoria
+            circle.dx = (Math.random() - 0.5) * 8;
+            circle.dy = (Math.random() - 0.5) * 8;
+
+            container.appendChild(circle);
+            circles.push(circle);
+        }
+
+        // Animación de los círculos
+        function animate() {
+            circles.forEach(circle => {
+                // Actualizar posición
+                circle.x += circle.dx;
+                circle.y += circle.dy;
+
+                // Colisión con bordes
+                if (circle.x + 50 > window.innerWidth || circle.x < 0) {
+                    circle.dx = -circle.dx;
+                }
+                if (circle.y + 50 > window.innerHeight || circle.y < 0) {
+                    circle.dy = -circle.dy;
+                }
+
+                // Mantener dentro de los límites
+                circle.x = Math.max(0, Math.min(circle.x, window.innerWidth - 50));
+                circle.y = Math.max(0, Math.min(circle.y, window.innerHeight - 50));
+
+                // Aplicar nueva posición
+                circle.style.left = circle.x + 'px';
+                circle.style.top = circle.y + 'px';
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Solicitar permiso para el sensor en iOS
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            document.body.addEventListener('click', function() {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('devicemotion', handleMotion);
+                        }
+                    })
+                    .catch(console.error);
+            }, { once: true });
+        }
+
+        // Iniciar animación
+        animate();
+
+        // Prevenir zoom en móviles
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
