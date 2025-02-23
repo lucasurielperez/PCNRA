@@ -40,14 +40,14 @@
         const shakeCooldown = 500; // 500ms entre shakes
         let touchCount = 0;
         const resetThreshold = 3; // Número de toques para resetear
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''); // Letras disponibles
         let isPaused = false;
 
         // Detectar movimiento del dispositivo
         window.addEventListener('devicemotion', handleMotion);
 
         function handleMotion(event) {
-            if (isPaused) return;
+            if (isPaused || availableLetters.length === 0) return;
 
             const currentTime = Date.now();
             if (currentTime - lastShakeTime < shakeCooldown) return;
@@ -65,8 +65,11 @@
             const letter = document.createElement('div');
             letter.className = 'letter';
             
-            // Letra aleatoria
-            const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+            // Seleccionar y remover letra aleatoria de las disponibles
+            const randomIndex = Math.floor(Math.random() * availableLetters.length);
+            const randomLetter = availableLetters[randomIndex];
+            availableLetters.splice(randomIndex, 1);
+            
             letter.textContent = randomLetter;
             
             // Color aleatorio
@@ -92,7 +95,7 @@
             letter.dx = (Math.random() - 0.5) * 8;
             letter.dy = (Math.random() - 0.5) * 8;
             letter.size = size;
-            letter.char = randomLetter; // Guardar el carácter
+            letter.char = randomLetter;
 
             container.appendChild(letter);
             letters.push(letter);
@@ -183,8 +186,9 @@
             if (touchCount >= resetThreshold) {
                 letters.forEach(letter => container.removeChild(letter));
                 letters = [];
+                availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''); // Restaurar letras
                 touchCount = 0;
-                isPaused = false; // Reanudar al resetear
+                isPaused = false;
             }
             
             setTimeout(() => {
