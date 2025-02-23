@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Movimiento</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 5px;
+            background-color: #000;
+            overflow: hidden;
+        }
+        .grid-item {
+            background-color: #555; /* Gris inicial */
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-family: monospace;
+            font-size: 20px;
+            transition: background-color 0.3s;
+        }
+        .near {
+            background-color: yellow;
+            color: #000;
+        }
+        .completed {
+            background-color: #00ff00;
+            color: #000;
+        }
+        .failed {
+            background-color: red;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-item" data-challenge="batime">Batime</div>
+    <div class="grid-item" data-challenge="spin3">Gírame 3 veces</div>
+    <div class="grid-item" data-challenge="angle90">90 grados</div>
+    <div class="grid-item" data-challenge="angle70">70 grados</div>
+    <div class="grid-item" data-challenge="angle50">50 grados</div>
+    <div class="grid-item" data-challenge="updown">Arriba y abajo</div>
+    <div class="grid-item" data-challenge="shake">Sacudime fuerte</div>
+    <div class="grid-item" data-challenge="spin360">Dame una vuelta</div>
+
+    <script>
+        const items = document.querySelectorAll('.grid-item');
+        let spinCount = 0, lastGamma = null, upDownState = 0;
+
+        // Solicitar permiso para sensores (necesario en iOS 13+)
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(permission => {
+                    if (permission === 'granted') startMotion();
+                    else alert('Permiso denegado para sensores de movimiento.');
+                })
+                .catch(console.error);
+            DeviceOrientationEvent.requestPermission()
+                .then(permission => {
+                    if (permission === 'granted') startOrientation();
+                    else alert('Permiso denegado para orientación.');
+                })
+                .catch(console.error);
+        } else {
+            startMotion();
+            startOrientation();
+        }
+
+        // Detectar movimiento (aceleración)
+        function startMotion() {
+            window.addEventListener('devicemotion', (event) => {
+                const { x, y, z } = event.accelerationIncludingGravity || {};
+                if (!x || !y || !z) return;
+
+                const magnitude = Math.sqrt(x * x + y * y + z * z);
+
+                items.forEach(item => {
+                    const challenge = item.getAttribute('data-challenge');
+                    if (item.classList.contains('completed')) return;
+
+                    if (challenge === 'batime') {
+                        if (magnitude > 12) item.classList.add('near');
+                        if (magnitude > 15) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (magnitude < 10 && item.classList.contains('near')) fail(item);
+                    }
+
+                    if (challenge === 'shake') {
+                        if (magnitude > 20) item.classList.add('near');
+                        if (magnitude > 25) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (magnitude < 15 && item.classList.contains('near')) fail(item);
+                    }
+
+                    if (challenge === 'updown') {
+                        if (z > 15 && upDownState === 0) {
+                            item.classList.add('near');
+                            upDownState = 1;
+                        }
+                        if (z < -15 && upDownState === 1) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (Math.abs(z) < 10 && upDownState === 1) fail(item);
+                    }
+                });
+            });
+        }
+
+        // Detectar orientación (inclinación y giros)
+        function startOrientation() {
+            window.addEventListener('deviceorientation', (event) => {
+                const { beta, gamma } = event;
+                if (beta === null || gamma === null) return;
+
+                items.forEach(item => {
+                    const challenge = item.getAttribute('data-challenge');
+                    if (item.classList.contains('completed')) return;
+
+                    if (challenge === 'angle90') {
+                        if (Math.abs(beta) > 80) item.classList.add('near');
+                        if (Math.abs(beta) > 85) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (Math.abs(beta) < 70 && item.classList.contains('near')) fail(item);
+                    }
+
+                    if (challenge === 'angle70') {
+                        if (Math.abs(beta) > 60) item.classList.add('near');
+                        if (Math.abs(beta) > 65) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (Math.abs(beta) < 50 && item.classList.contains('near')) fail(item);
+                    }
+
+                    if (challenge === 'angle50') {
+                        if (Math.abs(beta) > 40) item.classList.add('near');
+                        if (Math.abs(beta) > 45) {
+                            item.classList.remove('near');
+                            item.classList.add('completed');
+                        }
+                        if (Math.abs(beta) < 30 && item.classList.contains('near')) fail(item);
+                    }
+
+                    if (challenge === 'spin3' || challenge === 'spin360') {
+                        if (lastGamma !== null) {
+                            const delta = Math.abs(gamma - lastGamma);
+                            if (delta > 10 && delta < 350) { // Evitar saltos grandes irreales
+                                spinCount += delta;
+                            }
+                        }
+                        lastGamma = gamma;
+
+                        if (challenge === 'spin3') {
+                            if (spinCount > 900) item.classList.add('near');
+                            if (spinCount > 1080) { // 3 x 360°
+                                item.classList.remove('near');
+                                item.classList.add('completed');
+                                spinCount = 0;
+                            }
+                        }
+
+                        if (challenge === 'spin360') {
+                            if (spinCount > 300) item.classList.add('near');
+                            if (spinCount > 360) {
+                                item.classList.remove('near');
+                                item.classList.add('completed');
+                                spinCount = 0;
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Función para manejar fallos
+        function fail(item) {
+            item.classList.remove('near');
+            item.classList.add('failed');
+            setTimeout(() => {
+                item.classList.remove('failed');
+            }, 1000);
+            if (item.getAttribute('data-challenge') === 'updown') upDownState = 0;
+            if (['spin3', 'spin360'].includes(item.getAttribute('data-challenge'))) spinCount = 0;
+        }
+    </script>
+</body>
+</html>
