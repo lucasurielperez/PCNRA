@@ -43,14 +43,11 @@
         // Creamos un contexto de audio
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Definimos el mensaje "Papico" en código Morse con duraciones 3 veces más lentas
+        // Definimos el mensaje "Umi" en código Morse con duraciones 3 veces más lentas
         const morseCode = {
-            'P': [600, 300, 1800, 300, 1800, 300, 600], // .--.
-            'A': [600, 300, 1800],                        // .-
-            'P': [600, 300, 1800, 300, 1800, 300, 600],  // .--.
-            'I': [600, 300, 600],                        // ..
-            'C': [1800, 300, 600, 300, 1800, 300, 600],  // -.-.
-            'O': [1800, 300, 1800, 300, 1800]            // ---
+            'U': [600, 300, 600, 300, 1800],  // ..-
+            'M': [1800, 300, 1800],            // --
+            'I': [600, 300, 600]               // ..
         };
 
         // Función para generar un pitido
@@ -74,9 +71,9 @@
             }
         }
 
-        // Función para reproducir la palabra completa "Papico"
-        async function playPapico() {
-            const word = "PAPICO";
+        // Función para reproducir la palabra completa "Umi"
+        async function playUmi() {
+            const word = "UMI";
             for (let i = 0; i < word.length; i++) {
                 await playLetter(word[i]);
                 if (i < word.length - 1) {
@@ -88,8 +85,8 @@
         // Repetir el mensaje cada 3 segundos después de terminar
         async function startMorseLoop() {
             while (true) {
-                await playPapico();
-                const duration = "PAPICO".split('').reduce((total, letter) => {
+                await playUmi();
+                const duration = "UMI".split('').reduce((total, letter) => {
                     return total + morseCode[letter].reduce((sum, time) => sum + time, 0) + 900;
                 }, 0) - 900; // Restamos la última pausa entre letras
                 await new Promise(resolve => setTimeout(resolve, 3000)); // Pausa de 3 segundos
