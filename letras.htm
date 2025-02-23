@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letras Rebotando</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        .letter {
+            position: absolute;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            text-align: center;
+            user-select: none;
+        }
+        .highlight {
+            border: 3px solid yellow;
+            background-color: rgba(255, 255, 0, 0.3);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <script>
+        const container = document.getElementById('container');
+        let letters = [];
+        let lastShakeTime = 0;
+        const shakeCooldown = 500; // 500ms entre shakes
+        let touchCount = 0;
+        const resetThreshold = 3; // Número de toques para resetear
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let isPaused = false;
+
+        // Detectar movimiento del dispositivo
+        window.addEventListener('devicemotion', handleMotion);
+
+        function handleMotion(event) {
+            if (isPaused) return;
+
+            const currentTime = Date.now();
+            if (currentTime - lastShakeTime < shakeCooldown) return;
+
+            const acceleration = event.accelerationIncludingGravity;
+            const threshold = 15;
+
+            if (acceleration.x > threshold || acceleration.y > threshold || acceleration.z > threshold) {
+                createLetter();
+                lastShakeTime = currentTime;
+            }
+        }
+
+        function createLetter() {
+            const letter = document.createElement('div');
+            letter.className = 'letter';
+            
+            // Letra aleatoria
+            const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+            letter.textContent = randomLetter;
+            
+            // Color aleatorio
+            const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+            letter.style.color = randomColor;
+            
+            // Tamaño aleatorio (entre 30px y 100px)
+            const size = Math.floor(Math.random() * (100 - 30 + 1)) + 30;
+            letter.style.fontSize = size + 'px';
+            letter.style.width = size + 'px';
+            letter.style.height = size + 'px';
+            letter.style.lineHeight = size + 'px';
+            
+            // Posición inicial aleatoria
+            const maxX = window.innerWidth - size;
+            const maxY = window.innerHeight - size;
+            letter.x = Math.random() * maxX;
+            letter.y = Math.random() * maxY;
+            letter.style.left = letter.x + 'px';
+            letter.style.top = letter.y + 'px';
+            
+            // Velocidad aleatoria
+            letter.dx = (Math.random() - 0.5) * 8;
+            letter.dy = (Math.random() - 0.5) * 8;
+            letter.size = size;
+            letter.char = randomLetter; // Guardar el carácter
+
+            container.appendChild(letter);
+            letters.push(letter);
+
+            checkLucas();
+        }
+
+        function checkCollision(letter1, letter2) {
+            const dx = (letter1.x + letter1.size/2) - (letter2.x + letter2.size/2);
+            const dy = (letter1.y + letter1.size/2) - (letter2.y + letter2.size/2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = (letter1.size + letter2.size) / 2;
+
+            if (distance < minDistance) {
+                const angle = Math.atan2(dy, dx);
+                const sin = Math.sin(angle);
+                const cos = Math.cos(angle);
+
+                const tempDx1 = letter1.dx;
+                const tempDy1 = letter1.dy;
+                letter1.dx = letter2.dx * cos - letter2.dy * sin;
+                letter1.dy = letter2.dx * sin + letter2.dy * cos;
+                letter2.dx = tempDx1 * cos - tempDy1 * sin;
+                letter2.dy = tempDx1 * sin + tempDy1 * cos;
+
+                const overlap = minDistance - distance;
+                letter1.x += (overlap * cos) / 2;
+                letter1.y += (overlap * sin) / 2;
+                letter2.x -= (overlap * cos) / 2;
+                letter2.y -= (overlap * sin) / 2;
+            }
+        }
+
+        function checkLucas() {
+            const lucas = ['L', 'U', 'C', 'A', 'S'];
+            const currentLetters = letters.map(l => l.char);
+            const hasLucas = lucas.every(char => currentLetters.includes(char));
+
+            if (hasLucas) {
+                isPaused = true;
+                letters.forEach(letter => {
+                    if (lucas.includes(letter.char)) {
+                        letter.classList.add('highlight');
+                    }
+                });
+            }
+        }
+
+        // Animación de las letras
+        function animate() {
+            if (isPaused) return;
+
+            letters.forEach(letter => {
+                letter.x += letter.dx;
+                letter.y += letter.dy;
+
+                // Colisión con bordes
+                if (letter.x + letter.size > window.innerWidth || letter.x < 0) {
+                    letter.dx = -letter.dx;
+                }
+                if (letter.y + letter.size > window.innerHeight || letter.y < 0) {
+                    letter.dy = -letter.dy;
+                }
+
+                letter.x = Math.max(0, Math.min(letter.x, window.innerWidth - letter.size));
+                letter.y = Math.max(0, Math.min(letter.y, window.innerHeight - letter.size));
+            });
+
+            for (let i = 0; i < letters.length; i++) {
+                for (let j = i + 1; j < letters.length; j++) {
+                    checkCollision(letters[i], letters[j]);
+                }
+            }
+
+            letters.forEach(letter => {
+                letter.style.left = letter.x + 'px';
+                letter.style.top = letter.y + 'px';
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        // Resetear al tocar varias veces
+        document.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            touchCount++;
+            
+            if (touchCount >= resetThreshold) {
+                letters.forEach(letter => container.removeChild(letter));
+                letters = [];
+                touchCount = 0;
+                isPaused = false; // Reanudar al resetear
+            }
+            
+            setTimeout(() => {
+                touchCount = 0;
+            }, 1000);
+        }, { passive: false });
+
+        // Solicitar permiso para el sensor en iOS
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            document.body.addEventListener('click', function() {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('devicemotion', handleMotion);
+                        }
+                    })
+                    .catch(console.error);
+            }, { once: true });
+        }
+
+        // Iniciar animación
+        animate();
+    </script>
+</body>
+</html>
