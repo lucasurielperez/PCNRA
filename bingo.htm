@@ -17,6 +17,7 @@
             width: 100%;
             height: 50%;
             position: relative;
+            background-color: #111; /* Fondo gris oscuro si la cámara falla */
         }
         #camera-view {
             width: 100%;
@@ -69,7 +70,7 @@
 </head>
 <body>
     <div id="camera-container">
-        <video id="camera-view" autoplay></video>
+        <video id="camera-view" autoplay playsinline></video>
         <button id="capture-btn">Foto</button>
     </div>
     <div id="bingo-grid">
@@ -91,14 +92,24 @@
         const bingoItems = document.querySelectorAll('.bingo-item');
 
         // Iniciar la cámara
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
                 video.srcObject = stream;
-            })
-            .catch(err => {
+                video.onloadedmetadata = () => {
+                    video.play();
+                    console.log('Cámara iniciada correctamente');
+                };
+            } catch (err) {
                 console.error('Error al acceder a la cámara:', err);
-                alert('No se pudo acceder a la cámara. Asegúrate de dar permiso.');
-            });
+                alert('No se pudo acceder a la cámara. Asegúrate de dar permiso y usar HTTPS/localhost.');
+            }
+        }
+
+        // Iniciar la cámara al cargar la página
+        startCamera();
 
         // Función para analizar la foto
         function analyzePhoto() {
@@ -146,7 +157,11 @@
 
         // Capturar foto al hacer clic
         captureBtn.addEventListener('click', () => {
-            analyzePhoto();
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                analyzePhoto();
+            } else {
+                alert('La cámara aún no está lista. Espera un momento.');
+            }
         });
     </script>
 </body>
