@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Vibración - Morse</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+        #morse-box {
+            width: 300px;
+            height: 150px;
+            background-color: #000;
+            border: 2px solid #00ff00;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            font-size: 40px;
+            color: #00ff00;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="morse-box">morse</div>
+
+    <script>
+        // Definimos el mensaje "Papico" en código Morse
+        const morseCode = {
+            'P': [200, 100, 600, 100, 200], // .--.
+            'A': [200, 100, 600],           // .-
+            'P': [200, 100, 600, 100, 200], // .--.
+            'I': [200, 100, 200],           // ..
+            'C': [600, 100, 200, 100, 600, 100, 200], // -.-.
+            'O': [600, 100, 600, 100, 600]  // ---
+        };
+
+        // Tiempo en milisegundos: punto (200ms), raya (600ms), pausa entre partes (100ms)
+        // Pausa entre letras es 300ms, y entre palabras 700ms (ajustado en la lógica)
+
+        // Función para vibrar una letra en Morse
+        function vibrateLetter(letter) {
+            return morseCode[letter] || [];
+        }
+
+        // Función para vibrar la palabra completa "Papico"
+        function vibratePapico() {
+            const word = "PAPICO";
+            let vibrationPattern = [];
+            
+            for (let i = 0; i < word.length; i++) {
+                vibrationPattern = vibrationPattern.concat(vibrateLetter(word[i]));
+                if (i < word.length - 1) {
+                    vibrationPattern.push(300); // Pausa entre letras
+                }
+            }
+
+            // Ejecutar la vibración
+            if (navigator.vibrate) {
+                navigator.vibrate(vibrationPattern);
+            } else {
+                console.log("Tu dispositivo no soporta vibración.");
+            }
+        }
+
+        // Repetir el mensaje cada 3 segundos después de terminar la vibración
+        function startMorseLoop() {
+            vibratePapico();
+            // Calculamos la duración total de la vibración
+            const vibrationDuration = "PAPICO".split('').reduce((total, letter) => {
+                return total + vibrateLetter(letter).reduce((sum, time) => sum + time, 0) + 300;
+            }, 0) - 300; // Restamos la última pausa entre letras
+            
+            // Repetimos con un intervalo de vibración + 3 segundos
+            setInterval(vibratePapico, vibrationDuration + 3000);
+        }
+
+        // Iniciar el juego
+        startMorseLoop();
+    </script>
+</body>
+</html>
