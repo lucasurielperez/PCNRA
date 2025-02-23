@@ -43,14 +43,14 @@
         // Creamos un contexto de audio
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        // Definimos el mensaje "Papico" en código Morse con duraciones
+        // Definimos el mensaje "Papico" en código Morse con duraciones 3 veces más lentas
         const morseCode = {
-            'P': [200, 100, 600, 100, 600, 100, 200], // .--.
-            'A': [200, 100, 600],                       // .-
-            'P': [200, 100, 600, 100, 600, 100, 200],   // .--.
-            'I': [200, 100, 200],                       // ..
-            'C': [600, 100, 200, 100, 600, 100, 200],   // -.-.
-            'O': [600, 100, 600, 100, 600]              // ---
+            'P': [600, 300, 1800, 300, 1800, 300, 600], // .--.
+            'A': [600, 300, 1800],                        // .-
+            'P': [600, 300, 1800, 300, 1800, 300, 600],  // .--.
+            'I': [600, 300, 600],                        // ..
+            'C': [1800, 300, 600, 300, 1800, 300, 600],  // -.-.
+            'O': [1800, 300, 1800, 300, 1800]            // ---
         };
 
         // Función para generar un pitido
@@ -80,7 +80,7 @@
             for (let i = 0; i < word.length; i++) {
                 await playLetter(word[i]);
                 if (i < word.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 300)); // Pausa entre letras
+                    await new Promise(resolve => setTimeout(resolve, 900)); // Pausa entre letras (3x más lenta)
                 }
             }
         }
@@ -90,8 +90,8 @@
             while (true) {
                 await playPapico();
                 const duration = "PAPICO".split('').reduce((total, letter) => {
-                    return total + morseCode[letter].reduce((sum, time) => sum + time, 0) + 300;
-                }, 0) - 300; // Restamos la última pausa entre letras
+                    return total + morseCode[letter].reduce((sum, time) => sum + time, 0) + 900;
+                }, 0) - 900; // Restamos la última pausa entre letras
                 await new Promise(resolve => setTimeout(resolve, 3000)); // Pausa de 3 segundos
             }
         }
