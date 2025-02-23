@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector QR - URIEL</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #video-container {
+            height: 75%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        #video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        #word-container {
+            height: 25%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f0f0f0;
+        }
+        .letter {
+            font-size: 48px;
+            margin: 0 10px;
+            color: grey;
+            transition: color 0.3s;
+        }
+        .found {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div id="video-container">
+        <video id="video" autoplay playsinline></video>
+    </div>
+    <div id="word-container">
+        <span id="u" class="letter">U</span>
+        <span id="r" class="letter">R</span>
+        <span id="i" class="letter">I</span>
+        <span id="e" class="letter">E</span>
+        <span id="l" class="letter">L</span>
+    </div>
+
+    <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const letters = {
+            'u': document.getElementById('u'),
+            'r': document.getElementById('r'),
+            'i': document.getElementById('i'),
+            'e': document.getElementById('e'),
+            'l': document.getElementById('l')
+        };
+        const foundLetters = new Set();
+
+        // Iniciar la cámara
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+                requestAnimationFrame(tick);
+            })
+            .catch(err => {
+                console.error('Error al acceder a la cámara:', err);
+                alert('No se pudo acceder a la cámara. Por favor, permite el acceso.');
+            });
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code) {
+                    const url = code.data;
+                    checkLetter(url);
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function checkLetter(url) {
+            const qrLinks = {
+                'www.google.com.ar/u': 'u',
+                'www.google.com.ar/r': 'r',
+                'www.google.com.ar/i': 'i',
+                'www.google.com.ar/e': 'e',
+                'www.google.com.ar/l': 'l'
+            };
+
+            const letter = qrLinks[url];
+            if (letter && !foundLetters.has(letter)) {
+                foundLetters.add(letter);
+                letters[letter].classList.add('found');
+                
+                // Verificar si se completó la palabra
+                if (foundLetters.size === 5) {
+                    alert('¡Felicidades! Has encontrado todas las letras de URIEL');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
