@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego VIRUS</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #welcome-screen, #main-screen { display: none; }
+        #camera-preview { width: 100%; max-height: 300px; }
+        #virus-list { margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <div id="welcome-screen">
+        <h1>Bienvenidos al proyecto VIRUS</h1>
+        <p>Ingrese el nombre de su virus:</p>
+        <input type="text" id="virus-name" placeholder="Nombre del virus">
+        <button onclick="startGame()">Iniciar</button>
+    </div>
+
+    <div id="main-screen">
+        <h2>Juego VIRUS</h2>
+        <video id="camera-preview" autoplay playsinline></video>
+        <button onclick="scanQR()">Escanear QR</button>
+        <div id="qr-display"></div>
+        <h3>Lista de Virus Contagiados:</h3>
+        <ul id="virus-list"></ul>
+    </div>
+
+    <script src="https://davidshimjs.github.io/qrcodejs/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsqr.min.js"></script>
+    <script>
+        let ownVirusName = '';
+        let virusList = new Map(); // {name: count}
+        let contactHistory = []; // List of virus names of users contacted
+        let lastContactIndices = {}; // {virusName: lastIndex}
+        let globalContactCount = 0;
+
+        function startGame() {
+            ownVirusName = document.getElementById('virus-name').value;
+            if (!ownVirusName) {
+                alert('Por favor, ingrese un nombre de virus.');
+                return;
+            }
+            // Initialize with own virus, count 1
+            virusList.set(ownVirusName, 1);
+            document.getElementById('welcome-screen').style.display = 'none';
+            document.getElementById('main-screen').style.display = 'block';
+            updateVirusListDisplay();
+            generateQRCode();
+        }
+
+        function generateQRCode() {
+            const qrText = `VIRUS-${Array.from(virusList).map(([name, count]) => name + ':' + count).join(',')}`;
+            new QRCode(document.getElementById('qr-display'), qrText);
+        }
+
+        function updateVirusListDisplay() {
+            const list = document.getElementById('virus-list');
+            list.innerHTML = '';
+            for (const [name, _] of virusList) {
+                const li = document.createElement('li');
+                li.textContent = name;
+                list.appendChild(li);
+            }
+        }
+
+        async function scanQR() {
+            const video = document.getElementById('camera-preview');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                const scan = setInterval(() => {
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code) {
+                        clearInterval(scan);
+                        stream.getTracks().forEach(track => track.stop());
+                        processScannedQR(code.data);
+                    }
+                }, 100);
+            } catch (err) {
+                alert('Error accediendo a la cámara: ' + err);
+            }
+        }
+
+        function processScannedQR(qrText) {
+            if (!qrText.startsWith('VIRUS-')) {
+                alert('Código QR inválido.');
+                return;
+            }
+            const virusPairsStr = qrText.slice(6); // Remove "VIRUS-"
+            const virusPairs = virusPairsStr.split(',');
+            const otherUserVirusName = virusPairs[0].split(':')[0];
+
+            // Check if can have contact with this user again
+            if (lastContactIndices[otherUserVirusName] !== undefined) {
+                const lastContactIndex = lastContactIndices[otherUserVirusName];
+                const contactsSinceLast = contactHistory.slice(lastContactIndex + 1)
+                    .filter(name => name !== otherUserVirusName);
+                const uniqueContactsSince = new Set(contactsSinceLast).size;
+                if (uniqueContactsSince < 5) {
+                    alert('Debe tener contacto con al menos 5 personas diferentes desde el último contacto con este usuario.');
+                    return;
+                }
+            }
+
+            // Parse the scanned QR to get a Map of name to count
+            const otherUserVirusList = new Map();
+            virusPairs.forEach(pair => {
+                const [name, countStr] = pair.split(':');
+                if (name && countStr) {
+                    const count = parseInt(countStr, 10);
+                    otherUserVirusList.set(name, count);
+                }
+            });
+
+            // Merge with own virusList, summing counts
+            for (const [name, count] of otherUserVirusList) {
+                if (virusList.has(name)) {
+                    virusList.set(name, virusList.get(name) + count);
+                } else {
+                    virusList.set(name, count);
+                }
+            }
+
+            // Update contact history
+            contactHistory.push(otherUserVirusName);
+            lastContactIndices[otherUserVirusName] = globalContactCount;
+            globalContactCount += 1;
+
+            // Update display and QR code
+            updateVirusListDisplay();
+            generateQRCode();
+            alert('Contacto exitoso, virus actualizados.');
+        }
+
+        // Save to localStorage on changes
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('virusGameState', JSON.stringify({
+                ownVirusName, virusList: Object.fromEntries(virusList), contactHistory, lastContactIndices, globalContactCount
+            }));
+        });
+
+        // Load from localStorage on start
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('virusGameState');
+            if (saved) {
+                const state = JSON.parse(saved);
+                ownVirusName = state.ownVirusName;
+                virusList = new Map(Object.entries(state.virusList));
+                contactHistory = state.contactHistory;
+                lastContactIndices = state.lastContactIndices;
+                globalContactCount = state.globalContactCount;
+                if (ownVirusName) {
+                    document.getElementById('welcome-screen').style.display = 'none';
+                    document.getElementById('main-screen').style.display = 'block';
+                    updateVirusListDisplay();
+                    generateQRCode();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
