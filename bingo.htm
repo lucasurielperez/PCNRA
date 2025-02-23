@@ -17,6 +17,7 @@
             width: 100%;
             height: 50%;
             object-fit: cover;
+            position: relative;
         }
         #bingo-grid {
             width: 100%;
@@ -45,96 +46,25 @@
         }
         #capture-btn {
             position: absolute;
-            bottom: 60%;
+            bottom: 10px; /* Cerca del borde inferior de la cámara */
             left: 50%;
             transform: translateX(-50%);
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #00ff00;
-            border: none;
+            width: 60px; /* Más pequeño */
+            height: 60px; /* Más pequeño */
+            border-radius: 50%; /* Completamente redondo */
+            background-color: rgba(0, 255, 0, 0.7); /* Verde semitransparente */
+            border: 2px solid #fff;
             cursor: pointer;
+            font-size: 14px;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
 <body>
     <video id="camera-view" autoplay></video>
-    <button id="capture-btn">Sacar Foto</button>
+    <button id="capture-btn">Foto</button>
     <div id="bingo-grid">
-        <div class="bingo-item" data-criteria="green">Algo verde</div>
-        <div class="bingo-item" data-criteria="red">Algo rojo</div>
-        <div class="bingo-item" data-criteria="dark">Oscuridad</div>
-        <div class="bingo-item" data-criteria="light">Una luz</div>
-        <div class="bingo-item" data-criteria="yellow">Algo amarillo</div>
-        <div class="bingo-item" data-criteria="pink">Algo rosa</div>
-    </div>
-
-    <canvas id="canvas" style="display: none;"></canvas>
-
-    <script>
-        const video = document.getElementById('camera-view');
-        const captureBtn = document.getElementById('capture-btn');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const bingoItems = document.querySelectorAll('.bingo-item');
-
-        // Iniciar la cámara
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                console.error('Error al acceder a la cámara:', err);
-                alert('No se pudo acceder a la cámara.');
-            });
-
-        // Función para analizar la foto
-        function analyzePhoto() {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-            // Calcular el color promedio y el brillo
-            let r = 0, g = 0, b = 0, totalPixels = imageData.length / 4;
-            for (let i = 0; i < imageData.length; i += 4) {
-                r += imageData[i];
-                g += imageData[i + 1];
-                b += imageData[i + 2];
-            }
-            r = r / totalPixels;
-            g = g / totalPixels;
-            b = b / totalPixels;
-            const brightness = (r + g + b) / 3; // Promedio de brillo (0-255)
-
-            // Evaluar criterios (aproximado)
-            bingoItems.forEach(item => {
-                if (!item.classList.contains('completed')) {
-                    const criteria = item.getAttribute('data-criteria');
-                    let fulfilled = false;
-
-                    if (criteria === 'green' && g > r && g > b && g > 80) fulfilled = true;
-                    if (criteria === 'red' && r > g && r > b && r > 80) fulfilled = true;
-                    if (criteria === 'dark' && brightness < 50) fulfilled = true;
-                    if (criteria === 'light' && brightness > 200) fulfilled = true;
-                    if (criteria === 'yellow' && r > 150 && g > 150 && b < 100) fulfilled = true;
-                    if (criteria === 'pink' && r > 150 && b > 100 && g < 100) fulfilled = true;
-
-                    if (fulfilled) {
-                        item.classList.add('completed');
-                    }
-                }
-            });
-
-            // Verificar si el bingo está completo
-            if (document.querySelectorAll('.completed').length === 6) {
-                alert('¡Bingo completado! Ganaste.');
-            }
-        }
-
-        // Capturar foto al hacer clic
-        captureBtn.addEventListener('click', () => {
-            analyzePhoto();
-        });
-    </script>
-</body>
-</html>
+        <div class="bingo-item" data-c​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
