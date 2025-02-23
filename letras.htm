@@ -27,6 +27,10 @@
             border: 3px solid yellow;
             background-color: rgba(255, 255, 0, 0.3);
             z-index: 10;
+            animation: blink 0.5s infinite; /* Titilar */
+        }
+        @keyframes blink {
+            50% { opacity: 0.5; }
         }
     </style>
 </head>
@@ -36,32 +40,41 @@
     <script>
         const container = document.getElementById('container');
         let letters = [];
-        let lastShakeTime = 0;
-        const shakeCooldown = 500; // 500ms entre shakes
-        let touchCount = 0;
-        const resetThreshold = 3; // Número de toques para resetear
-        let availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''); // Letras disponibles
+        let touchTimes = []; // Almacenar tiempos de toques
+        const resetTimeThreshold = 1000; // 1 segundo para 3 toques
+        const resetTouchThreshold = 3; // 3 toques para resetear
+        let availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         let isPaused = false;
 
-        // Detectar movimiento del dispositivo
-        window.addEventListener('devicemotion', handleMotion);
+        // Detectar toques en la pantalla
+        document.addEventListener('touchstart', handleTouch, { passive: false });
 
-        function handleMotion(event) {
-            if (isPaused || availableLetters.length === 0) return;
-
+        function handleTouch(e) {
+            e.preventDefault();
+            
             const currentTime = Date.now();
-            if (currentTime - lastShakeTime < shakeCooldown) return;
+            touchTimes.push(currentTime);
 
-            const acceleration = event.accelerationIncludingGravity;
-            const threshold = 15;
+            // Verificar si hay 3 toques en 1 segundo o menos
+            if (touchTimes.length >= resetTouchThreshold) {
+                const timeSpan = touchTimes[touchTimes.length - 1] - touchTimes[touchTimes.length - resetTouchThreshold];
+                if (timeSpan <= resetTimeThreshold) {
+                    resetGame();
+                    touchTimes = [];
+                    return;
+                }
+            }
 
-            if (acceleration.x > threshold || acceleration.y > threshold || acceleration.z > threshold) {
-                createLetter();
-                lastShakeTime = currentTime;
+            // Limpiar toques antiguos
+            touchTimes = touchTimes.filter(time => currentTime - time <= resetTimeThreshold);
+
+            // Crear letra si no está pausado y hay letras disponibles
+            if (!isPaused && availableLetters.length > 0) {
+                createLetter(e.touches[0].clientX, e.touches[0].clientY);
             }
         }
 
-        function createLetter() {
+        function createLetter(touchX, touchY) {
             const letter = document.createElement('div');
             letter.className = 'letter';
             
@@ -83,11 +96,9 @@
             letter.style.height = size + 'px';
             letter.style.lineHeight = size + 'px';
             
-            // Posición inicial aleatoria
-            const maxX = window.innerWidth - size;
-            const maxY = window.innerHeight - size;
-            letter.x = Math.random() * maxX;
-            letter.y = Math.random() * maxY;
+            // Posición inicial basada en el toque
+            letter.x = touchX - size / 2;
+            letter.y = touchY - size / 2;
             letter.style.left = letter.x + 'px';
             letter.style.top = letter.y + 'px';
             
@@ -144,6 +155,13 @@
             }
         }
 
+        function resetGame() {
+            letters.forEach(letter => container.removeChild(letter));
+            letters = [];
+            availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            isPaused = false;
+        }
+
         // Animación de las letras
         function animate() {
             if (isPaused) return;
@@ -176,37 +194,6 @@
             });
 
             requestAnimationFrame(animate);
-        }
-
-        // Resetear al tocar varias veces
-        document.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            touchCount++;
-            
-            if (touchCount >= resetThreshold) {
-                letters.forEach(letter => container.removeChild(letter));
-                letters = [];
-                availableLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''); // Restaurar letras
-                touchCount = 0;
-                isPaused = false;
-            }
-            
-            setTimeout(() => {
-                touchCount = 0;
-            }, 1000);
-        }, { passive: false });
-
-        // Solicitar permiso para el sensor en iOS
-        if (typeof DeviceMotionEvent.requestPermission === 'function') {
-            document.body.addEventListener('click', function() {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            window.addEventListener('devicemotion', handleMotion);
-                        }
-                    })
-                    .catch(console.error);
-            }, { once: true });
         }
 
         // Iniciar animación
