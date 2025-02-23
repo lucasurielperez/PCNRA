@@ -8,12 +8,30 @@
         body {
             margin: 0;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #000;
+            overflow: hidden;
+        }
+        #sensors {
+            width: 100%;
+            padding: 10px;
+            background-color: #222;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 14px;
+            text-align: center;
+        }
+        #grid-container {
+            flex-grow: 1;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             grid-template-rows: repeat(4, 1fr);
             gap: 5px;
-            background-color: #000;
-            overflow: hidden;
+            padding: 10px;
+            box-sizing: border-box;
+            max-width: 400px; /* Limita el ancho */
+            margin: 0 auto; /* Centra la grilla */
         }
         .grid-item {
             background-color: #555; /* Gris inicial */
@@ -23,7 +41,8 @@
             align-items: center;
             text-align: center;
             font-family: monospace;
-            font-size: 20px;
+            font-size: 16px; /* Más pequeño */
+            padding: 5px;
             transition: background-color 0.3s;
         }
         .near {
@@ -41,33 +60,40 @@
     </style>
 </head>
 <body>
-    <div class="grid-item" data-challenge="batime">Batime</div>
-    <div class="grid-item" data-challenge="spin3">Gírame 3 veces</div>
-    <div class="grid-item" data-challenge="angle90">90 grados</div>
-    <div class="grid-item" data-challenge="angle70">70 grados</div>
-    <div class="grid-item" data-challenge="angle50">50 grados</div>
-    <div class="grid-item" data-challenge="updown">Arriba y abajo</div>
-    <div class="grid-item" data-challenge="shake">Sacudime fuerte</div>
-    <div class="grid-item" data-challenge="spin360">Dame una vuelta</div>
+    <div id="sensors">Sensores: Esperando datos...</div>
+    <div id="grid-container">
+        <div class="grid-item" data-challenge="batime">Batime</div>
+        <div class="grid-item" data-challenge="spin3">Gírame 3 veces</div>
+        <div class="grid-item" data-challenge="angle90">90 grados</div>
+        <div class="grid-item" data-challenge="angle70">70 grados</div>
+        <div class="grid-item" data-challenge="angle50">50 grados</div>
+        <div class="grid-item" data-challenge="updown">Arriba y abajo</div>
+        <div class="grid-item" data-challenge="shake">Sacudime fuerte</div>
+        <div class="grid-item" data-challenge="spin360">Dame una vuelta</div>
+    </div>
 
     <script>
+        const sensorDisplay = document.getElementById('sensors');
         const items = document.querySelectorAll('.grid-item');
         let spinCount = 0, lastGamma = null, upDownState = 0;
 
         // Solicitar permiso para sensores (necesario en iOS 13+)
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission()
-                .then(permission => {
-                    if (permission === 'granted') startMotion();
-                    else alert('Permiso denegado para sensores de movimiento.');
+            Promise.all([
+                DeviceMotionEvent.requestPermission(),
+                DeviceOrientationEvent.requestPermission()
+            ])
+                .then(([motionPerm, orientationPerm]) => {
+                    if (motionPerm === 'granted' && orientationPerm === 'granted') {
+                        startMotion();
+                        startOrientation();
+                    } else {
+                        sensorDisplay.textContent = 'Permiso denegado para sensores.';
+                    }
                 })
-                .catch(console.error);
-            DeviceOrientationEvent.requestPermission()
-                .then(permission => {
-                    if (permission === 'granted') startOrientation();
-                    else alert('Permiso denegado para orientación.');
-                })
-                .catch(console.error);
+                .catch(err => {
+                    sensorDisplay.textContent = 'Error al solicitar permisos: ' + err;
+                });
         } else {
             startMotion();
             startOrientation();
@@ -77,9 +103,13 @@
         function startMotion() {
             window.addEventListener('devicemotion', (event) => {
                 const { x, y, z } = event.accelerationIncludingGravity || {};
-                if (!x || !y || !z) return;
+                if (!x || !y || !z) {
+                    sensorDisplay.textContent = 'No se detecta aceleración.';
+                    return;
+                }
 
                 const magnitude = Math.sqrt(x * x + y * y + z * z);
+                sensorDisplay.textContent = `Aceleración: X=${x.toFixed(1)}, Y=${y.toFixed(1)}, Z=${z.toFixed(1)}, Mag=${magnitude.toFixed(1)}`;
 
                 items.forEach(item => {
                     const challenge = item.getAttribute('data-challenge');
@@ -122,7 +152,12 @@
         function startOrientation() {
             window.addEventListener('deviceorientation', (event) => {
                 const { beta, gamma } = event;
-                if (beta === null || gamma === null) return;
+                if (beta === null || gamma === null) {
+                    sensorDisplay.textContent = 'No se detecta orientación.';
+                    return;
+                }
+
+                sensorDisplay.textContent = `Ángulos: Beta=${beta.toFixed(1)}°, Gamma=${gamma.toFixed(1)}°, Acel: Esperando...`;
 
                 items.forEach(item => {
                     const challenge = item.getAttribute('data-challenge');
@@ -158,7 +193,7 @@
                     if (challenge === 'spin3' || challenge === 'spin360') {
                         if (lastGamma !== null) {
                             const delta = Math.abs(gamma - lastGamma);
-                            if (delta > 10 && delta < 350) { // Evitar saltos grandes irreales
+                            if (delta > 10 && delta < 350) {
                                 spinCount += delta;
                             }
                         }
@@ -166,7 +201,7 @@
 
                         if (challenge === 'spin3') {
                             if (spinCount > 900) item.classList.add('near');
-                            if (spinCount > 1080) { // 3 x 360°
+                            if (spinCount > 1080) {
                                 item.classList.remove('near');
                                 item.classList.add('completed');
                                 spinCount = 0;
