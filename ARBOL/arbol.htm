@@ -1,182 +1,29 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Limonero Interactivo</title>
-  <style>
-    body { margin: 0; font-family: Arial, sans-serif; }
-    canvas { width: 100%; height: 70vh; display: block; } /* Reducimos altura para la barra */
-    #instructions { text-align: center; font-size: 1.2em; padding: 10px; }
-    #progress-container { width: 80%; margin: 10px auto; }
-    #progress-bar { width: 0%; height: 20px; background-color: #4CAF50; transition: width 0.3s; }
-    #progress-container { border: 2px solid #333; border-radius: 5px; }
-  </style>
-</head>
-<body>
-  <canvas id="treeCanvas"></canvas>
-  <div id="instructions">Ara la tierra moviendo el celular</div>
-  <div id="progress-container">
-    <div id="progress-bar"></div>
-  </div>
-  <script>
-    const canvas = document.getElementById('treeCanvas');
-    const ctx = canvas.getContext('2d');
-    const instructions = document.getElementById('instructions');
-    const progressBar = document.getElementById('progress-bar');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight * 0.7;
-
-    let stage = 0;
-    let progress = 0;
-    const stages = [
-      "Ara la tierra moviendo el celular",
-      "Riega la planta con ruido de agua",
-      "Dale luz al brote con la cámara",
-      "Protege del viento manteniendo el celular quieto",
-      "Nutre el suelo tocando la pantalla",
-      "Poda las ramas inclinando el celular",
-      "Ahuyenta plagas con un grito",
-      "Dale más luz para las flores",
-      "Poliniza agitando el celular",
-      "Cosecha los limones tocándolos"
-    ];
-
-    // Cargar imágenes (ajusta las rutas si las tienes)
-    const images = [];
-    for (let i = 0; i < 10; i++) {
-      images[i] = new Image();
-      images[i].src = `stage${i}.png`; // Asume imágenes predefinidas
+// Etapa 1: Movimiento (arar)
+let shakes = 0;
+window.addEventListener('devicemotion', (event) => {
+  if (stage === 0) {
+    // Verifica si el evento tiene datos
+    if (!event.acceleration) {
+      instructions.textContent = "No se detecta aceleración. ¿Permisos habilitados?";
+      return;
     }
 
-    function drawTree() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (images[stage].complete) {
-        ctx.drawImage(images[stage], canvas.width / 4, 0, canvas.width / 2, canvas.height);
-      } else {
-        ctx.fillText(`Etapa ${stage}`, canvas.width / 2, canvas.height / 2); // Fallback
-      }
-    }
+    // Obtener valores de aceleración
+    const accX = event.acceleration.x || 0;
+    const accY = event.acceleration.y || 0;
+    const accZ = event.acceleration.z || 0;
 
-    function updateProgressBar() {
-      progressBar.style.width = `${Math.min(progress * 100, 100)}%`; // Actualiza la barra
-    }
+    // Mostrar valores en pantalla para depurar (opcional, quítalo después)
+    instructions.textContent = `Ara la tierra - X: ${accX.toFixed(2)}, Y: ${accY.toFixed(2)}, Z: ${accZ.toFixed(2)}`;
 
-    function nextStage() {
-      stage++;
-      progress = 0;
+    // Detectar movimiento significativo
+    if (Math.abs(accX) > 5 || Math.abs(accY) > 5 || Math.abs(accZ) > 5) {
+      shakes++;
+      progress = shakes / 10; // 10 sacudidas para completar
       updateProgressBar();
-      if (stage < stages.length) {
-        instructions.textContent = stages[stage];
-        drawTree();
-      } else {
-        instructions.textContent = "¡Felicidades! Cosechaste los limones.";
+      if (shakes >= 10) {
+        nextStage();
       }
     }
-
-    // Etapa 1: Movimiento (arar)
-    let shakes = 0;
-    window.addEventListener('devicemotion', (event) => {
-      if (stage === 0) {
-        if (Math.abs(event.acceleration.x) > 5 || Math.abs(event.acceleration.y) > 5) {
-          shakes++;
-          progress = shakes / 10; // 10 sacudidas para completar
-          updateProgressBar();
-          if (shakes >= 10) nextStage();
-        }
-      } else if (stage === 8) { // Polinizar
-        if (Math.abs(event.acceleration.x) > 3) {
-          progress += 0.1;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        }
-      } else if (stage === 3) { // Proteger del viento
-        if (Math.abs(event.acceleration.x) < 1 && Math.abs(event.acceleration.y) < 1) {
-          progress += 0.01;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        } else {
-          progress = 0;
-          updateProgressBar();
-        }
-      }
-    });
-
-    // Etapa 2 y 7: Sonido (regar y plagas)
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      source.connect(analyser);
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      function checkSound() {
-        analyser.getByteFrequencyData(dataArray);
-        let volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        if (stage === 1 && volume > 50) { // Regar
-          progress += 0.1;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        } else if (stage === 6 && volume > 80) { // Plagas
-          progress += 0.2;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        }
-        requestAnimationFrame(checkSound);
-      }
-      checkSound();
-    });
-
-    // Etapa 3 y 8: Luz (brote y flores)
-    const video = document.createElement('video');
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-      video.srcObject = stream;
-      video.play();
-      const lightCanvas = document.createElement('canvas');
-      const lightCtx = lightCanvas.getContext('2d');
-      lightCanvas.width = 100;
-      lightCanvas.height = 100;
-      function checkBrightness() {
-        lightCtx.drawImage(video, 0, 0, lightCanvas.width, lightCanvas.height);
-        let imageData = lightCtx.getImageData(0, 0, lightCanvas.width, lightCanvas.height).data;
-        let brightness = imageData.reduce((a, b) => a + b) / (imageData.length / 3);
-        if ((stage === 2 && brightness > 150) || (stage === 7 && brightness > 180)) {
-          progress += 0.05;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        }
-        requestAnimationFrame(checkBrightness);
-      }
-      checkBrightness();
-    });
-
-    // Etapa 4: Tacto (nutrir)
-    let touches = 0;
-    canvas.addEventListener('touchstart', () => {
-      if (stage === 4) {
-        touches++;
-        progress = touches / 5; // 5 toques para completar
-        updateProgressBar();
-        if (touches >= 5) nextStage();
-      } else if (stage === 9) { // Cosechar
-        progress += 0.2;
-        updateProgressBar();
-        if (progress >= 1) nextStage();
-      }
-    });
-
-    // Etapa 6: Inclinación (podar)
-    window.addEventListener('deviceorientation', (event) => {
-      if (stage === 5) {
-        if (Math.abs(event.beta) > 30) { // Inclinación en X
-          progress += 0.1;
-          updateProgressBar();
-          if (progress >= 1) nextStage();
-        }
-      }
-    });
-
-    drawTree();
-    updateProgressBar(); // Inicia la barra en 0%
-  </script>
-</body>
-</html>
+  }
+}, { passive: true });
