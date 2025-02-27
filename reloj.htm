@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Relojes de Arena</title>
+    <style>
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 50px;
+        }
+        .sandglass {
+            width: 100px;
+            height: 300px;
+            border: 2px solid #333;
+            position: relative;
+            cursor: pointer;
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+        .progress {
+            width: 100%;
+            background: #87aqua;
+            position: absolute;
+            top: 0;
+            transition: height 0.1s linear;
+        }
+        .label {
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sandglass" id="sandglass1" onclick="toggleSandglass(1)">
+            <div class="progress" id="progress1"></div>
+        </div>
+        <div class="sandglass" id="sandglass2" onclick="toggleSandglass(2)">
+            <div class="progress" id="progress2"></div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="label">10 segundos</div>
+        <div class="label">7 segundos</div>
+    </div>
+
+    <script>
+        const sandglass1 = {
+            duration: 10000, // 10 segundos en milisegundos
+            element: document.getElementById('progress1'),
+            isPaused: false,
+            startTime: null,
+            remaining: 10000,
+            interval: null
+        };
+
+        const sandglass2 = {
+            duration: 7000, // 7 segundos en milisegundos
+            element: document.getElementById('progress2'),
+            isPaused: false,
+            startTime: null,
+            remaining: 7000,
+            interval: null
+        };
+
+        function startSandglass(sandglass) {
+            if (!sandglass.interval) {
+                sandglass.startTime = Date.now();
+                sandglass.interval = setInterval(() => updateSandglass(sandglass), 100);
+            }
+        }
+
+        function updateSandglass(sandglass) {
+            if (!sandglass.isPaused) {
+                const elapsed = Date.now() - sandglass.startTime;
+                const remaining = Math.max(0, sandglass.remaining - elapsed);
+                const percentage = (remaining / sandglass.duration) * 100;
+                sandglass.element.style.height = percentage + '%';
+
+                if (remaining <= 0) {
+                    clearInterval(sandglass.interval);
+                    sandglass.interval = null;
+                }
+            }
+        }
+
+        function pauseSandglass(sandglass) {
+            if (sandglass.interval) {
+                clearInterval(sandglass.interval);
+                sandglass.interval = null;
+                const elapsed = Date.now() - sandglass.startTime;
+                sandglass.remaining = Math.max(0, sandglass.remaining - elapsed);
+            }
+        }
+
+        function resetSandglass(sandglass) {
+            if (sandglass.interval) {
+                clearInterval(sandglass.interval);
+                sandglass.interval = null;
+            }
+            sandglass.isPaused = false;
+            sandglass.remaining = sandglass.duration;
+            sandglass.element.style.height = '100%';
+            startSandglass(sandglass);
+        }
+
+        function toggleSandglass(id) {
+            const sandglass = id === 1 ? sandglass1 : sandglass2;
+            
+            if (!sandglass.interval && sandglass.remaining === sandglass.duration) {
+                startSandglass(sandglass);
+            } else if (!sandglass.isPaused) {
+                sandglass.isPaused = true;
+                pauseSandglass(sandglass);
+            } else {
+                resetSandglass(sandglass);
+            }
+        }
+
+        startSandglass(sandglass1);
+        startSandglass(sandglass2);
+    </script>
+</body>
+</html>
