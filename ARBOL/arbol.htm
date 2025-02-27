@@ -68,16 +68,18 @@
 
     function showSuccessAndNext() {
       instructions.textContent = "¡Lo lograste!";
-      progress = 1; // Barra al 100%
+      progress = 1;
       updateProgressBar();
       setTimeout(() => {
-        stage++;
-        progress = 0;
-        updateProgressBar();
+        stage++; // Incrementa solo una vez
         if (stage < stages.length) {
+          progress = 0;
+          updateProgressBar();
           instructions.textContent = stages[stage];
           drawTree();
         } else {
+          progress = 0;
+          updateProgressBar();
           instructions.textContent = "¡Felicidades! Cosechaste los limones.";
         }
       }, 1500); // 1.5 segundos de retraso
@@ -106,7 +108,7 @@
       }
     }
 
-    // Iniciar detección de movimiento
+    // Iniciar detección de movimiento (Etapa 1)
     function startMotionDetection() {
       let shakes = 0;
       window.addEventListener('devicemotion', (event) => {
@@ -131,7 +133,7 @@
       }, { passive: true });
     }
 
-    // Etapa 2: Sonido (regar)
+    // Iniciar detección de sonido (Etapa 2)
     function startSoundDetection() {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
@@ -147,7 +149,7 @@
               analyser.getByteFrequencyData(dataArray);
               let volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
               instructions.textContent = `Riega la planta - Volumen: ${volume.toFixed(2)}`;
-              if (volume > 30) { // Umbral más bajo para iPhone
+              if (volume > 30) {
                 progress += 0.1;
                 updateProgressBar();
                 if (progress >= 1) {
@@ -167,7 +169,7 @@
         });
     }
 
-    // Botón para permisos de movimiento
+    // Botón para permisos de movimiento y sonido
     requestButton.addEventListener('click', () => {
       requestMotionPermission();
       startSoundDetection(); // Inicia sonido después de movimiento
