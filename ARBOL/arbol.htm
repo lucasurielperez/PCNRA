@@ -6,19 +6,26 @@
   <title>Limonero Interactivo</title>
   <style>
     body { margin: 0; font-family: Arial, sans-serif; }
-    canvas { width: 100%; height: 80vh; display: block; }
+    canvas { width: 100%; height: 70vh; display: block; } /* Reducimos altura para la barra */
     #instructions { text-align: center; font-size: 1.2em; padding: 10px; }
+    #progress-container { width: 80%; margin: 10px auto; }
+    #progress-bar { width: 0%; height: 20px; background-color: #4CAF50; transition: width 0.3s; }
+    #progress-container { border: 2px solid #333; border-radius: 5px; }
   </style>
 </head>
 <body>
   <canvas id="treeCanvas"></canvas>
   <div id="instructions">Ara la tierra moviendo el celular</div>
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
   <script>
     const canvas = document.getElementById('treeCanvas');
     const ctx = canvas.getContext('2d');
     const instructions = document.getElementById('instructions');
+    const progressBar = document.getElementById('progress-bar');
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight * 0.8;
+    canvas.height = window.innerHeight * 0.7;
 
     let stage = 0;
     let progress = 0;
@@ -51,9 +58,14 @@
       }
     }
 
+    function updateProgressBar() {
+      progressBar.style.width = `${Math.min(progress * 100, 100)}%`; // Actualiza la barra
+    }
+
     function nextStage() {
       stage++;
       progress = 0;
+      updateProgressBar();
       if (stage < stages.length) {
         instructions.textContent = stages[stage];
         drawTree();
@@ -68,19 +80,24 @@
       if (stage === 0) {
         if (Math.abs(event.acceleration.x) > 5 || Math.abs(event.acceleration.y) > 5) {
           shakes++;
-          if (shakes > 10) nextStage();
+          progress = shakes / 10; // 10 sacudidas para completar
+          updateProgressBar();
+          if (shakes >= 10) nextStage();
         }
       } else if (stage === 8) { // Polinizar
         if (Math.abs(event.acceleration.x) > 3) {
           progress += 0.1;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         }
       } else if (stage === 3) { // Proteger del viento
         if (Math.abs(event.acceleration.x) < 1 && Math.abs(event.acceleration.y) < 1) {
           progress += 0.01;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         } else {
           progress = 0;
+          updateProgressBar();
         }
       }
     });
@@ -97,9 +114,11 @@
         let volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
         if (stage === 1 && volume > 50) { // Regar
           progress += 0.1;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         } else if (stage === 6 && volume > 80) { // Plagas
           progress += 0.2;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         }
         requestAnimationFrame(checkSound);
@@ -122,6 +141,7 @@
         let brightness = imageData.reduce((a, b) => a + b) / (imageData.length / 3);
         if ((stage === 2 && brightness > 150) || (stage === 7 && brightness > 180)) {
           progress += 0.05;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         }
         requestAnimationFrame(checkBrightness);
@@ -134,9 +154,12 @@
     canvas.addEventListener('touchstart', () => {
       if (stage === 4) {
         touches++;
+        progress = touches / 5; // 5 toques para completar
+        updateProgressBar();
         if (touches >= 5) nextStage();
       } else if (stage === 9) { // Cosechar
         progress += 0.2;
+        updateProgressBar();
         if (progress >= 1) nextStage();
       }
     });
@@ -146,12 +169,14 @@
       if (stage === 5) {
         if (Math.abs(event.beta) > 30) { // Inclinación en X
           progress += 0.1;
+          updateProgressBar();
           if (progress >= 1) nextStage();
         }
       }
     });
 
     drawTree();
+    updateProgressBar(); // Inicia la barra en 0%
   </script>
 </body>
 </html>
