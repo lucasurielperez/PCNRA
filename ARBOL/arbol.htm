@@ -63,41 +63,42 @@
     }
 
     function updateProgressBar() {
-      progressBar.style.width = `${Math.min(progress * 100, 100)}%`; // Actualiza la barra
+      progressBar.style.width = `${Math.min(progress * 100, 100)}%`;
     }
 
-    function nextStage() {
-      stage++;
-      progress = 0;
+    function showSuccessAndNext() {
+      instructions.textContent = "¡Lo lograste!";
+      progress = 1; // Barra al 100%
       updateProgressBar();
-      if (stage < stages.length) {
-        instructions.textContent = stages[stage];
-        drawTree();
-      } else {
-        instructions.textContent = "¡Felicidades! Cosechaste los limones.";
-      }
+      setTimeout(() => {
+        stage++;
+        progress = 0;
+        updateProgressBar();
+        if (stage < stages.length) {
+          instructions.textContent = stages[stage];
+          drawTree();
+        } else {
+          instructions.textContent = "¡Felicidades! Cosechaste los limones.";
+        }
+      }, 1500); // 1.5 segundos de retraso
     }
 
     // Solicitar permiso para sensores en iOS
     function requestMotionPermission() {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        // iOS 13+
         DeviceMotionEvent.requestPermission()
           .then(permissionState => {
             if (permissionState === 'granted') {
               motionPermissionGranted = true;
               instructions.textContent = stages[0];
-              requestButton.style.display = 'none'; // Oculta el botón
+              requestButton.style.display = 'none';
               startMotionDetection();
             } else {
               instructions.textContent = "Permiso denegado. Habilítalo en Ajustes > Safari.";
             }
           })
-          .catch(err => {
-            instructions.textContent = "Error al pedir permiso: " + err.message;
-          });
+          .catch(err => instructions.textContent = "Error: " + err.message);
       } else {
-        // Android o navegadores sin permiso explícito
         motionPermissionGranted = true;
         instructions.textContent = stages[0];
         requestButton.style.display = 'none';
@@ -114,27 +115,63 @@
             instructions.textContent = "No se detecta aceleración.";
             return;
           }
-
           const accX = event.acceleration.x || 0;
           const accY = event.acceleration.y || 0;
           const accZ = event.acceleration.z || 0;
-
           instructions.textContent = `Ara la tierra - X: ${accX.toFixed(2)}, Y: ${accY.toFixed(2)}, Z: ${accZ.toFixed(2)}`;
-
           if (Math.abs(accX) > 3 || Math.abs(accY) > 3 || Math.abs(accZ) > 3) {
             shakes++;
-            progress = shakes / 10; // 10 sacudidas
+            progress = shakes / 10;
             updateProgressBar();
             if (shakes >= 10) {
-              nextStage();
+              showSuccessAndNext();
             }
           }
         }
       }, { passive: true });
     }
 
-    // Botón para solicitar permiso
-    requestButton.addEventListener('click', requestMotionPermission);
+    // Etapa 2: Sonido (regar)
+    function startSoundDetection() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          const audioContext = new AudioContext();
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 2048; // Tamaño de la muestra
+          source.connect(analyser);
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+          function checkSound() {
+            if (stage === 1) {
+              analyser.getByteFrequencyData(dataArray);
+              let volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+              instructions.textContent = `Riega la planta - Volumen: ${volume.toFixed(2)}`;
+              if (volume > 30) { // Umbral más bajo para iPhone
+                progress += 0.1;
+                updateProgressBar();
+                if (progress >= 1) {
+                  showSuccessAndNext();
+                }
+              }
+            }
+            requestAnimationFrame(checkSound);
+          }
+          checkSound();
+        })
+        .catch(err => {
+          instructions.textContent = "Error con el micrófono: " + err.message;
+          if (err.name === "NotAllowedError") {
+            instructions.textContent = "Permiso de micrófono denegado. Habilítalo en Ajustes.";
+          }
+        });
+    }
+
+    // Botón para permisos de movimiento
+    requestButton.addEventListener('click', () => {
+      requestMotionPermission();
+      startSoundDetection(); // Inicia sonido después de movimiento
+    });
 
     drawTree();
     updateProgressBar();
