@@ -11,11 +11,13 @@
     #progress-container { width: 80%; margin: 10px auto; }
     #progress-bar { width: 0%; height: 20px; background-color: #4CAF50; transition: width 0.3s; }
     #progress-container { border: 2px solid #333; border-radius: 5px; }
+    #request-permission { display: block; margin: 20px auto; padding: 10px; font-size: 1em; }
   </style>
 </head>
 <body>
   <canvas id="treeCanvas"></canvas>
-  <div id="instructions">Ara la tierra moviendo el celular</div>
+  <div id="instructions">Haz clic para permitir el sensor de movimiento</div>
+  <button id="request-permission">Permitir movimiento</button>
   <div id="progress-container">
     <div id="progress-bar"></div>
   </div>
@@ -24,11 +26,13 @@
     const ctx = canvas.getContext('2d');
     const instructions = document.getElementById('instructions');
     const progressBar = document.getElementById('progress-bar');
+    const requestButton = document.getElementById('request-permission');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight * 0.7;
 
     let stage = 0;
     let progress = 0;
+    let motionPermissionGranted = false;
     const stages = [
       "Ara la tierra moviendo el celular",
       "Riega la planta con ruido de agua",
@@ -74,38 +78,66 @@
       }
     }
 
-    // Etapa 1: Movimiento (arar)
-    let shakes = 0;
-    window.addEventListener('devicemotion', (event) => {
-      if (stage === 0) {
-        // Verifica si el evento tiene datos
-        if (!event.acceleration) {
-          instructions.textContent = "No se detecta aceleración. ¿Permisos habilitados?";
-          return;
-        }
+    // Solicitar permiso para sensores en iOS
+    function requestMotionPermission() {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        // iOS 13+
+        DeviceMotionEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              motionPermissionGranted = true;
+              instructions.textContent = stages[0];
+              requestButton.style.display = 'none'; // Oculta el botón
+              startMotionDetection();
+            } else {
+              instructions.textContent = "Permiso denegado. Habilítalo en Ajustes > Safari.";
+            }
+          })
+          .catch(err => {
+            instructions.textContent = "Error al pedir permiso: " + err.message;
+          });
+      } else {
+        // Android o navegadores sin permiso explícito
+        motionPermissionGranted = true;
+        instructions.textContent = stages[0];
+        requestButton.style.display = 'none';
+        startMotionDetection();
+      }
+    }
 
-        // Obtener valores de aceleración
-        const accX = event.acceleration.x || 0;
-        const accY = event.acceleration.y || 0;
-        const accZ = event.acceleration.z || 0;
+    // Iniciar detección de movimiento
+    function startMotionDetection() {
+      let shakes = 0;
+      window.addEventListener('devicemotion', (event) => {
+        if (stage === 0 && motionPermissionGranted) {
+          if (!event.acceleration) {
+            instructions.textContent = "No se detecta aceleración.";
+            return;
+          }
 
-        // Mostrar valores en pantalla para depurar
-        instructions.textContent = `Ara la tierra - X: ${accX.toFixed(2)}, Y: ${accY.toFixed(2)}, Z: ${accZ.toFixed(2)}`;
+          const accX = event.acceleration.x || 0;
+          const accY = event.acceleration.y || 0;
+          const accZ = event.acceleration.z || 0;
 
-        // Detectar movimiento significativo
-        if (Math.abs(accX) > 3 || Math.abs(accY) > 3 || Math.abs(accZ) > 3) { // Umbral reducido a 3
-          shakes++;
-          progress = shakes / 10; // 10 sacudidas para completar
-          updateProgressBar();
-          if (shakes >= 10) {
-            nextStage();
+          instructions.textContent = `Ara la tierra - X: ${accX.toFixed(2)}, Y: ${accY.toFixed(2)}, Z: ${accZ.toFixed(2)}`;
+
+          if (Math.abs(accX) > 3 || Math.abs(accY) > 3 || Math.abs(accZ) > 3) {
+            shakes++;
+            progress = shakes / 10; // 10 sacudidas
+            updateProgressBar();
+            if (shakes >= 10) {
+              nextStage();
+            }
           }
         }
-      }
-    }, { passive: true });
+      }, { passive: true });
+    }
+
+    // Botón para solicitar permiso
+    requestButton.addEventListener('click', requestMotionPermission);
 
     drawTree();
-    updateProgressBar(); // Inicia la barra en 0%
+    updateProgressBar();
   </script>
 </body>
 </html>
