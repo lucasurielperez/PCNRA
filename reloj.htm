@@ -21,9 +21,10 @@
         }
         .progress {
             width: 100%;
-            background: #87aqua;
+            background: #87CEEB;
             position: absolute;
             top: 0;
+            height: 100%; /* Comienza llena */
             transition: height 0.1s linear;
         }
         .label {
@@ -46,81 +47,4 @@
         <div class="label">7 segundos</div>
     </div>
 
-    <script>
-        const sandglass1 = {
-            duration: 10000, // 10 segundos en milisegundos
-            element: document.getElementById('progress1'),
-            isPaused: false,
-            startTime: null,
-            remaining: 10000,
-            interval: null
-        };
-
-        const sandglass2 = {
-            duration: 7000, // 7 segundos en milisegundos
-            element: document.getElementById('progress2'),
-            isPaused: false,
-            startTime: null,
-            remaining: 7000,
-            interval: null
-        };
-
-        function startSandglass(sandglass) {
-            if (!sandglass.interval) {
-                sandglass.startTime = Date.now();
-                sandglass.interval = setInterval(() => updateSandglass(sandglass), 100);
-            }
-        }
-
-        function updateSandglass(sandglass) {
-            if (!sandglass.isPaused) {
-                const elapsed = Date.now() - sandglass.startTime;
-                const remaining = Math.max(0, sandglass.remaining - elapsed);
-                const percentage = (remaining / sandglass.duration) * 100;
-                sandglass.element.style.height = percentage + '%';
-
-                if (remaining <= 0) {
-                    clearInterval(sandglass.interval);
-                    sandglass.interval = null;
-                }
-            }
-        }
-
-        function pauseSandglass(sandglass) {
-            if (sandglass.interval) {
-                clearInterval(sandglass.interval);
-                sandglass.interval = null;
-                const elapsed = Date.now() - sandglass.startTime;
-                sandglass.remaining = Math.max(0, sandglass.remaining - elapsed);
-            }
-        }
-
-        function resetSandglass(sandglass) {
-            if (sandglass.interval) {
-                clearInterval(sandglass.interval);
-                sandglass.interval = null;
-            }
-            sandglass.isPaused = false;
-            sandglass.remaining = sandglass.duration;
-            sandglass.element.style.height = '100%';
-            startSandglass(sandglass);
-        }
-
-        function toggleSandglass(id) {
-            const sandglass = id === 1 ? sandglass1 : sandglass2;
-            
-            if (!sandglass.interval && sandglass.remaining === sandglass.duration) {
-                startSandglass(sandglass);
-            } else if (!sandglass.isPaused) {
-                sandglass.isPaused = true;
-                pauseSandglass(sandglass);
-            } else {
-                resetSandglass(sandglass);
-            }
-        }
-
-        startSandglass(sandglass1);
-        startSandglass(sandglass2);
-    </script>
-</body>
-</html>
+    <​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
