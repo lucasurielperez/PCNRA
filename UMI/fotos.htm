@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Juego de Fotos con Cámara</title>
+    <style>
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 200px);
+            grid-template-rows: repeat(3, 150px);
+            gap: 10px;
+            margin: 20px auto;
+            width: 420px;
+        }
+
+        .cell {
+            border: 2px solid #ccc;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+
+        .cell.selected {
+            border: 2px solid #00f;
+        }
+
+        .photo-button {
+            display: block;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: white;
+            border: 2px solid #000;
+            margin: 20px auto;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .photo-button:hover {
+            background-color: #f0f0f0;
+        }
+
+        video, img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+    </div>
+    
+    <button class="photo-button" id="takePhoto">📸</button>
+
+    <script>
+        let selectedCell = null;
+        const cells = document.querySelectorAll('.cell');
+        const photoButton = document.getElementById('takePhoto');
+        let stream = null;
+        let video = null;
+
+        // Iniciar cámara
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+                
+                if (!video) {
+                    video = document.createElement('video');
+                    video.autoplay = true;
+                }
+                
+                video.srcObject = stream;
+            } catch (err) {
+                console.error('Error al acceder a la cámara:', err);
+                alert('No se pudo acceder a la cámara. Por favor, permite el acceso.');
+            }
+        }
+
+        // Detener cámara
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        // Seleccionar celda
+        cells.forEach(cell => {
+            cell.addEventListener('click', async function() {
+                if (selectedCell) {
+                    selectedCell.classList.remove('selected');
+                    if (selectedCell.contains(video)) {
+                        selectedCell.removeChild(video);
+                    }
+                }
+                
+                selectedCell = this;
+                selectedCell.classList.add('selected');
+                
+                if (!stream) {
+                    await startCamera();
+                }
+                
+                if (video && !selectedCell.contains(video)) {
+                    selectedCell.innerHTML = '';
+                    selectedCell.appendChild(video);
+                }
+            });
+        });
+
+        // Tomar foto
+        photoButton.addEventListener('click', function() {
+            if (!selectedCell || !video || !stream) {
+                alert('Por favor selecciona una celda y asegúrate de que la cámara esté activa');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png');
+            
+            selectedCell.innerHTML = '';
+            selectedCell.appendChild(img);
+            stopCamera();
+            video = null;
+        });
+
+        // Limpiar al cerrar la página
+        window.addEventListener('beforeunload', stopCamera);
+    </script>
+</body>
+</html>
