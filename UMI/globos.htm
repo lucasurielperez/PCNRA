@@ -12,6 +12,9 @@
             height: 100vh;
             position: fixed;
             touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .balloon-container {
             position: absolute;
@@ -22,6 +25,7 @@
             height: 105px;
             border-radius: 50%;
             position: relative;
+            transition: transform 1s ease-out; /* Animación de inflado */
         }
         .balloon::after {
             content: '';
@@ -62,10 +66,24 @@
             pointer-events: none;
             transition: transform 0.1s;
         }
+        #startButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            background-color: #FFD700;
+            border: 2px solid #FF8C00;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        #startButton:hover {
+            background-color: #FF8C00;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
+    <button id="startButton">Empezar</button>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -77,6 +95,7 @@
         let balloons = [];
         let eggs = [];
         let confetti = [];
+        let gameStarted = false;
 
         function darkenColor(hex) {
             let r = parseInt(hex.slice(1, 3), 16);
@@ -96,14 +115,19 @@
                 this.speedY = -2 - Math.random() * 2;
                 this.speedX = (Math.random() - 0.5) * 4;
                 this.scale = 1 + Math.random() * 0.5;
+                this.age = 0; // Edad en frames para la animación de inflado
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
                 const darkColor = darkenColor(this.color);
-                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; border: 1px solid ${darkColor}; transform: scale(${this.scale}); transform-origin: bottom;"></div><div class="string" style="height: ${60 * this.scale}px; bottom: ${-70 * this.scale}px;"></div>`;
+                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; border: 1px solid ${darkColor}; transform: scale(0); transform-origin: bottom;"></div><div class="string" style="height: ${60 * this.scale}px; bottom: ${-70 * this.scale}px;"></div>`;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
                 this.element.addEventListener('click', () => this.pop(), { once: true });
+                // Inflar en el próximo frame
+                setTimeout(() => {
+                    this.element.querySelector('.balloon').style.transform = `scale(${this.scale})`;
+                }, 0);
             }
 
             update() {
@@ -117,19 +141,19 @@
                 if (this.y < -105 * this.scale - 60 * this.scale) this.remove();
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
+                this.age++;
             }
 
             pop() {
-                // Vibración para el globo (corta y fuerte)
-                if ('vibrate' in navigator) {
-                    navigator.vibrate(100); // 100ms de vibración
-                }
                 for (let i = 0; i < 20; i++) {
                     confetti.push(new Confetti(this.x + (75 * this.scale) / 2, this.y + (105 * this.scale) / 2, this.color));
                 }
-                const eggCount = Math.floor(Math.random() * 3) + 1; // Entre 1 y 3 huevos
+                const eggCount = Math.floor(Math.random() * 3) + 1;
+                const centerX = this.x + (75 * this.scale) / 2;
+                const centerY = this.y + (105 * this.scale) / 2; // Centro del globo
                 for (let i = 0; i < eggCount && eggs.length + balloons.length < maxItems; i++) {
-                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15 + (i * 10 - 5), this.y + 105 * this.scale, colors[Math.floor(Math.random() * colors.length)]));
+                    const offsetX = (i - (eggCount - 1) / 2) * 20; // Separación de 20px entre huevos
+                    eggs.push(new Egg(centerX + offsetX - 15, centerY - 20, colors[Math.floor(Math.random() * colors.length)]));
                 }
                 this.remove();
             }
@@ -196,12 +220,8 @@
             }
 
             breakEgg() {
-                // Vibración para el huevo (larga y suave)
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([50, 50, 50]); // Patrón: 50ms on, 50ms off, 50ms on
-                }
                 if (eggs.length + balloons.length <= maxItems) {
-                    balloons.push(new Balloon(this.x, this.y, this.color)); // Globo del mismo color que el huevo
+                    balloons.push(new Balloon(this.x, this.y, this.color));
                 }
                 this.remove();
             }
@@ -256,7 +276,7 @@
             for (let i = 0; i < maxItems; i++) {
                 const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
                 const y = canvas.height - 40;
-                eggs.push(new Egg(x, y, colors[i % colors.length])); // Huevos iniciales de colores
+                eggs.push(new Egg(x, y, colors[i % colors.length]));
             }
         }
 
@@ -269,6 +289,8 @@
         }
 
         function gameLoop() {
+            if (!gameStarted) return;
+
             balloons.forEach(b => b.update());
             eggs.forEach(e => e.update());
             confetti.forEach(c => c.update());
@@ -280,10 +302,15 @@
             requestAnimationFrame(gameLoop);
         }
 
-        window.onload = () => {
-            spawnInitialEggs();
-            gameLoop();
-        };
+        const startButton = document.getElementById('startButton');
+        startButton.addEventListener('click', () => {
+            if (!gameStarted) {
+                gameStarted = true;
+                document.body.removeChild(startButton);
+                spawnInitialEggs();
+                gameLoop();
+            }
+        });
 
         window.onresize = () => {
             canvas.width = window.innerWidth;
