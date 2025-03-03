@@ -20,7 +20,7 @@
         .balloon {
             width: 75px;
             height: 105px;
-            border-radius: 50% 50% 20% 20% / 70% 70% 30% 30%;
+            border-radius: 50%; /* Misma forma que los huevos */
             position: relative;
         }
         .balloon::after {
@@ -39,9 +39,9 @@
         .string {
             position: absolute;
             width: 2px;
-            height: 45px;
+            height: 60px; /* Más largo que 45px */
             background: white;
-            bottom: -55px;
+            bottom: -70px; /* Ajustado para el nuevo tamaño */
             left: 50%;
             transform: translateX(-50%);
         }
@@ -51,6 +51,7 @@
             height: 40px;
             background: #FFF8DC;
             border-radius: 50%;
+            border: 1px solid black; /* Borde fino negro */
             cursor: pointer;
             transition: transform 0.1s;
         }
@@ -77,6 +78,17 @@
         let eggs = [];
         let confetti = [];
 
+        // Función para oscurecer un color
+        function darkenColor(hex) {
+            let r = parseInt(hex.slice(1, 3), 16);
+            let g = parseInt(hex.slice(3, 5), 16);
+            let b = parseInt(hex.slice(5, 7), 16);
+            r = Math.max(0, r - 50);
+            g = Math.max(0, g - 50);
+            b = Math.max(0, b - 50);
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+
         class Balloon {
             constructor(x, y, color) {
                 this.x = x;
@@ -87,7 +99,8 @@
                 this.scale = 1 + Math.random() * 0.5;
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
-                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; transform: scale(${this.scale}); transform-origin: bottom;"></div><div class="string" style="height: ${45 * this.scale}px; bottom: ${-55 * this.scale}px;"></div>`;
+                const darkColor = darkenColor(this.color);
+                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; border: 1px solid ${darkColor}; transform: scale(${this.scale}); transform-origin: bottom;"></div><div class="string" style="height: ${60 * this.scale}px; bottom: ${-70 * this.scale}px;"></div>`;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
@@ -102,7 +115,7 @@
                 const balloonWidth = 75 * this.scale;
                 if (this.x < 0) this.x = 0;
                 if (this.x > canvas.width - balloonWidth) this.x = canvas.width - balloonWidth;
-                if (this.y < -105 * this.scale - 45 * this.scale) this.remove();
+                if (this.y < -105 * this.scale - 60 * this.scale) this.remove();
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
             }
@@ -130,7 +143,7 @@
                 this.speedY = 0;
                 this.speedX = (Math.random() - 0.5) * 2;
                 this.rotation = 0;
-                this.rotSpeed = (Math.random() - 0.5) * 0.2; // Velocidad de rotación aleatoria
+                this.rotSpeed = (Math.random() - 0.5) * 0.2;
                 this.element = document.createElement('div');
                 this.element.className = 'egg';
                 this.element.style.left = `${this.x}px`;
@@ -146,9 +159,9 @@
                 this.speedX *= 0.98;
                 this.rotation += this.rotSpeed;
                 if (this.y < canvas.height - 40) {
-                    this.rotSpeed *= 0.99; // Reduce rotación gradualmente
+                    this.rotSpeed *= 0.99;
                 } else {
-                    this.rotSpeed *= 0.9; // Frena más al tocar el suelo
+                    this.rotSpeed *= 0.9;
                 }
 
                 if (this.x < 0) this.x = 0;
@@ -197,7 +210,6 @@
                 this.speedX = (Math.random() - 0.5) * 6;
                 this.speedY = (Math.random() - 0.5) * 6;
                 this.life = 60;
-                // Triángulo escaleno con lados aleatorios hasta 15px (3x5px)
                 const side1 = Math.random() * 15;
                 const side2 = Math.random() * 15;
                 const side3 = Math.random() * 15;
