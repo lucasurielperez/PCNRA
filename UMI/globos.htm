@@ -10,8 +10,8 @@
             overflow: hidden;
             background: #87CEEB;
             height: 100vh;
-            position: fixed; /* Evita desplazamiento */
-            touch-action: none; /* Bloquea gestos táctiles no deseados */
+            position: fixed;
+            touch-action: none;
         }
         .balloon-container {
             position: absolute;
@@ -20,7 +20,7 @@
         .balloon {
             width: 75px;
             height: 105px;
-            border-radius: 50% 50% 20% 20% / 70% 70% 30% 30%; /* Forma de pera invertida */
+            border-radius: 50% 50% 20% 20% / 70% 70% 30% 30%;
             position: relative;
         }
         .balloon::after {
@@ -52,6 +52,7 @@
             background: #FFF8DC;
             border-radius: 50%;
             cursor: pointer;
+            transition: transform 0.1s;
         }
         .confetti {
             position: absolute;
@@ -128,6 +129,8 @@
                 this.y = y;
                 this.speedY = 0;
                 this.speedX = (Math.random() - 0.5) * 2;
+                this.rotation = 0;
+                this.rotSpeed = (Math.random() - 0.5) * 0.2; // Velocidad de rotación aleatoria
                 this.element = document.createElement('div');
                 this.element.className = 'egg';
                 this.element.style.left = `${this.x}px`;
@@ -141,6 +144,12 @@
                 this.y += this.speedY;
                 this.x += this.speedX;
                 this.speedX *= 0.98;
+                this.rotation += this.rotSpeed;
+                if (this.y < canvas.height - 40) {
+                    this.rotSpeed *= 0.99; // Reduce rotación gradualmente
+                } else {
+                    this.rotSpeed *= 0.9; // Frena más al tocar el suelo
+                }
 
                 if (this.x < 0) this.x = 0;
                 if (this.x > canvas.width - 30) this.x = canvas.width - 30;
@@ -164,6 +173,7 @@
 
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
+                this.element.style.transform = `rotate(${this.rotation}rad)`;
             }
 
             breakEgg() {
@@ -187,10 +197,10 @@
                 this.speedX = (Math.random() - 0.5) * 6;
                 this.speedY = (Math.random() - 0.5) * 6;
                 this.life = 60;
-                // Triángulo escaleno con lados aleatorios hasta 5px
-                const side1 = Math.random() * 5;
-                const side2 = Math.random() * 5;
-                const side3 = Math.random() * 5;
+                // Triángulo escaleno con lados aleatorios hasta 15px (3x5px)
+                const side1 = Math.random() * 15;
+                const side2 = Math.random() * 15;
+                const side3 = Math.random() * 15;
                 this.element = document.createElement('div');
                 this.element.className = 'confetti';
                 this.element.style.borderWidth = `${side1}px ${side2}px ${side3}px 0`;
