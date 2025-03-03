@@ -20,7 +20,7 @@
         .balloon {
             width: 75px;
             height: 105px;
-            border-radius: 50%; /* Misma forma que los huevos */
+            border-radius: 50%;
             position: relative;
         }
         .balloon::after {
@@ -39,9 +39,9 @@
         .string {
             position: absolute;
             width: 2px;
-            height: 60px; /* Más largo que 45px */
+            height: 60px;
             background: white;
-            bottom: -70px; /* Ajustado para el nuevo tamaño */
+            bottom: -70px;
             left: 50%;
             transform: translateX(-50%);
         }
@@ -49,9 +49,8 @@
             position: absolute;
             width: 30px;
             height: 40px;
-            background: #FFF8DC;
             border-radius: 50%;
-            border: 1px solid black; /* Borde fino negro */
+            border: 1px solid black;
             cursor: pointer;
             transition: transform 0.1s;
         }
@@ -61,6 +60,7 @@
             height: 0;
             border-style: solid;
             pointer-events: none;
+            transition: transform 0.1s;
         }
     </style>
 </head>
@@ -72,13 +72,12 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#FFFF33'];
+        const colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#FFFF33', '#FF8C00', '#00CED1', '#FF1493', '#8A2BE2', '#FFD700'];
         const maxItems = 10;
         let balloons = [];
         let eggs = [];
         let confetti = [];
 
-        // Función para oscurecer un color
         function darkenColor(hex) {
             let r = parseInt(hex.slice(1, 3), 16);
             let g = parseInt(hex.slice(3, 5), 16);
@@ -125,7 +124,7 @@
                     confetti.push(new Confetti(this.x + (75 * this.scale) / 2, this.y + (105 * this.scale) / 2, this.color));
                 }
                 if (eggs.length + balloons.length < maxItems) {
-                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15, this.y + 105 * this.scale));
+                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15, this.y + 105 * this.scale, colors[Math.floor(Math.random() * colors.length)]));
                 }
                 this.remove();
             }
@@ -137,15 +136,17 @@
         }
 
         class Egg {
-            constructor(x, y) {
+            constructor(x, y, color = '#FFF8DC') {
                 this.x = x;
                 this.y = y;
+                this.color = color;
                 this.speedY = 0;
                 this.speedX = (Math.random() - 0.5) * 2;
                 this.rotation = 0;
                 this.rotSpeed = (Math.random() - 0.5) * 0.2;
                 this.element = document.createElement('div');
                 this.element.className = 'egg';
+                this.element.style.backgroundColor = this.color;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
@@ -210,6 +211,8 @@
                 this.speedX = (Math.random() - 0.5) * 6;
                 this.speedY = (Math.random() - 0.5) * 6;
                 this.life = 60;
+                this.rotation = 0;
+                this.rotSpeed = (Math.random() - 0.5) * 0.3;
                 const side1 = Math.random() * 15;
                 const side2 = Math.random() * 15;
                 const side3 = Math.random() * 15;
@@ -226,10 +229,12 @@
                 this.x += this.speedX;
                 this.y += this.speedY;
                 this.speedY += 0.1;
+                this.rotation += this.rotSpeed;
                 this.life--;
                 if (this.life <= 0) this.remove();
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
+                this.element.style.transform = `rotate(${this.rotation}rad)`;
             }
 
             remove() {
@@ -242,7 +247,15 @@
             for (let i = 0; i < maxItems; i++) {
                 const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
                 const y = canvas.height - 40;
-                eggs.push(new Egg(x, y));
+                eggs.push(new Egg(x, y, '#FFF8DC')); // Huevos iniciales en blanco
+            }
+        }
+
+        function spawnColoredEggs() {
+            for (let i = 0; i < maxItems; i++) {
+                const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
+                const y = canvas.height - 40;
+                eggs.push(new Egg(x, y, colors[i % colors.length])); // Huevos de colores
             }
         }
 
@@ -250,6 +263,12 @@
             balloons.forEach(b => b.update());
             eggs.forEach(e => e.update());
             confetti.forEach(c => c.update());
+
+            // Si no hay globos ni huevos, reaparecen 10 huevos de colores
+            if (balloons.length === 0 && eggs.length === 0 && confetti.length === 0) {
+                spawnColoredEggs();
+            }
+
             requestAnimationFrame(gameLoop);
         }
 
