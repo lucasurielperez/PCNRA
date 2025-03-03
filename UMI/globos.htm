@@ -10,17 +10,17 @@
             overflow: hidden;
             background: #87CEEB;
             height: 100vh;
-            position: relative;
-            touch-action: manipulation; /* Previene zoom en móviles */
+            position: fixed; /* Evita desplazamiento */
+            touch-action: none; /* Bloquea gestos táctiles no deseados */
         }
         .balloon-container {
             position: absolute;
             cursor: pointer;
         }
         .balloon {
-            width: 75px; /* 50% más grande que 50px */
-            height: 105px; /* 50% más grande que 70px */
-            border-radius: 50% 50% 30% 30%; /* Más hinchado arriba */
+            width: 75px;
+            height: 105px;
+            border-radius: 50% 50% 20% 20% / 70% 70% 30% 30%; /* Forma de pera invertida */
             position: relative;
         }
         .balloon::after {
@@ -39,9 +39,9 @@
         .string {
             position: absolute;
             width: 2px;
-            height: 45px; /* 50% más largo que 30px */
+            height: 45px;
             background: white;
-            bottom: -55px; /* Ajustado para el nuevo tamaño */
+            bottom: -55px;
             left: 50%;
             transform: translateX(-50%);
         }
@@ -55,8 +55,9 @@
         }
         .confetti {
             position: absolute;
-            width: 5px;
-            height: 5px;
+            width: 0;
+            height: 0;
+            border-style: solid;
             pointer-events: none;
         }
     </style>
@@ -82,7 +83,7 @@
                 this.color = color;
                 this.speedY = -2 - Math.random() * 2;
                 this.speedX = (Math.random() - 0.5) * 4;
-                this.scale = 1 + Math.random() * 0.5; // Entre 1x y 1.5x
+                this.scale = 1 + Math.random() * 0.5;
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
                 this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; transform: scale(${this.scale}); transform-origin: bottom;"></div><div class="string" style="height: ${45 * this.scale}px; bottom: ${-55 * this.scale}px;"></div>`;
@@ -95,7 +96,7 @@
             update() {
                 this.x += this.speedX;
                 this.y += this.speedY;
-                this.speedX += (Math.random() - 0.5) * 0.5; // Viento aleatorio
+                this.speedX += (Math.random() - 0.5) * 0.5;
                 this.speedX = Math.max(-3, Math.min(3, this.speedX));
                 const balloonWidth = 75 * this.scale;
                 if (this.x < 0) this.x = 0;
@@ -136,7 +137,7 @@
             }
 
             update() {
-                this.speedY += 0.3; // Gravedad
+                this.speedY += 0.3;
                 this.y += this.speedY;
                 this.x += this.speedX;
                 this.speedX *= 0.98;
@@ -186,9 +187,14 @@
                 this.speedX = (Math.random() - 0.5) * 6;
                 this.speedY = (Math.random() - 0.5) * 6;
                 this.life = 60;
+                // Triángulo escaleno con lados aleatorios hasta 5px
+                const side1 = Math.random() * 5;
+                const side2 = Math.random() * 5;
+                const side3 = Math.random() * 5;
                 this.element = document.createElement('div');
                 this.element.className = 'confetti';
-                this.element.style.backgroundColor = this.color;
+                this.element.style.borderWidth = `${side1}px ${side2}px ${side3}px 0`;
+                this.element.style.borderColor = `${this.color} transparent transparent transparent`;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
@@ -230,7 +236,6 @@
             gameLoop();
         };
 
-        // Ajustar canvas al cambiar tamaño de ventana
         window.onresize = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
