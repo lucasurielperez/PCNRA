@@ -120,11 +120,16 @@
             }
 
             pop() {
+                // Vibración para el globo (corta y fuerte)
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(100); // 100ms de vibración
+                }
                 for (let i = 0; i < 20; i++) {
                     confetti.push(new Confetti(this.x + (75 * this.scale) / 2, this.y + (105 * this.scale) / 2, this.color));
                 }
-                if (eggs.length + balloons.length < maxItems) {
-                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15, this.y + 105 * this.scale, colors[Math.floor(Math.random() * colors.length)]));
+                const eggCount = Math.floor(Math.random() * 3) + 1; // Entre 1 y 3 huevos
+                for (let i = 0; i < eggCount && eggs.length + balloons.length < maxItems; i++) {
+                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15 + (i * 10 - 5), this.y + 105 * this.scale, colors[Math.floor(Math.random() * colors.length)]));
                 }
                 this.remove();
             }
@@ -136,7 +141,7 @@
         }
 
         class Egg {
-            constructor(x, y, color = '#FFF8DC') {
+            constructor(x, y, color) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
@@ -191,8 +196,12 @@
             }
 
             breakEgg() {
+                // Vibración para el huevo (larga y suave)
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([50, 50, 50]); // Patrón: 50ms on, 50ms off, 50ms on
+                }
                 if (eggs.length + balloons.length <= maxItems) {
-                    balloons.push(new Balloon(this.x, this.y, colors[Math.floor(Math.random() * colors.length)]));
+                    balloons.push(new Balloon(this.x, this.y, this.color)); // Globo del mismo color que el huevo
                 }
                 this.remove();
             }
@@ -247,7 +256,7 @@
             for (let i = 0; i < maxItems; i++) {
                 const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
                 const y = canvas.height - 40;
-                eggs.push(new Egg(x, y, '#FFF8DC')); // Huevos iniciales en blanco
+                eggs.push(new Egg(x, y, colors[i % colors.length])); // Huevos iniciales de colores
             }
         }
 
@@ -255,7 +264,7 @@
             for (let i = 0; i < maxItems; i++) {
                 const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
                 const y = canvas.height - 40;
-                eggs.push(new Egg(x, y, colors[i % colors.length])); // Huevos de colores
+                eggs.push(new Egg(x, y, colors[i % colors.length]));
             }
         }
 
@@ -264,7 +273,6 @@
             eggs.forEach(e => e.update());
             confetti.forEach(c => c.update());
 
-            // Si no hay globos ni huevos, reaparecen 10 huevos de colores
             if (balloons.length === 0 && eggs.length === 0 && confetti.length === 0) {
                 spawnColoredEggs();
             }
