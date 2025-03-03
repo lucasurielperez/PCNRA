@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Juego de Globos y Huevos</title>
     <style>
         body {
@@ -11,15 +11,16 @@
             background: #87CEEB;
             height: 100vh;
             position: relative;
+            touch-action: manipulation; /* Previene zoom en móviles */
         }
         .balloon-container {
             position: absolute;
             cursor: pointer;
         }
         .balloon {
-            width: 50px;
-            height: 70px;
-            border-radius: 50% 50% 40% 40%;
+            width: 75px; /* 50% más grande que 50px */
+            height: 105px; /* 50% más grande que 70px */
+            border-radius: 50% 50% 30% 30%; /* Más hinchado arriba */
             position: relative;
         }
         .balloon::after {
@@ -38,9 +39,9 @@
         .string {
             position: absolute;
             width: 2px;
-            height: 30px;
+            height: 45px; /* 50% más largo que 30px */
             background: white;
-            bottom: -40px;
+            bottom: -55px; /* Ajustado para el nuevo tamaño */
             left: 50%;
             transform: translateX(-50%);
         }
@@ -81,9 +82,10 @@
                 this.color = color;
                 this.speedY = -2 - Math.random() * 2;
                 this.speedX = (Math.random() - 0.5) * 4;
+                this.scale = 1 + Math.random() * 0.5; // Entre 1x y 1.5x
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
-                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color};"></div><div class="string"></div>`;
+                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; transform: scale(${this.scale}); transform-origin: bottom;"></div><div class="string" style="height: ${45 * this.scale}px; bottom: ${-55 * this.scale}px;"></div>`;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
@@ -94,19 +96,21 @@
                 this.x += this.speedX;
                 this.y += this.speedY;
                 this.speedX += (Math.random() - 0.5) * 0.5; // Viento aleatorio
-                this.speedX = Math.max(-3, Math.min(3, this.speedX)); // Limitar velocidad horizontal
-                if (this.x < 0 || this.x > canvas.width - 50) this.speedX *= -0.8;
-                if (this.y < -100) this.remove();
+                this.speedX = Math.max(-3, Math.min(3, this.speedX));
+                const balloonWidth = 75 * this.scale;
+                if (this.x < 0) this.x = 0;
+                if (this.x > canvas.width - balloonWidth) this.x = canvas.width - balloonWidth;
+                if (this.y < -105 * this.scale - 45 * this.scale) this.remove();
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
             }
 
             pop() {
                 for (let i = 0; i < 20; i++) {
-                    confetti.push(new Confetti(this.x + 25, this.y + 35, this.color));
+                    confetti.push(new Confetti(this.x + (75 * this.scale) / 2, this.y + (105 * this.scale) / 2, this.color));
                 }
                 if (eggs.length + balloons.length < maxItems) {
-                    eggs.push(new Egg(this.x + 10, this.y + 50));
+                    eggs.push(new Egg(this.x + (75 * this.scale) / 2 - 15, this.y + 105 * this.scale));
                 }
                 this.remove();
             }
@@ -135,12 +139,13 @@
                 this.speedY += 0.3; // Gravedad
                 this.y += this.speedY;
                 this.x += this.speedX;
-                this.speedX *= 0.98; // Fricción horizontal
+                this.speedX *= 0.98;
 
-                if (this.x < 0 || this.x > canvas.width - 30) this.speedX *= -0.8;
+                if (this.x < 0) this.x = 0;
+                if (this.x > canvas.width - 30) this.x = canvas.width - 30;
                 if (this.y > canvas.height - 40) {
                     this.y = canvas.height - 40;
-                    this.speedY *= -0.5; // Rebote
+                    this.speedY *= -0.5;
                     this.speedX *= 0.9;
                 }
 
@@ -207,8 +212,8 @@
 
         function spawnInitialEggs() {
             for (let i = 0; i < maxItems; i++) {
-                const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15; // Distribución uniforme
-                const y = canvas.height - 40; // En el suelo
+                const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15;
+                const y = canvas.height - 40;
                 eggs.push(new Egg(x, y));
             }
         }
@@ -220,10 +225,15 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Asegurar que el canvas esté listo antes de spawnear huevos
         window.onload = () => {
             spawnInitialEggs();
             gameLoop();
+        };
+
+        // Ajustar canvas al cambiar tamaño de ventana
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         };
     </script>
 </body>
