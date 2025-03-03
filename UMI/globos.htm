@@ -102,7 +102,7 @@
             }
 
             pop() {
-                for (let i = 0; i < 20; i++) { // Doble de confeti
+                for (let i = 0; i < 20; i++) {
                     confetti.push(new Confetti(this.x + 25, this.y + 35, this.color));
                 }
                 if (eggs.length + balloons.length < maxItems) {
@@ -186,7 +186,6 @@
                 this.element.style.backgroundColor = this.color;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
-                document.body.appendChild(this.elementrestrictive CSS ensures proper positioning
                 document.body.appendChild(this.element);
             }
 
@@ -208,8 +207,8 @@
 
         function spawnInitialEggs() {
             for (let i = 0; i < maxItems; i++) {
-                const x = Math.random() * (canvas.width - 30);
-                const y = canvas.height - 40; // Empiezan en el suelo
+                const x = (canvas.width / (maxItems + 1)) * (i + 1) - 15; // Distribución uniforme
+                const y = canvas.height - 40; // En el suelo
                 eggs.push(new Egg(x, y));
             }
         }
@@ -221,8 +220,11 @@
             requestAnimationFrame(gameLoop);
         }
 
-        spawnInitialEggs(); // Iniciar con 10 huevos
-        gameLoop();
+        // Asegurar que el canvas esté listo antes de spawnear huevos
+        window.onload = () => {
+            spawnInitialEggs();
+            gameLoop();
+        };
     </script>
 </body>
 </html>
