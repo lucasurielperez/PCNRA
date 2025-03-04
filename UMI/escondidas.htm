@@ -44,11 +44,11 @@
         // Tamaño del nene y escondites ajustados
         const kidSize = 100; // Tamaño base del nene
         const objects = [
-            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3, hidden: false },
+            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3 * 0.5, hidden: false }, // Pelota 50% más chica
             { draw: drawTree, x: 0, y: 0, size: kidSize * 1.5, hidden: false },
             { draw: drawHouse, x: 0, y: 0, size: kidSize * 1.6, hidden: false },
-            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4, hidden: false },
-            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5, hidden: false },
+            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4 * 2, hidden: false }, // Tele 100% más grande
+            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5 * 2, hidden: false }, // Cama 100% más grande
             { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 1.5, hidden: false }
         ];
 
@@ -164,7 +164,7 @@
                 const dx = x - obj.x;
                 const dy = y - obj.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < (size + obj.size) * 0.7) return true; // Margen ajustado
+                if (distance < (size + obj.size) * 0.7) return true;
             }
             return false;
         }
