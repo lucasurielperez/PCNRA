@@ -83,7 +83,7 @@
 </head>
 <body>
     <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
-    <button id="startButton">Empezar v1.0</button>
+    <button id="startButton">Empezar v1.1</button>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -120,14 +120,16 @@
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
                 const darkColor = darkenColor(this.color);
-                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; border: 1px solid ${darkColor}; transform: scale(0); transform-origin: bottom;"></div><div class="string" style="height: ${60 * this.scale}px; bottom: ${-70 * this.scale}px;"></div>`;
+                // Inicia al 20% del tamaño final
+                this.element.innerHTML = `<div class="balloon" style="background-color: ${this.color}; border: 1px solid ${darkColor}; transform: scale(${this.scale * 0.2}); transform-origin: bottom;"></div><div class="string" style="height: ${60 * this.scale}px; bottom: ${-70 * this.scale}px;"></div>`;
                 this.element.style.left = `${this.x}px`;
                 this.element.style.top = `${this.y}px`;
                 document.body.appendChild(this.element);
                 this.element.addEventListener('click', () => this.pop(), { once: true });
-                setTimeout(() => {
+                // Infla al tamaño final inmediatamente
+                requestAnimationFrame(() => {
                     this.element.querySelector('.balloon').style.transform = `scale(${this.scale})`;
-                }, 0);
+                });
             }
 
             update() {
@@ -225,8 +227,8 @@
             }
 
             breakEgg() {
-                const balloonCount = balloons.length;
-                if (balloonCount < maxItems - eggs.length) {
+                const totalItems = eggs.length + balloons.length;
+                if (totalItems < maxItems) { // Asegurar espacio para el globo
                     const newBalloon = new Balloon(this.x, this.y, this.color);
                     balloons.push(newBalloon);
                 }
