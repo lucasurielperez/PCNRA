@@ -7,17 +7,36 @@
         body {
             margin: 0;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
         }
         canvas {
-            display: block;
+            display: none; /* Oculto hasta que se inicie el juego */
+        }
+        #startButton {
+            font-size: 24px;
+            padding: 20px 40px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        #startButton:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
+    <button id="startButton">Comenzar</button>
     <canvas id="gameCanvas"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
 
         // Ajustar canvas al tamaño de la pantalla
         canvas.width = window.innerWidth;
@@ -35,8 +54,9 @@
 
         let kid = { x: 0, y: 0, size: 100, dancing: false, angle: 0 };
         let hidingObject = null;
+        let gameStarted = false;
 
-        // Funciones de dibujo (adaptadas para tamaños mayores)
+        // Funciones de dibujo (sin cambios en estas)
         function drawBeachBall(x, y, size) {
             ctx.save();
             ctx.beginPath();
@@ -81,8 +101,7 @@
             ctx.fill();
             ctx.closePath();
             ctx.fillStyle = '#DEB887';
-            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size /露
-
+            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size / 4);
             ctx.restore();
         }
 
@@ -118,27 +137,22 @@
             ctx.restore();
         }
 
-        // Dibujar al nene
         function drawKid(x, y, size, dancing) {
             ctx.save();
             if (dancing) {
                 ctx.translate(x, y);
-                ctx.rotate(Math.sin(kid.angle) * 0.2); // Movimiento de baile
+                ctx.rotate(Math.sin(kid.angle) * 0.2);
                 ctx.translate(-x, -y);
             }
-            // Cabeza
             ctx.beginPath();
             ctx.arc(x, y - size / 2, size / 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#FFDAB9'; // Piel
+            ctx.fillStyle = '#FFDAB9';
             ctx.fill();
             ctx.closePath();
-            // Cuerpo
-            ctx.fillStyle = '#FF4500'; // Ropa naranja
+            ctx.fillStyle = '#FF4500';
             ctx.fillRect(x - size / 4, y - size / 6, size / 2, size / 1.5);
-            // Brazos
             ctx.fillRect(x - size / 2, y - size / 6, size / 4, size / 2);
             ctx.fillRect(x + size / 4, y - size / 6, size / 4, size / 2);
-            // Piernas
             ctx.fillRect(x - size / 4, y + size / 3, size / 4, size / 2);
             ctx.fillRect(x, y + size / 3, size / 4, size / 2);
             ctx.restore();
@@ -157,7 +171,7 @@
             kid.dancing = false;
         }
 
-        // Limpiar y dibujar todo
+        // Dibujar escena
         function drawScene() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             objects.forEach(obj => {
@@ -165,12 +179,22 @@
             });
             if (kid.dancing) {
                 drawKid(kid.x, kid.y, kid.size, true);
-                kid.angle += 0.2; // Animación de baile
+                kid.angle += 0.2;
             }
+        }
+
+        // Iniciar juego
+        function startGame() {
+            gameStarted = true;
+            startButton.style.display = 'none';
+            canvas.style.display = 'block';
+            placeObjects();
+            drawScene();
         }
 
         // Manejar clics
         canvas.addEventListener('click', (e) => {
+            if (!gameStarted) return;
             const rect = canvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
@@ -185,24 +209,26 @@
                         kid.dancing = true;
                         setTimeout(() => {
                             placeObjects();
+                            drawScene();
                             kid.dancing = false;
-                        }, 2000); // Reiniciar después de 2 segundos
+                        }, 2000);
                     }
+                    drawScene();
                     break;
                 }
             }
-            drawScene();
         });
 
         // Animación
         function animate() {
-            if (kid.dancing) drawScene();
+            if (gameStarted && kid.dancing) drawScene();
             requestAnimationFrame(animate);
         }
 
-        // Iniciar el juego
-        placeObjects();
-        drawScene();
+        // Evento del botón
+        startButton.addEventListener('click', startGame);
+
+        // Iniciar animación
         animate();
     </script>
 </body>
