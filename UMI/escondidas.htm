@@ -56,17 +56,17 @@
         let gameStarted = false;
         let confetti = [];
 
-        // Clase Confetti con rectángulos y explosión más fuerte
+        // Clase Confetti
         class Confetti {
             constructor(x, y, color, scale = 1) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.speedX = (Math.random() - 0.5) * 12; // Más velocidad
-                this.speedY = (Math.random() - 0.5) * 12; // Más velocidad
+                this.speedX = (Math.random() - 0.5) * 12;
+                this.speedY = (Math.random() - 0.5) * 12;
                 this.life = 60;
                 this.rotation = 0;
-                this.rotSpeed = (Math.random() - 0.5) * 0.5; // Más rotación
+                this.rotSpeed = (Math.random() - 0.5) * 0.5;
                 this.scale = scale;
                 this.width = Math.random() * 15 * scale;
                 this.height = Math.random() * 15 * scale;
@@ -75,7 +75,7 @@
             update() {
                 this.x += this.speedX;
                 this.y += this.speedY;
-                this.speedY += 0.15; // Caída un poco más rápida
+                this.speedY += 0.15;
                 this.rotation += this.rotSpeed;
                 this.life--;
                 if (this.life <= 0) {
@@ -191,8 +191,8 @@
             ctx.closePath();
             ctx.fillStyle = '#000000';
             ctx.beginPath();
-            ctx.arc(-size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2); // Ojo izquierdo
-            ctx.arc(size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2); // Ojo derecho
+            ctx.arc(-size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2);
+            ctx.arc(size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2);
             ctx.fill();
 
             // Cuerpo
@@ -204,7 +204,7 @@
             ctx.fillRect(size / 4, -size / 6, size / 4, size / 2);
 
             // Pantalón
-            ctx.fillStyle = '#0000FF'; // Azul
+            ctx.fillStyle = '#0000FF';
             ctx.fillRect(-size / 4, size / 3, size / 2, size / 3);
 
             // Piernas
@@ -254,21 +254,27 @@
         // Dibujar escena con confeti y pista
         function drawScene() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar al nene primero si no está bailando (para que quede detrás)
+            if (!kid.dancing) {
+                drawKid(kid.x, kid.y, kid.size, false);
+            }
+
+            // Dibujar objetos encima del nene
             objects.forEach(obj => {
                 if (!obj.hidden) obj.draw(obj.x, obj.y, obj.size);
             });
+
+            // Dibujar al nene encima si está bailando
             if (kid.dancing) {
                 drawKid(kid.x, kid.y, kid.size, true);
                 kid.angle += 0.2;
-                // Movimiento del nene
                 kid.moveX += Math.sin(kid.angle) * kid.moveSpeed;
                 kid.moveY += Math.cos(kid.angle) * kid.moveSpeed / 2;
-                // Limitar movimiento dentro de la pantalla
                 kid.moveX = Math.max(-canvas.width / 4, Math.min(canvas.width / 4, kid.moveX));
                 kid.moveY = Math.max(-canvas.height / 4, Math.min(canvas.height / 4, kid.moveY));
-            } else {
-                drawKid(kid.x, kid.y, kid.size, false);
             }
+
             confetti.forEach(c => {
                 c.update();
                 c.draw();
@@ -291,6 +297,14 @@
                     ctx.fillStyle = colors[i];
                     ctx.fillRect(hintX, hintY + i * barHeight, hintSize, barHeight);
                 }
+            }
+        }
+
+        // Función para generar explosión de confeti
+        function triggerConfetiExplosion(x, y) {
+            for (let j = 0; j < 40; j++) {
+                const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)], 2));
             }
         }
 
@@ -325,11 +339,10 @@
 
                     if (obj === hidingObject) {
                         kid.dancing = true;
-                        // Confeti al encontrar al nene: doble de grande y más cantidad
-                        for (let j = 0; j < 40; j++) { // Más confeti
-                            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
-                            confetti.push(new Confetti(obj.x, obj.y, colors[Math.floor(Math.random() * colors.length)], 2)); // Doble de grande
-                        }
+                        // Tres explosiones de confeti separadas por 0.3 segundos
+                        triggerConfetiExplosion(obj.x, obj.y);
+                        setTimeout(() => triggerConfetiExplosion(obj.x, obj.y), 300);
+                        setTimeout(() => triggerConfetiExplosion(obj.x, obj.y), 600);
                         setTimeout(() => {
                             placeObjects();
                             drawScene();
