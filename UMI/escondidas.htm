@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Juego de Escondidas</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        // Obtener el canvas y el contexto
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Función para dibujar una pelota playera
+        function drawBeachBall(x, y, size) {
+            // Guardar el estado del contexto
+            ctx.save();
+            
+            // Dibujar el círculo principal
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff'; // Base blanca
+            ctx.fill();
+            ctx.closePath();
+
+            // Dibujar las secciones de colores (como una pelota playera típica)
+            const colors = ['#ff0000', '#00ff00', '#0000ff']; // Rojo, verde, azul
+            const sectionAngle = (Math.PI * 2) / 3; // Dividir en 3 secciones
+
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.arc(x, y, size, i * sectionAngle, (i + 1) * sectionAngle);
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            // Restaurar el estado del contexto
+            ctx.restore();
+        }
+
+        // Función para limpiar el canvas
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Dibujar una pelota de prueba
+        clearCanvas();
+        drawBeachBall(400, 300, 50); // Posición (400, 300), tamaño 50
+    </script>
+</body>
+</html>
