@@ -83,7 +83,7 @@
 </head>
 <body>
     <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
-    <button id="startButton">Empezar v1.2</button>
+    <button id="startButton">Empezar v1.3</button>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -96,7 +96,6 @@
         let confetti = [];
         let gameStarted = false;
 
-        // Función para generar un color aleatorio en formato hexadecimal
         function getRandomColor() {
             const letters = '0123456789ABCDEF';
             let color = '#';
@@ -119,7 +118,7 @@
         class Balloon {
             constructor(x, y, color) {
                 this.x = x;
-                this.y = y;
+                this.y = y - 50; // Aparece 50px más arriba
                 this.color = color;
                 this.maxSpeedY = -2 - Math.random() * 2;
                 this.speedY = 0;
@@ -234,8 +233,7 @@
             }
 
             breakEgg() {
-                const totalItems = eggs.length + balloons.length;
-                if (totalItems < maxItems) {
+                if (eggs.length + balloons.length < maxItems) { // Simplificado para siempre permitir un globo
                     const newBalloon = new Balloon(this.x, this.y, this.color);
                     balloons.push(newBalloon);
                 }
