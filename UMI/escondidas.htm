@@ -4,29 +4,48 @@
     <meta charset="UTF-8">
     <title>Juego de Escondidas</title>
     <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
         canvas {
-            border: 1px solid black;
+            display: block;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Función para dibujar una pelota playera con 6 rayos
+        // Ajustar canvas al tamaño de la pantalla
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Definir objetos más grandes
+        const objects = [
+            { draw: drawBeachBall, x: 0, y: 0, size: 100, hidden: false },
+            { draw: drawTree, x: 0, y: 0, size: 150, hidden: false },
+            { draw: drawHouse, x: 0, y: 0, size: 200, hidden: false },
+            { draw: drawTV, x: 0, y: 0, size: 120, hidden: false },
+            { draw: drawBed, x: 0, y: 0, size: 180, hidden: false },
+            { draw: drawWardrobe, x: 0, y: 0, size: 160, hidden: false }
+        ];
+
+        let kid = { x: 0, y: 0, size: 100, dancing: false, angle: 0 };
+        let hidingObject = null;
+
+        // Funciones de dibujo (adaptadas para tamaños mayores)
         function drawBeachBall(x, y, size) {
             ctx.save();
             ctx.beginPath();
             ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffffff'; // Base blanca
+            ctx.fillStyle = '#ffffff';
             ctx.fill();
             ctx.closePath();
-
-            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff']; // 6 colores
-            const sectionAngle = (Math.PI * 2) / 6; // 6 secciones
-
+            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+            const sectionAngle = (Math.PI * 2) / 6;
             for (let i = 0; i < 6; i++) {
                 ctx.beginPath();
                 ctx.moveTo(x, y);
@@ -38,97 +57,153 @@
             ctx.restore();
         }
 
-        // Función para dibujar un árbol
         function drawTree(x, y, size) {
             ctx.save();
-            // Tronco
-            ctx.fillStyle = '#8B4513'; // Marrón
+            ctx.fillStyle = '#8B4513';
             ctx.fillRect(x - size / 4, y, size / 2, size);
-            // Hojas
             ctx.beginPath();
             ctx.arc(x, y - size / 2, size * 0.75, 0, Math.PI * 2);
-            ctx.fillStyle = '#228B22'; // Verde
+            ctx.fillStyle = '#228B22';
             ctx.fill();
             ctx.closePath();
             ctx.restore();
         }
 
-        // Función para dibujar una casa
         function drawHouse(x, y, size) {
             ctx.save();
-            // Cuerpo de la casa
-            ctx.fillStyle = '#D2691E'; // Ladrillo
+            ctx.fillStyle = '#D2691E';
             ctx.fillRect(x - size / 2, y - size / 2, size, size);
-            // Tejado
             ctx.beginPath();
             ctx.moveTo(x - size / 1.5, y - size / 2);
             ctx.lineTo(x + size / 1.5, y - size / 2);
             ctx.lineTo(x, y - size);
-            ctx.fillStyle = '#8B0000'; // Rojo oscuro
+            ctx.fillStyle = '#8B0000';
             ctx.fill();
             ctx.closePath();
-            // Puerta
             ctx.fillStyle = '#DEB887';
-            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size / 4);
+            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size /露
+
             ctx.restore();
         }
 
-        // Función para dibujar una televisión
         function drawTV(x, y, size) {
             ctx.save();
-            // Cuerpo de la TV
-            ctx.fillStyle = '#333333'; // Gris oscuro
+            ctx.fillStyle = '#333333';
             ctx.fillRect(x - size / 2, y - size / 3, size, size / 1.5);
-            // Pantalla
-            ctx.fillStyle = '#87CEEB'; // Azul claro
+            ctx.fillStyle = '#87CEEB';
             ctx.fillRect(x - size / 2.5, y - size / 4, size * 0.8, size / 2);
-            // Base
             ctx.fillStyle = '#666666';
             ctx.fillRect(x - size / 4, y + size / 3, size / 2, size / 10);
             ctx.restore();
         }
 
-        // Función para dibujar una cama
         function drawBed(x, y, size) {
             ctx.save();
-            // Estructura de la cama
-            ctx.fillStyle = '#8B4513'; // Marrón
+            ctx.fillStyle = '#8B4513';
             ctx.fillRect(x - size / 2, y - size / 4, size, size / 2);
-            // Colchón
-            ctx.fillStyle = '#F0F8FF'; // Blanco azulado
+            ctx.fillStyle = '#F0F8FF';
             ctx.fillRect(x - size / 2, y - size / 4, size * 0.9, size / 3);
-            // Almohada
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(x - size / 2, y - size / 4, size / 4, size / 6);
             ctx.restore();
         }
 
-        // Función para dibujar un armario
         function drawWardrobe(x, y, size) {
             ctx.save();
-            // Cuerpo del armario
-            ctx.fillStyle = '#A0522D'; // Marrón claro
+            ctx.fillStyle = '#A0522D';
             ctx.fillRect(x - size / 2, y - size, size, size);
-            // Puertas
             ctx.fillStyle = '#CD853F';
             ctx.fillRect(x - size / 2.2, y - size * 0.9, size / 2.5, size * 0.8);
             ctx.fillRect(x + size / 20, y - size * 0.9, size / 2.5, size * 0.8);
             ctx.restore();
         }
 
-        // Limpiar el canvas
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Dibujar al nene
+        function drawKid(x, y, size, dancing) {
+            ctx.save();
+            if (dancing) {
+                ctx.translate(x, y);
+                ctx.rotate(Math.sin(kid.angle) * 0.2); // Movimiento de baile
+                ctx.translate(-x, -y);
+            }
+            // Cabeza
+            ctx.beginPath();
+            ctx.arc(x, y - size / 2, size / 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFDAB9'; // Piel
+            ctx.fill();
+            ctx.closePath();
+            // Cuerpo
+            ctx.fillStyle = '#FF4500'; // Ropa naranja
+            ctx.fillRect(x - size / 4, y - size / 6, size / 2, size / 1.5);
+            // Brazos
+            ctx.fillRect(x - size / 2, y - size / 6, size / 4, size / 2);
+            ctx.fillRect(x + size / 4, y - size / 6, size / 4, size / 2);
+            // Piernas
+            ctx.fillRect(x - size / 4, y + size / 3, size / 4, size / 2);
+            ctx.fillRect(x, y + size / 3, size / 4, size / 2);
+            ctx.restore();
         }
 
-        // Dibujar los objetos de prueba
-        clearCanvas();
-        drawBeachBall(100, 100, 40); // Pelota
-        drawTree(250, 200, 60);      // Árbol
-        drawHouse(400, 300, 80);     // Casa
-        drawTV(550, 400, 50);        // Televisión
-        drawBed(650, 500, 70);       // Cama
-        drawWardrobe(750, 200, 60);  // Armario
+        // Posicionar objetos aleatoriamente
+        function placeObjects() {
+            objects.forEach(obj => {
+                obj.x = Math.random() * (canvas.width - obj.size * 2) + obj.size;
+                obj.y = Math.random() * (canvas.height - obj.size * 2) + obj.size;
+                obj.hidden = false;
+            });
+            hidingObject = objects[Math.floor(Math.random() * objects.length)];
+            kid.x = hidingObject.x;
+            kid.y = hidingObject.y;
+            kid.dancing = false;
+        }
+
+        // Limpiar y dibujar todo
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            objects.forEach(obj => {
+                if (!obj.hidden) obj.draw(obj.x, obj.y, obj.size);
+            });
+            if (kid.dancing) {
+                drawKid(kid.x, kid.y, kid.size, true);
+                kid.angle += 0.2; // Animación de baile
+            }
+        }
+
+        // Manejar clics
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            for (let i = 0; i < objects.length; i++) {
+                const obj = objects[i];
+                if (!obj.hidden &&
+                    clickX > obj.x - obj.size && clickX < obj.x + obj.size &&
+                    clickY > obj.y - obj.size && clickY < obj.y + obj.size) {
+                    obj.hidden = true;
+                    if (obj === hidingObject) {
+                        kid.dancing = true;
+                        setTimeout(() => {
+                            placeObjects();
+                            kid.dancing = false;
+                        }, 2000); // Reiniciar después de 2 segundos
+                    }
+                    break;
+                }
+            }
+            drawScene();
+        });
+
+        // Animación
+        function animate() {
+            if (kid.dancing) drawScene();
+            requestAnimationFrame(animate);
+        }
+
+        // Iniciar el juego
+        placeObjects();
+        drawScene();
+        animate();
     </script>
 </body>
 </html>
