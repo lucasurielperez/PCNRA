@@ -41,15 +41,15 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Ajustar tamaño del nene y escondites
-        const kidSize = 150; // Tamaño base del nene
+        // Tamaño del nene y escondites ajustados
+        const kidSize = 100; // Tamaño base del nene
         const objects = [
-            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.8, hidden: false },
-            { draw: drawTree, x: 0, y: 0, size: kidSize * 2, hidden: false },
-            { draw: drawHouse, x: 0, y: 0, size: kidSize * 2.5, hidden: false },
-            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.8, hidden: false },
-            { draw: drawBed, x: 0, y: 0, size: kidSize * 2.2, hidden: false },
-            { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 2, hidden: false }
+            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3, hidden: false },
+            { draw: drawTree, x: 0, y: 0, size: kidSize * 1.5, hidden: false },
+            { draw: drawHouse, x: 0, y: 0, size: kidSize * 1.6, hidden: false },
+            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4, hidden: false },
+            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5, hidden: false },
+            { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 1.5, hidden: false }
         ];
 
         let kid = { x: 0, y: 0, size: kidSize, dancing: false, angle: 0 };
@@ -158,13 +158,13 @@
             ctx.restore();
         }
 
-        // Verificar si hay superposición
+        // Verificar superposición
         function isOverlapping(x, y, size, placedObjects) {
             for (let obj of placedObjects) {
                 const dx = x - obj.x;
                 const dy = y - obj.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < (size + obj.size) * 0.8) return true; // Margen para evitar contacto
+                if (distance < (size + obj.size) * 0.7) return true; // Margen ajustado
             }
             return false;
         }
@@ -175,7 +175,7 @@
             objects.forEach(obj => {
                 let attempts = 0;
                 let placed = false;
-                while (!placed && attempts < 100) { // Límite de intentos para evitar bucle infinito
+                while (!placed && attempts < 100) {
                     obj.x = Math.random() * (canvas.width - obj.size * 2) + obj.size;
                     obj.y = Math.random() * (canvas.height - obj.size * 2) + obj.size;
                     if (!isOverlapping(obj.x, obj.y, obj.size, placedObjects)) {
