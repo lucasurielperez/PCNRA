@@ -83,7 +83,7 @@
 </head>
 <body>
     <canvas id="canvas" style="position: absolute; top: 0; left: 0;"></canvas>
-    <button id="startButton">Empezar</button>
+    <button id="startButton">Empezar v1.0</button>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -112,11 +112,11 @@
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.maxSpeedY = -2 - Math.random() * 2; // Velocidad máxima
-                this.speedY = 0; // Inicia en 0
+                this.maxSpeedY = -2 - Math.random() * 2;
+                this.speedY = 0;
                 this.speedX = (Math.random() - 0.5) * 4;
                 this.scale = 1 + Math.random() * 0.5;
-                this.age = 0; // Edad en frames
+                this.age = 0;
                 this.element = document.createElement('div');
                 this.element.className = 'balloon-container';
                 const darkColor = darkenColor(this.color);
@@ -131,7 +131,6 @@
             }
 
             update() {
-                // Aumentar velocidad Y gradualmente durante el primer segundo (60 frames aprox.)
                 if (this.age < 60) {
                     this.speedY = this.maxSpeedY * (this.age / 60);
                 } else {
@@ -157,8 +156,8 @@
                 const eggCount = Math.floor(Math.random() * 3) + 1;
                 const centerX = this.x + (75 * this.scale) / 2;
                 const centerY = this.y + (105 * this.scale) / 2;
-                const availableSlots = maxItems - (eggs.length + balloons.length - 1); // -1 por el globo que se va
-                const spawnCount = Math.min(eggCount, availableSlots); // No superar el límite
+                const availableSlots = maxItems - (eggs.length + balloons.length - 1);
+                const spawnCount = Math.min(eggCount, availableSlots);
                 for (let i = 0; i < spawnCount; i++) {
                     const offsetX = (i - (spawnCount - 1) / 2) * 20;
                     eggs.push(new Egg(centerX + offsetX - 15, centerY - 20, colors[Math.floor(Math.random() * colors.length)]));
@@ -200,15 +199,13 @@
                     this.rotSpeed *= 0.99;
                 } else {
                     this.rotSpeed *= 0.9;
+                    if (this.speedY > 0) this.speedY *= -0.5;
+                    this.speedX *= 0.9;
+                    this.y = canvas.height - 40;
                 }
 
                 if (this.x < 0) this.x = 0;
                 if (this.x > canvas.width - 30) this.x = canvas.width - 30;
-                if (this.y > canvas.height - 40) {
-                    this.y = canvas.height - 40;
-                    this.speedY *= -0.5;
-                    this.speedX *= 0.9;
-                }
 
                 eggs.forEach(other => {
                     if (other !== this) {
@@ -228,8 +225,10 @@
             }
 
             breakEgg() {
-                if (eggs.length + balloons.length < maxItems) { // Cambiado <= a < para asegurar espacio
-                    balloons.push(new Balloon(this.x, this.y, this.color));
+                const balloonCount = balloons.length;
+                if (balloonCount < maxItems - eggs.length) {
+                    const newBalloon = new Balloon(this.x, this.y, this.color);
+                    balloons.push(newBalloon);
                 }
                 this.remove();
             }
