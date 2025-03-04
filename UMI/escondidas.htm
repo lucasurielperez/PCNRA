@@ -43,12 +43,12 @@
 
         const kidSize = 100;
         const objects = [
-            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3 * 0.5, hidden: false, hint: drawSoccerGoal },
-            { draw: drawTree, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hint: drawBird },
-            { draw: drawHouse, x: 0, y: 0, size: kidSize * 1.6, hidden: false, hint: drawCar },
-            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4 * 2, hidden: false, hint: drawPikachu },
-            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5 * 2, hidden: false, hint: drawPillow },
-            { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hint: drawShirt }
+            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3 * 0.5, hidden: false, hintColor: '#ff0000' }, // Rojo (pelota)
+            { draw: drawTree, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hintColor: '#228B22' }, // Verde (árbol)
+            { draw: drawHouse, x: 0, y: 0, size: kidSize * 1.6, hidden: false, hintColor: '#D2691E' }, // Naranja (casa)
+            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4 * 2, hidden: false, hintColor: '#333333' }, // Gris (TV)
+            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5 * 2, hidden: false, hintColor: '#F0F8FF' }, // Azul claro (cama)
+            { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hintColor: '#A0522D' } // Marrón (armario)
         ];
 
         let kid = { x: 0, y: 0, size: kidSize, dancing: false, angle: 0 };
@@ -195,76 +195,6 @@
             ctx.restore();
         }
 
-        // Funciones de pistas
-        function drawBird(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#FF6347';
-            ctx.beginPath();
-            ctx.arc(x, y - size / 2, size / 2, 0, Math.PI * 2); // Cabeza
-            ctx.fill();
-            ctx.fillRect(x - size / 4, y, size / 2, size / 2); // Cuerpo
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(x + size / 4, y - size / 2, size / 10, 0, Math.PI * 2); // Ojo
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function drawPillow(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(x - size / 2, y - size / 2, size, size / 2);
-            ctx.restore();
-        }
-
-        function drawShirt(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#00CED1';
-            ctx.fillRect(x - size / 2, y - size / 2, size, size); // Cuerpo
-            ctx.fillRect(x - size / 1.5, y - size / 2, size / 3, size / 4); // Manga izq
-            ctx.fillRect(x + size / 3, y - size / 2, size / 3, size / 4); // Manga der
-            ctx.restore();
-        }
-
-        function drawCar(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#FF4500';
-            ctx.fillRect(x - size / 2, y - size / 4, size, size / 2); // Cuerpo
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(x - size / 4, y + size / 4, size / 5, 0, Math.PI * 2); // Rueda izq
-            ctx.arc(x + size / 4, y + size / 4, size / 5, 0, Math.PI * 2); // Rueda der
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function drawSoccerGoal(x, y, size) {
-            ctx.save();
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = size / 10;
-            ctx.strokeRect(x - size / 2, y - size / 2, size, size / 2); // Arco
-            ctx.restore();
-        }
-
-        function drawPikachu(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#FFFF00';
-            ctx.beginPath();
-            ctx.arc(x, y - size / 4, size / 2, 0, Math.PI * 2); // Cabeza
-            ctx.fill();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(x - size / 4, y - size / 3, size / 10, 0, Math.PI * 2); // Ojo izq
-            ctx.arc(x + size / 4, y - size / 3, size / 10, 0, Math.PI * 2); // Ojo der
-            ctx.fill();
-            ctx.fillStyle = '#FF0000';
-            ctx.beginPath();
-            ctx.arc(x - size / 3, y, size / 10, 0, Math.PI * 2); // Mejilla izq
-            ctx.arc(x + size / 3, y, size / 10, 0, Math.PI * 2); // Mejilla der
-            ctx.fill();
-            ctx.restore();
-        }
-
         // Verificar superposición
         function isOverlapping(x, y, size, placedObjects) {
             for (let obj of placedObjects) {
@@ -314,17 +244,18 @@
                 c.draw();
             });
 
-            // Dibujar recuadro de pista
+            // Dibujar recuadro de pista más arriba
             if (gameStarted && hidingObject) {
                 const hintSize = 100;
                 const hintX = canvas.width - hintSize - 20;
-                const hintY = canvas.height - hintSize - 20;
+                const hintY = canvas.height - hintSize - 100; // Movido 80px más arriba
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(hintX - 10, hintY - 10, hintSize + 20, hintSize + 20);
                 ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(hintX - 10, hintY - 10, hintSize + 20, hintSize + 20);
-                hidingObject.hint(hintX + hintSize / 2, hintY + hintSize / 2, hintSize);
+                ctx.fillStyle = hidingObject.hintColor;
+                ctx.fillRect(hintX, hintY, hintSize, hintSize);
             }
         }
 
