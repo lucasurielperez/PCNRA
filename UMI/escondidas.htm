@@ -12,27 +12,22 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script>
-        // Obtener el canvas y el contexto
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Función para dibujar una pelota playera
+        // Función para dibujar una pelota playera con 6 rayos
         function drawBeachBall(x, y, size) {
-            // Guardar el estado del contexto
             ctx.save();
-            
-            // Dibujar el círculo principal
             ctx.beginPath();
             ctx.arc(x, y, size, 0, Math.PI * 2);
             ctx.fillStyle = '#ffffff'; // Base blanca
             ctx.fill();
             ctx.closePath();
 
-            // Dibujar las secciones de colores (como una pelota playera típica)
-            const colors = ['#ff0000', '#00ff00', '#0000ff']; // Rojo, verde, azul
-            const sectionAngle = (Math.PI * 2) / 3; // Dividir en 3 secciones
+            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff']; // 6 colores
+            const sectionAngle = (Math.PI * 2) / 6; // 6 secciones
 
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 6; i++) {
                 ctx.beginPath();
                 ctx.moveTo(x, y);
                 ctx.arc(x, y, size, i * sectionAngle, (i + 1) * sectionAngle);
@@ -40,19 +35,100 @@
                 ctx.fill();
                 ctx.closePath();
             }
-
-            // Restaurar el estado del contexto
             ctx.restore();
         }
 
-        // Función para limpiar el canvas
+        // Función para dibujar un árbol
+        function drawTree(x, y, size) {
+            ctx.save();
+            // Tronco
+            ctx.fillStyle = '#8B4513'; // Marrón
+            ctx.fillRect(x - size / 4, y, size / 2, size);
+            // Hojas
+            ctx.beginPath();
+            ctx.arc(x, y - size / 2, size * 0.75, 0, Math.PI * 2);
+            ctx.fillStyle = '#228B22'; // Verde
+            ctx.fill();
+            ctx.closePath();
+            ctx.restore();
+        }
+
+        // Función para dibujar una casa
+        function drawHouse(x, y, size) {
+            ctx.save();
+            // Cuerpo de la casa
+            ctx.fillStyle = '#D2691E'; // Ladrillo
+            ctx.fillRect(x - size / 2, y - size / 2, size, size);
+            // Tejado
+            ctx.beginPath();
+            ctx.moveTo(x - size / 1.5, y - size / 2);
+            ctx.lineTo(x + size / 1.5, y - size / 2);
+            ctx.lineTo(x, y - size);
+            ctx.fillStyle = '#8B0000'; // Rojo oscuro
+            ctx.fill();
+            ctx.closePath();
+            // Puerta
+            ctx.fillStyle = '#DEB887';
+            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size / 4);
+            ctx.restore();
+        }
+
+        // Función para dibujar una televisión
+        function drawTV(x, y, size) {
+            ctx.save();
+            // Cuerpo de la TV
+            ctx.fillStyle = '#333333'; // Gris oscuro
+            ctx.fillRect(x - size / 2, y - size / 3, size, size / 1.5);
+            // Pantalla
+            ctx.fillStyle = '#87CEEB'; // Azul claro
+            ctx.fillRect(x - size / 2.5, y - size / 4, size * 0.8, size / 2);
+            // Base
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(x - size / 4, y + size / 3, size / 2, size / 10);
+            ctx.restore();
+        }
+
+        // Función para dibujar una cama
+        function drawBed(x, y, size) {
+            ctx.save();
+            // Estructura de la cama
+            ctx.fillStyle = '#8B4513'; // Marrón
+            ctx.fillRect(x - size / 2, y - size / 4, size, size / 2);
+            // Colchón
+            ctx.fillStyle = '#F0F8FF'; // Blanco azulado
+            ctx.fillRect(x - size / 2, y - size / 4, size * 0.9, size / 3);
+            // Almohada
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x - size / 2, y - size / 4, size / 4, size / 6);
+            ctx.restore();
+        }
+
+        // Función para dibujar un armario
+        function drawWardrobe(x, y, size) {
+            ctx.save();
+            // Cuerpo del armario
+            ctx.fillStyle = '#A0522D'; // Marrón claro
+            ctx.fillRect(x - size / 2, y - size, size, size);
+            // Puertas
+            ctx.fillStyle = '#CD853F';
+            ctx.fillRect(x - size / 2.2, y - size * 0.9, size / 2.5, size * 0.8);
+            ctx.fillRect(x + size / 20, y - size * 0.9, size / 2.5, size * 0.8);
+            ctx.restore();
+        }
+
+        // Limpiar el canvas
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Dibujar una pelota de prueba
+        // Dibujar los objetos de prueba
         clearCanvas();
-        drawBeachBall(400, 300, 50); // Posición (400, 300), tamaño 50
+        drawBeachBall(100, 100, 40); // Pelota
+        drawTree(250, 200, 60);      // Árbol
+        drawHouse(400, 300, 80);     // Casa
+        drawTV(550, 400, 50);        // Televisión
+        drawBed(650, 500, 70);       // Cama
+        drawWardrobe(750, 200, 60);  // Armario
     </script>
 </body>
 </html>
