@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Juego de la Balanza</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f0f0f0;
+        }
+        #resetBtn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <button id="resetBtn">Reset</button>
+    <script>
+        let coins = [];
+        let balance;
+        let droppedCoins = [];
+
+        function setup() {
+            createCanvas(800, 600);
+            resetGame();
+            
+            document.getElementById('resetBtn').addEventListener('click', resetGame);
+        }
+
+        function resetGame() {
+            coins = [];
+            droppedCoins = [];
+            // Crear 9 monedas en posiciones irregulares
+            for (let i = 0; i < 9; i++) {
+                coins.push({
+                    x: 300 + random(-100, 100),
+                    y: 50 + i * 30 + random(-20, 20),
+                    falling: false,
+                    ySpeed: 0
+                });
+            }
+            // Inicializar balanza
+            balance = {
+                leftWeight: 0,
+                rightWeight: 0,
+                angle: 0
+            };
+        }
+
+        function draw() {
+            background(220);
+            
+            // Dibujar pila de monedas
+            coins.forEach(coin => {
+                if (coin.falling) {
+                    coin.y += coin.ySpeed;
+                    coin.ySpeed += 0.2; // Gravedad
+                    
+                    // Verificar colisión con platos de la balanza
+                    if (coin.y > 450 && coin.ySpeed > 0) {
+                        if (coin.x > width/2 - 100 && coin.x < width/2) {
+                            // Plato izquierdo
+                            droppedCoins.push({x: coin.x, y: 450, side: 'left'});
+                            balance.leftWeight++;
+                            coins.splice(coins.indexOf(coin), 1);
+                        } else if (coin.x > width/2 && coin.x < width/2 + 100) {
+                            // Plato derecho
+                            droppedCoins.push({x: coin.x, y: 450, side: 'right'});
+                            balance.rightWeight++;
+                            coins.splice(coins.indexOf(coin), 1);
+                        }
+                    }
+                }
+                fill(255, 215, 0);
+                ellipse(coin.x, coin.y, 30, 30);
+            });
+
+            // Calcular ángulo de la balanza
+            balance.angle = (balance.rightWeight - balance.leftWeight) * 0.1;
+            balance.angle = constrain(balance.angle, -PI/4, PI/4);
+
+            // Dibujar balanza
+            push();
+            translate(width/2, 500);
+            rotate(balance.angle);
+            
+            // Barra de la balanza
+            stroke(100);
+            strokeWeight(4);
+            line(-150, 0, 150, 0);
+            
+            // Platos
+            noStroke();
+            fill(150);
+            rect(-100, -10, 100, 20);
+            rect(50, -10, 100, 20);
+            pop();
+
+            // Dibujar monedas en los platos
+            droppedCoins.forEach(coin => {
+                push();
+                translate(width/2, 500);
+                rotate(balance.angle);
+                fill(255, 215, 0);
+                ellipse(coin.x - width/2, coin.y - 500, 30, 30);
+                pop();
+            });
+
+            // Soporte de la balanza
+            fill(100);
+            triangle(width/2-30, 500, width/2+30, 500, width/2, 400);
+        }
+
+        function mousePressed() {
+            if (coins.length > 0) {
+                let coin = coins[0];
+                coin.x = mouseX;
+                coin.y = mouseY;
+                coin.falling = true;
+                coin.ySpeed = 0;
+            }
+        }
+    </script>
+</body>
+</html>
