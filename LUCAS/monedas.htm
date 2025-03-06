@@ -42,7 +42,7 @@
             // Crear 9 monedas en posiciones irregulares
             for (let i = 0; i < 9; i++) {
                 coins.push({
-                    x: 300 + random(-100, 100),
+                    x: 350 + random(-100, 100),
                     y: 50 + i * 30 + random(-20, 20),
                     falling: false,
                     ySpeed: 0
@@ -67,12 +67,12 @@
                     
                     // Verificar colisión con platos de la balanza
                     if (coin.y > 450 && coin.ySpeed > 0) {
-                        if (coin.x > width/2 - 100 && coin.x < width/2) {
+                        if (coin.x > width/2 - 100 && coin.x < width/2 - 10) {
                             // Plato izquierdo
                             droppedCoins.push({x: coin.x, y: 450, side: 'left'});
                             balance.leftWeight++;
                             coins.splice(coins.indexOf(coin), 1);
-                        } else if (coin.x > width/2 && coin.x < width/2 + 100) {
+                        } else if (coin.x > width/2 + 10 && coin.x < width/2 + 100) {
                             // Plato derecho
                             droppedCoins.push({x: coin.x, y: 450, side: 'right'});
                             balance.rightWeight++;
@@ -84,9 +84,14 @@
                 ellipse(coin.x, coin.y, 30, 30);
             });
 
-            // Calcular ángulo de la balanza
-            balance.angle = (balance.rightWeight - balance.leftWeight) * 0.1;
-            balance.angle = constrain(balance.angle, -PI/4, PI/4);
+            // Determinar ángulo de la balanza (solo tres posiciones)
+            if (balance.leftWeight > balance.rightWeight) {
+                balance.angle = PI/6; // Inclina a la derecha
+            } else if (balance.rightWeight > balance.leftWeight) {
+                balance.angle = -PI/6; // Inclina a la izquierda
+            } else {
+                balance.angle = 0; // Nivelada
+            }
 
             // Dibujar balanza
             push();
@@ -96,13 +101,13 @@
             // Barra de la balanza
             stroke(100);
             strokeWeight(4);
-            line(-150, 0, 150, 0);
+            line(-120, 0, 120, 0);
             
-            // Platos
+            // Platos curvos
             noStroke();
             fill(150);
-            rect(-100, -10, 100, 20);
-            rect(50, -10, 100, 20);
+            arc(-60, 0, 120, 60, 0, PI);
+            arc(60, 0, 120, 60, 0, PI);
             pop();
 
             // Dibujar monedas en los platos
@@ -111,13 +116,16 @@
                 translate(width/2, 500);
                 rotate(balance.angle);
                 fill(255, 215, 0);
-                ellipse(coin.x - width/2, coin.y - 500, 30, 30);
+                // Ajustar posición en los platos curvos
+                let yOffset = coin.side === 'left' ? -15 : -15;
+                ellipse(coin.x - width/2, yOffset, 30, 30);
                 pop();
             });
 
-            // Soporte de la balanza
+            // Soporte de la balanza (triángulo centrado)
             fill(100);
-            triangle(width/2-30, 500, width/2+30, 500, width/2, 400);
+            noStroke();
+            triangle(width/2-20, 500, width/2+20, 500, width/2, 420);
         }
 
         function mousePressed() {
