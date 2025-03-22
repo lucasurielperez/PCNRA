@@ -72,8 +72,8 @@
         const FINAL_FRICTION = 0.3;
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
-        const FREEZE_DELAY = 3000;
-        const FREEZE_DURATION = 1000;
+        const FREEZE_DELAY = 1500; // 1.5 segundos de movimiento post-colisión
+        const FREEZE_DURATION = 500; // 0.5 segundos de congelamiento gradual
         const MAX_COLLISION_VELOCITY = 10;
 
         let score = 0;
@@ -86,7 +86,7 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44; // 1.2 * 1.2 = 1.44 (20% más grande)
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44;
                 this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
@@ -94,7 +94,7 @@
                 this.shrinkSpeed = 0;
                 this.growSpeed = 0;
                 this.angle = 0;
-                this.angularVelocity = (Math.random() - 0.5) * 0.15; // Rotación inicial más fuerte
+                this.angularVelocity = (Math.random() - 0.5) * 0.15;
                 this.isFrozen = false;
                 this.isMerging = false;
                 this.lastPerturbedTime = Date.now();
@@ -322,16 +322,12 @@
                     }
                 }
 
+                // Corrección estricta para evitar perforación del suelo
                 this.x = Math.max(this.radius * this.scale, Math.min(canvas.width - this.radius * this.scale, this.x));
                 this.y = Math.max(this.radius * this.scale, Math.min(canvas.height - this.radius * this.scale, this.y));
-
-                if (this.shrinkSpeed > 0) {
-                    this.scale -= this.shrinkSpeed;
-                    if (this.scale <= 0) this.scale = 0;
-                }
-                if (this.growSpeed > 0) {
-                    this.scale += this.growSpeed;
-                    if (this.scale >= 1) this.scale = 1;
+                if (this.y + this.radius * this.scale > canvas.height) {
+                    this.y = canvas.height - this.radius * this.scale;
+                    this.vy = 0; // Forzar velocidad vertical a 0 si intenta perforar
                 }
             }
         }
@@ -418,8 +414,7 @@
                         const timeSincePerturbed1 = Date.now() - f1.lastPerturbedTime;
                         const timeSincePerturbed2 = Date.now() - f2.lastPerturbedTime;
 
-                        // Si ambas están congeladas y han pasado más de 3 segundos, no colisionan
-                        if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
+                        if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 1500 && timeSincePerturbed2 > 1500) continue;
 
                         if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
                         if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
@@ -545,6 +540,16 @@
                             if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
                             if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
                             if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
+
+                            // Corrección adicional para evitar perforación en colisiones
+                            if (f1.y + f1.radius * f1.scale > canvas.height) {
+                                f1.y = canvas.height - f1.radius * f1.scale;
+                                f1.vy = 0;
+                            }
+                            if (f2.y + f2.radius * f2.scale > canvas.height) {
+                                f2.y = canvas.height - f2.radius * f2.scale;
+                                f2.vy = 0;
+                            }
                         }
                     }
                 }
