@@ -1,588 +1,145 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Frutas con Peso</title>
-    <style>
-        body {
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #87CEEB;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-        canvas {
-            border: 1px solid #333;
-            background-color: #F5F5F5;
-            touch-action: none;
-        }
-        #score {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: #333;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        #lives {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 24px;
-        }
-        #gameOver {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            font-size: 24px;
-            text-align: center;
-            display: none;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="score">Puntaje: 0</div>
-    <div id="lives">❤️❤️❤️</div>
-    <div id="gameOver">Fin!<br>Hiciste <span id="finalScore">0</span> puntos.</div>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreDisplay = document.getElementById('score');
-        const livesDisplay = document.getElementById('lives');
-        const gameOverDisplay = document.getElementById('gameOver');
-        const finalScoreDisplay = document.getElementById('finalScore');
+function checkCollisions() {
+    if (gameOver) return;
+    for (let i = 0; i < fruits.length; i++) {
+        for (let j = i + 1; j < fruits.length; j++) {
+            let f1 = fruits[i];
+            let f2 = fruits[j];
+            let dx = f2.x - f1.x;
+            let dy = f2.y - f1.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
-        canvas.width = Math.min(window.innerWidth * 0.9, 400);
-        canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
+            if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
+                if (f1.isFrozen && f2.isFrozen) continue;
 
-        const GRAVITY = 0.98;
-        const TERMINAL_VELOCITY = 20;
-        const BASE_BOUNCE_WALL = 0.7;
-        const BASE_BOUNCE_FLOOR = 0.6;
-        const BASE_FRICTION = 0.92;
-        const FINAL_FRICTION = 0.3;
-        const ROTATION_FRICTION = 0.95;
-        const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
-        const FREEZE_DELAY = 3000;
-        const FREEZE_DURATION = 1000;
-        const MAX_COLLISION_VELOCITY = 10;
+                if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
+                if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
+                f1.isFrozen = false;
+                f2.isFrozen = false;
 
-        let score = 0;
-        let lives = 3;
-        let lastSpawnTime = Date.now();
-        let gameOver = false;
-
-        class Fruit {
-            constructor(x, y, type, scale = 1) {
-                this.x = x;
-                this.y = y;
-                this.type = type;
-                this.radius = [10, 15, 24, 33, 42, 51, 60][type] * 1.2;
-                this.mass = [1, 2, 4, 8, 16, 32, 64][type];
-                this.vx = 0;
-                this.vy = 0;
-                this.scale = scale;
-                this.shrinkSpeed = 0;
-                this.growSpeed = 0;
-                this.angle = 0;
-                this.angularVelocity = 0;
-                this.isFrozen = false;
-                this.isMerging = false;
-                this.lastPerturbedTime = Date.now();
-            }
-
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.scale(this.scale, this.scale);
-                ctx.rotate(this.angle);
-                if (this.type === 0) { // Uvas
-                    ctx.fillStyle = '#90EE90';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.beginPath();
-                    ctx.arc(3, -3, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                    ctx.beginPath();
-                    ctx.arc(0, 2, this.radius - 2, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.type === 1) { // Cereza
-                    ctx.fillStyle = '#FF4040';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#228B22';
-                    ctx.beginPath();
-                    ctx.moveTo(0, -this.radius);
-                    ctx.lineTo(5, -this.radius - 10);
-                    ctx.lineTo(-5, -this.radius - 15);
-                    ctx.fill();
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.beginPath();
-                    ctx.arc(5, 5, 3, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                    ctx.beginPath();
-                    ctx.arc(0, 5, this.radius - 5, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.type === 2) { // Ciruela
-                    ctx.fillStyle = '#800080';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#654321';
-                    ctx.beginPath();
-                    ctx.arc(0, -this.radius + 5, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#DDA0DD';
-                    ctx.beginPath();
-                    ctx.arc(-5, 5, 4, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.beginPath();
-                    ctx.arc(8, -8, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.type === 3) { // Naranja
-                    ctx.fillStyle = '#FFA500';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#FFD700';
-                    ctx.beginPath();
-                    ctx.arc(5, 5, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(-5, -5, 3, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.fillStyle = '#FF8C00';
-                    for (let i = 0; i < 3; i++) {
-                        ctx.beginPath();
-                        ctx.arc(i * 5 - 5, i * 5 - 5, 2, 0, Math.PI * 2);
-                        ctx.fill();
+                if (f1.type === f2.type && !f1.isMerging && !f2.isMerging) {
+                    f1.isMerging = true;
+                    f2.isMerging = true;
+                    f1.shrinkSpeed = 0.1;
+                    f2.shrinkSpeed = 0.1;
+                    if (f1.type === 6) {
+                        setTimeout(() => {
+                            const index1 = fruits.indexOf(f1);
+                            const index2 = fruits.indexOf(f2);
+                            if (index1 !== -1 && index2 !== -1) {
+                                fruits.splice(index1, 1);
+                                fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
+                                score++;
+                                scoreDisplay.textContent = `Puntaje: ${score}`;
+                                triggerConfettiExplosion(f1.x, f1.y, 40, 6);
+                                setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 200);
+                                setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 400);
+                            }
+                        }, 100);
+                    } else {
+                        let newType = f1.type + 1;
+                        let newX = (f1.x + f2.x) / 2;
+                        let newY = (f1.y + f2.y) / 2;
+                        setTimeout(() => {
+                            const index1 = fruits.indexOf(f1);
+                            const index2 = fruits.indexOf(f2);
+                            if (index1 !== -1 && index2 !== -1) {
+                                fruits.splice(index1, 1);
+                                fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
+                                let newFruit = new Fruit(newX, newY, newType, 0);
+                                newFruit.growSpeed = 0.1;
+                                newFruit.angularVelocity = (Math.random() - 0.5) * 0.1; // Nueva rotación por fusión
+                                fruits.push(newFruit);
+                                triggerConfettiExplosion(newX, newY, 20, f1.type);
+                            }
+                        }, 100);
                     }
-                } else if (this.type === 4) { // Dragonfruit
-                    ctx.fillStyle = '#FF1493';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#32CD32';
-                    for (let i = 0; i < 6; i++) {
-                        let angle = (Math.PI * 2 / 6) * i;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
-                        ctx.lineTo(Math.cos(angle) * (this.radius + 8), Math.sin(angle) * (this.radius + 8));
-                        ctx.strokeStyle = '#32CD32';
-                        ctx.lineWidth = 3;
-                        ctx.stroke();
+                } else if (f1.isMerging || f2.isMerging) {
+                    let nx = dx / distance || 0;
+                    let ny = dy / distance || 0;
+                    let overlap = minDistance - distance;
+                    let correction = overlap / 2;
+                    if (!f1.isFrozen) {
+                        f1.x -= nx * correction;
+                        f1.y -= ny * correction;
                     }
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.type === 5) { // Melón
-                    ctx.fillStyle = '#98FB98';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#006400';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.strokeStyle = '#006400';
-                    for (let i = 0; i < 6; i++) {
-                        let angle = (Math.PI * 2 / 6) * i;
-                        ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * this.radius * 0.8, -this.radius * 0.8);
-                        ctx.quadraticCurveTo(
-                            Math.cos(angle) * this.radius * 0.4, 0,
-                            Math.cos(angle) * this.radius * 0.8, this.radius * 0.8
-                        );
-                        ctx.stroke();
+                    if (!f2.isFrozen) {
+                        f2.x += nx * correction;
+                        f2.y += ny * correction;
                     }
-                    ctx.fillStyle = '#8B4513';
-                    ctx.beginPath();
-                    ctx.arc(10, 10, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                } else { // Sandía
-                    ctx.fillStyle = '#FF4500';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#006400';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#000000';
-                    for (let i = 0; i < 5; i++) {
-                        let angle = (Math.PI * 2 / 5) * i;
-                        ctx.beginPath();
-                        ctx.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 2, 0, Math.PI * 2);
-                        ctx.fill();
+                } else if (!f1.isFrozen || !f2.isFrozen) {
+                    let nx = dx / distance || 0;
+                    let ny = dy / distance || 0;
+
+                    let overlap = minDistance - distance;
+                    let correction = overlap / 2;
+                    if (!f1.isFrozen) {
+                        f1.x -= nx * correction;
+                        f1.y -= ny * correction;
                     }
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.beginPath();
-                    ctx.moveTo(-this.radius + 5, 0);
-                    ctx.lineTo(this.radius - 5, 0);
-                    ctx.stroke();
-                }
-                ctx.restore();
-            }
-
-            update() {
-                if (gameOver || this.isFrozen) return;
-
-                this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
-                this.x += this.vx;
-                this.y += this.vy;
-
-                const timeSinceLastPerturbed = Date.now() - this.lastPerturbedTime;
-                let friction;
-                if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION) {
-                    this.isFrozen = true;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.angularVelocity = 0;
-                    return; // Salimos de la función para no actualizar más
-                } else if (timeSinceLastPerturbed > FREEZE_DELAY) {
-                    const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
-                    friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
-                } else {
-                    friction = BASE_FRICTION - (this.mass / 64) * 0.1;
-                }
-
-                this.vx *= friction;
-                this.vy *= friction;
-
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
-                    this.angle += this.angularVelocity;
-                    this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                    this.angularVelocity *= friction;
-                } else {
-                    this.angularVelocity = 0;
-                }
-
-                const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
-                const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
-                if (this.x - this.radius * this.scale < 0) {
-                    this.x = this.radius * this.scale;
-                    this.vx = -this.vx * bounceWall;
-                    this.angularVelocity += this.vy * 0.02 / this.mass;
-                } else if (this.x + this.radius * this.scale > canvas.width) {
-                    this.x = canvas.width - this.radius * this.scale;
-                    this.vx = -this.vx * bounceWall;
-                    this.angularVelocity -= this.vy * 0.02 / this.mass;
-                }
-                if (this.y + this.radius * this.scale > canvas.height) {
-                    this.y = canvas.height - this.radius * this.scale;
-                    this.vy = -this.vy * bounceFloor;
-                    this.angularVelocity += this.vx * 0.02 / this.mass;
-                    if (Math.abs(this.vy) < 0.5) this.vy = 0;
-                }
-                if (this.y - this.radius * this.scale < 0) {
-                    this.y = this.radius * this.scale;
-                    this.vy = -this.vy * bounceFloor;
-                    if (lives > 0) {
-                        lives--;
-                        livesDisplay.textContent = '❤️'.repeat(lives);
-                        if (lives === 0) {
-                            gameOver = true;
-                            gameOverDisplay.style.display = 'block';
-                            finalScoreDisplay.textContent = score;
-                        }
+                    if (!f2.isFrozen) {
+                        f2.x += nx * correction;
+                        f2.y += ny * correction;
                     }
-                }
 
-                if (this.shrinkSpeed > 0) {
-                    this.scale -= this.shrinkSpeed;
-                    if (this.scale <= 0) this.scale = 0;
-                }
-                if (this.growSpeed > 0) {
-                    this.scale += this.growSpeed;
-                    if (this.scale >= 1) this.scale = 1;
-                }
-            }
-        }
+                    let fallingFruit = f1.vy > f2.vy ? f1 : f2;
+                    let restingFruit = f1.vy > f2.vy ? f2 : f1;
 
-        class Confetti {
-            constructor(x, y, color, size = 4) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.size = size;
-                this.vx = (Math.random() - 0.5) * 8;
-                this.vy = (Math.random() - 0.5) * 8;
-                this.life = 60;
-            }
+                    let v1n = fallingFruit.vx * nx + fallingFruit.vy * ny;
+                    let v2n = restingFruit.vx * nx + restingFruit.vy * ny;
 
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += 0.1;
-                this.life--;
-            }
+                    let v1t = fallingFruit.vx - v1n * nx;
+                    let v2t = restingFruit.vx - v2n * nx;
 
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
+                    let totalMass = fallingFruit.mass + restingFruit.mass;
+                    let massRatio = fallingFruit.mass / restingFruit.mass;
 
-        let fruits = [];
-        let confetti = [];
-        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 4));
-        let aimingX = canvas.width / 2;
-        let isAiming = false;
+                    let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
+                    let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-        function spawnFruit() {
-            if (gameOver) return;
-            let newFruit = new Fruit(aimingX, 50, nextFruit.type);
-            fruits.push(newFruit);
-            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
-            lastSpawnTime = Date.now();
-        }
+                    const bounceFactor = 0.3 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
+                    const energyLoss = 0.7;
+                    finalV1n *= bounceFactor * energyLoss;
+                    finalV2n *= bounceFactor * energyLoss;
 
-        function drawDashedLine() {
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = '#666';
-            ctx.beginPath();
-            ctx.moveTo(aimingX, 0);
-            ctx.lineTo(aimingX, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
+                    // Limitar energía a la inicial
+                    const maxSpeed = Math.sqrt(fallingFruit.initialEnergy);
+                    finalV1n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV1n));
+                    finalV2n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV2n));
 
-        function triggerConfettiExplosion(x, y, amount = 20, fruitType) {
-            const colorSets = [
-                ['#90EE90', '#FFFFFF', '#000000'], // Uvas
-                ['#FF4040', '#228B22', '#FFFFFF'], // Cereza
-                ['#800080', '#654321', '#DDA0DD'], // Ciruela
-                ['#FFA500', '#FFD700', '#FF8C00'], // Naranja
-                ['#FF1493', '#32CD32', '#000000'], // Dragonfruit
-                ['#98FB98', '#006400', '#8B4513'], // Melón
-                ['#FF4500', '#006400', '#000000']  // Sandía
-            ];
-            const colors = colorSets[fruitType];
-            for (let j = 0; j < amount; j++) {
-                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)]));
-            }
-        }
-
-        function checkCollisions() {
-            if (gameOver) return;
-            for (let i = 0; i < fruits.length; i++) {
-                for (let j = i + 1; j < fruits.length; j++) {
-                    let f1 = fruits[i];
-                    let f2 = fruits[j];
-                    let dx = f2.x - f1.x;
-                    let dy = f2.y - f1.y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
-                    let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
-
-                    if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
-                        // Si ambas frutas están congeladas, no hacemos nada
-                        if (f1.isFrozen && f2.isFrozen) continue;
-
-                        // Solo actualizamos lastPerturbedTime si alguna no está congelada
-                        if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
-                        if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
-                        f1.isFrozen = false;
-                        f2.isFrozen = false;
-
-                        if (f1.type === f2.type && !f1.isMerging && !f2.isMerging) {
-                            f1.isMerging = true;
-                            f2.isMerging = true;
-                            f1.shrinkSpeed = 0.1;
-                            f2.shrinkSpeed = 0.1;
-                            if (f1.type === 6) { // Sandía
-                                setTimeout(() => {
-                                    const index1 = fruits.indexOf(f1);
-                                    const index2 = fruits.indexOf(f2);
-                                    if (index1 !== -1 && index2 !== -1) {
-                                        fruits.splice(index1, 1);
-                                        fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        score++;
-                                        scoreDisplay.textContent = `Puntaje: ${score}`;
-                                        triggerConfettiExplosion(f1.x, f1.y, 40, 6);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 200);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 400);
-                                    }
-                                }, 100);
-                            } else {
-                                let newType = f1.type + 1;
-                                let newX = (f1.x + f2.x) / 2;
-                                let newY = (f1.y + f2.y) / 2;
-                                setTimeout(() => {
-                                    const index1 = fruits.indexOf(f1);
-                                    const index2 = fruits.indexOf(f2);
-                                    if (index1 !== -1 && index2 !== -1) {
-                                        fruits.splice(index1, 1);
-                                        fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        let newFruit = new Fruit(newX, newY, newType, 0);
-                                        newFruit.growSpeed = 0.1;
-                                        fruits.push(newFruit);
-                                        triggerConfettiExplosion(newX, newY, 20, f1.type);
-                                    }
-                                }, 100);
-                            }
-                        } 
-                        else if (f1.isMerging || f2.isMerging) {
-                            let nx = dx / distance || 0;
-                            let ny = dy / distance || 0;
-                            let overlap = minDistance - distance;
-                            let correction = overlap / 2;
-                            if (!f1.isFrozen) {
-                                f1.x -= nx * correction;
-                                f1.y -= ny * correction;
-                            }
-                            if (!f2.isFrozen) {
-                                f2.x += nx * correction;
-                                f2.y += ny * correction;
-                            }
-                        }
-                        else if (!f1.isFrozen || !f2.isFrozen) { // Solo colisionamos si al menos una no está congelada
-                            let nx = dx / distance || 0;
-                            let ny = dy / distance || 0;
-
-                            let overlap = minDistance - distance;
-                            let correction = overlap / 2;
-                            if (!f1.isFrozen) {
-                                f1.x -= nx * correction;
-                                f1.y -= ny * correction;
-                            }
-                            if (!f2.isFrozen) {
-                                f2.x += nx * correction;
-                                f2.y += ny * correction;
-                            }
-
-                            let fallingFruit = f1.vy > f2.vy ? f1 : f2;
-                            let restingFruit = f1.vy > f2.vy ? f2 : f1;
-
-                            let v1n = fallingFruit.vx * nx + fallingFruit.vy * ny;
-                            let v2n = restingFruit.vx * nx + restingFruit.vy * ny;
-
-                            let v1t = fallingFruit.vx - v1n * nx;
-                            let v2t = restingFruit.vx - v2n * nx;
-
-                            let totalMass = fallingFruit.mass + restingFruit.mass;
-                            let massRatio = fallingFruit.mass / restingFruit.mass;
-
-                            let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
-                            let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
-
-                            const bounceFactor = 0.3 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
-                            const energyLoss = 0.7;
-                            finalV1n *= bounceFactor * energyLoss;
-                            finalV2n *= bounceFactor * energyLoss;
-
-                            const initialEnergy = Math.max(Math.abs(v1n), Math.abs(v2n));
-                            finalV1n = Math.min(Math.max(finalV1n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
-                            finalV2n = Math.min(Math.max(finalV2n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
-
-                            if (massRatio > 1) {
-                                finalV2n *= Math.min(1, massRatio * 0.5);
-                                finalV1n *= Math.max(0.2, 1 / massRatio);
-                            } else {
-                                finalV1n *= Math.min(1, 1 / massRatio * 0.5);
-                                finalV2n *= Math.max(0.2, massRatio);
-                            }
-
-                            if (Date.now() - fallingFruit.lastPerturbedTime < FREEZE_DELAY) {
-                                finalV2n = Math.max(finalV2n, 0);
-                                if (Math.abs(finalV2n) < 0.5) finalV2n = 0;
-                            }
-
-                            if (!fallingFruit.isFrozen) {
-                                fallingFruit.vx = v1t + finalV1n * nx;
-                                fallingFruit.vy = finalV1n * ny;
-                                fallingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vx));
-                                fallingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vy));
-                            }
-                            if (!restingFruit.isFrozen) {
-                                restingFruit.vx = v2t + finalV2n * nx;
-                                restingFruit.vy = finalV2n * ny;
-                                restingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vx));
-                                restingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vy));
-                            }
-
-                            let relativeVelocityX = f2.vx - f1.vx;
-                            let relativeVelocityY = f2.vy - f1.vy;
-                            let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
-                            if (!f1.isFrozen) f1.angularVelocity += Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
-                            if (!f2.isFrozen) f2.angularVelocity -= Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
-
-                            if (!f1.isFrozen && Math.abs(f1.vx) < 0.1) f1.vx = 0;
-                            if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
-                            if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
-                            if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
-                        }
+                    // Restricción: Frutas pequeñas no elevan a las grandes
+                    if (fallingFruit.mass < restingFruit.mass) {
+                        finalV2n = Math.max(finalV2n, 0); // No permite elevación hacia arriba
+                        finalV1n *= Math.min(1, restingFruit.mass / fallingFruit.mass * 0.5); // Reduce rebote de la pequeña
+                    } else {
+                        finalV2n *= Math.min(1, fallingFruit.mass / restingFruit.mass * 0.5);
                     }
+
+                    if (!fallingFruit.isFrozen) {
+                        fallingFruit.vx = v1t + finalV1n * nx;
+                        fallingFruit.vy = finalV1n * ny;
+                        fallingFruit.vx = Math.max(-maxSpeed, Math.min(maxSpeed, fallingFruit.vx));
+                        fallingFruit.vy = Math.max(-maxSpeed, Math.min(maxSpeed, fallingFruit.vy));
+                    }
+                    if (!restingFruit.isFrozen) {
+                        restingFruit.vx = v2t + finalV2n * nx;
+                        restingFruit.vy = finalV2n * ny;
+                        restingFruit.vx = Math.max(-maxSpeed, Math.min(maxSpeed, restingFruit.vx));
+                        restingFruit.vy = Math.max(-maxSpeed, Math.min(maxSpeed, restingFruit.vy));
+                    }
+
+                    let relativeVelocityX = f2.vx - f1.vx;
+                    let relativeVelocityY = f2.vy - f1.vy;
+                    let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
+                    if (!f1.isFrozen) f1.angularVelocity = Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
+                    if (!f2.isFrozen) f2.angularVelocity = Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
+
+                    if (!f1.isFrozen && Math.abs(f1.vx) < 0.1) f1.vx = 0;
+                    if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
+                    if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
+                    if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
                 }
             }
         }
-
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            fruits.forEach(fruit => {
-                fruit.update();
-                if (fruit.scale > 0) fruit.draw();
-            });
-
-            confetti.forEach((c, i) => {
-                c.update();
-                c.draw();
-                if (c.life <= 0) confetti.splice(i, 1);
-            });
-
-            if (isAiming && !gameOver) drawDashedLine();
-            if (!gameOver) {
-                nextFruit.x = aimingX;
-                nextFruit.draw();
-            }
-
-            checkCollisions();
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver) isAiming = true;
-            aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
-        });
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (isAiming && !gameOver) {
-                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
-            }
-        });
-
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (isAiming && !gameOver) {
-                spawnFruit();
-                isAiming = false;
-            }
-        });
-
-        gameLoop();
-    </script>
-</body>
-</html>
+    }
+}
