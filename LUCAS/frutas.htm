@@ -46,13 +46,13 @@
         const BASE_BOUNCE_WALL = 0.7;
         const BASE_BOUNCE_FLOOR = 0.6;
         const BASE_FRICTION = 0.92;
-        const FINAL_FRICTION = 0.7; // Fricción fuerte después de 3 segundos
+        const FINAL_FRICTION = 0.5; // Fricción más fuerte para detener todo rápido
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
 
         let score = 0;
-        let lastSpawnTime = Date.now(); // Tiempo de la última fruta lanzada
-        const FREEZE_DELAY = 3000; // 3 segundos en milisegundos
+        let lastSpawnTime = Date.now();
+        const FREEZE_DELAY = 3000; // 3 segundos
 
         class Fruit {
             constructor(x, y, type, scale = 1) {
@@ -175,7 +175,7 @@
                     for (let i = 0; i < 6; i++) {
                         let angle = (Math.PI * 2 / 6) * i;
                         ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * this.radius * 0.9, -this.radius * 0.9); // Ajustado para no exceder
+                        ctx.moveTo(Math.cos(angle) * this.radius * 0.9, -this.radius * 0.9);
                         ctx.quadraticCurveTo(
                             Math.cos(angle) * this.radius * 0.5, 0,
                             Math.cos(angle) * this.radius * 0.9, this.radius * 0.9
@@ -216,19 +216,25 @@
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Fricción normal o final según el tiempo desde el último spawn
                 const timeSinceLastSpawn = Date.now() - lastSpawnTime;
                 const friction = timeSinceLastSpawn > FREEZE_DELAY ? FINAL_FRICTION : (BASE_FRICTION - (this.mass / 64) * 0.1);
                 this.vx *= friction;
                 this.vy *= friction;
 
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (speed > 0.1) {
+                if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
                     this.angle += this.angularVelocity;
                     this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
                     this.angularVelocity *= (timeSinceLastSpawn > FREEZE_DELAY ? FINAL_FRICTION : ROTATION_FRICTION);
                 } else {
-                    this.angularVelocity *= 0.9;
+                    this.angularVelocity = 0; // Detener rotación si es muy pequeña
+                }
+
+                // Forzar detención completa tras 3 segundos
+                if (timeSinceLastSpawn > FREEZE_DELAY) {
+                    if (Math.abs(this.vx) < 0.1) this.vx = 0;
+                    if (Math.abs(this.vy) < 0.1) this.vy = 0;
+                    if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
                 }
 
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
@@ -295,7 +301,7 @@
         function spawnFruit() {
             fruits.push(new Fruit(aimingX, 50, nextFruit.type));
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
-            lastSpawnTime = Date.now(); // Actualizar tiempo de spawn
+            lastSpawnTime = Date.now();
         }
 
         function drawDashedLine() {
@@ -387,8 +393,7 @@
                             let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
                             let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-                            // Aumentar fricción en colisiones (disminuir energía)
-                            const bounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5); // Entre 0.5 y 0.25
+                            const bounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
                             finalV1n *= bounceFactor;
                             finalV2n *= bounceFactor;
 
