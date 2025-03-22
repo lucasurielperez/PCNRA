@@ -95,7 +95,8 @@
                 this.angle = 0;
                 this.angularVelocity = 0;
                 this.isFrozen = false;
-                this.lastPerturbedTime = Date.now(); // Tiempo de la última perturbación
+                this.isMerging = false;
+                this.lastPerturbedTime = Date.now();
             }
 
             draw() {
@@ -242,7 +243,6 @@
             update() {
                 if (gameOver) return;
 
-                // Aplicar gravedad y movimiento solo si no está congelada
                 if (!this.isFrozen) {
                     this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
                     this.x += this.vx;
@@ -406,15 +406,16 @@
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
                     if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
-                        // Actualizar tiempo de perturbación para ambas frutas
                         f1.lastPerturbedTime = Date.now();
                         f2.lastPerturbedTime = Date.now();
                         f1.isFrozen = false;
                         f2.isFrozen = false;
 
-                        if (f1.type === f2.type) {
-                            f1.shrinkSpeed = 0.05;
-                            f2.shrinkSpeed = 0.05;
+                        if (f1.type === f2.type && !f1.isMerging && !f2.isMerging) {
+                            f1.isMerging = true;
+                            f2.isMerging = true;
+                            f1.shrinkSpeed = 0.1;
+                            f2.shrinkSpeed = 0.1;
                             if (f1.type === 6) { // Sandía
                                 setTimeout(() => {
                                     const index1 = fruits.indexOf(f1);
@@ -425,10 +426,10 @@
                                         score++;
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
                                         triggerConfettiExplosion(f1.x, f1.y, 40, 6);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 300);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 600);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 200);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 400);
                                     }
-                                }, 200);
+                                }, 100);
                             } else {
                                 let newType = f1.type + 1;
                                 let newX = (f1.x + f2.x) / 2;
@@ -440,13 +441,24 @@
                                         fruits.splice(index1, 1);
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
                                         let newFruit = new Fruit(newX, newY, newType, 0);
-                                        newFruit.growSpeed = 0.05;
+                                        newFruit.growSpeed = 0.1;
                                         fruits.push(newFruit);
                                         triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
-                                }, 200);
+                                }, 100);
                             }
-                        } else {
+                        } 
+                        else if (f1.isMerging || f2.isMerging) {
+                            let nx = dx / distance || 0;
+                            let ny = dy / distance || 0;
+                            let overlap = minDistance - distance;
+                            let correction = overlap / 2;
+                            f1.x -= nx * correction;
+                            f1.y -= ny * correction;
+                            f2.x += nx * correction;
+                            f2.y += ny * correction;
+                        }
+                        else {
                             let nx = dx / distance || 0;
                             let ny = dy / distance || 0;
 
