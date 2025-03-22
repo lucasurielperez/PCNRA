@@ -50,7 +50,7 @@
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <div id="score">Puntaje: 0</div>
+    <div id="score">Puntaje: 50</div>
     <div id="lives">❤️❤️❤️</div>
     <div id="gameOver">Fin!<br>Hiciste <span id="finalScore">0</span> puntos.</div>
     <script>
@@ -76,7 +76,7 @@
         const FREEZE_DURATION = 1000;
         const MAX_COLLISION_VELOCITY = 10;
 
-        let score = 0;
+        let score = 50;  // Puntaje inicial cambiado a 50
         let lives = 3;
         let lastSpawnTime = Date.now();
         let gameOver = false;
@@ -86,7 +86,7 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44; // 1.2 * 1.2 = 1.44 (20% más grande)
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44;
                 this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
@@ -94,7 +94,7 @@
                 this.shrinkSpeed = 0;
                 this.growSpeed = 0;
                 this.angle = 0;
-                this.angularVelocity = (Math.random() - 0.5) * 0.15; // Rotación inicial más fuerte
+                this.angularVelocity = (Math.random() - 0.5) * 0.15;
                 this.isFrozen = false;
                 this.isMerging = false;
                 this.lastPerturbedTime = Date.now();
@@ -374,6 +374,13 @@
             fruits.push(newFruit);
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3));
             lastSpawnTime = Date.now();
+            score--;  // Resta 1 punto por cada fruta que cae
+            scoreDisplay.textContent = `Puntaje: ${score}`;
+            if (score <= 0) {  // Verifica si el puntaje llega a 0
+                gameOver = true;
+                gameOverDisplay.style.display = 'block';
+                finalScoreDisplay.textContent = score;
+            }
         }
 
         function drawDashedLine() {
@@ -418,7 +425,6 @@
                         const timeSincePerturbed1 = Date.now() - f1.lastPerturbedTime;
                         const timeSincePerturbed2 = Date.now() - f2.lastPerturbedTime;
 
-                        // Si ambas están congeladas y han pasado más de 3 segundos, no colisionan
                         if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
 
                         if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
@@ -438,7 +444,7 @@
                                     if (index1 !== -1 && index2 !== -1) {
                                         fruits.splice(index1, 1);
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        score++;
+                                        score += 50;  // Suma 50 puntos por fusionar sandías
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
                                         triggerConfettiExplosion(f1.x, f1.y, 40, 7);
                                         setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
