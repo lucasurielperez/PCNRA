@@ -61,9 +61,8 @@
         const gameOverDisplay = document.getElementById('gameOver');
         const finalScoreDisplay = document.getElementById('finalScore');
 
-        // Ajustar el tamaño del canvas correctamente
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
-        canvas.height = Math.min(window.innerHeight * 0.9, 600);
+        canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
         const GRAVITY = 0.98;
         const TERMINAL_VELOCITY = 20;
@@ -73,8 +72,8 @@
         const FINAL_FRICTION = 0.3;
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
-        const FREEZE_DELAY = 1500; // 1.5 segundos
-        const FREEZE_DURATION = 500; // 0.5 segundos
+        const FREEZE_DELAY = 3000;
+        const FREEZE_DURATION = 1000;
         const MAX_COLLISION_VELOCITY = 10;
 
         let score = 0;
@@ -87,7 +86,7 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44;
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44; // 1.2 * 1.2 = 1.44 (20% más grande)
                 this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
@@ -95,7 +94,7 @@
                 this.shrinkSpeed = 0;
                 this.growSpeed = 0;
                 this.angle = 0;
-                this.angularVelocity = (Math.random() - 0.5) * 0.15;
+                this.angularVelocity = (Math.random() - 0.5) * 0.15; // Rotación inicial más fuerte
                 this.isFrozen = false;
                 this.isMerging = false;
                 this.lastPerturbedTime = Date.now();
@@ -257,7 +256,7 @@
             }
 
             update() {
-                if (gameOver || (this.isFrozen && !this.isMerging)) {
+                if (gameOver || this.isFrozen) {
                     this.angularVelocity = 0;
                     this.vx = 0;
                     this.vy = 0;
@@ -270,7 +269,7 @@
 
                 const timeSinceLastPerturbed = Date.now() - this.lastPerturbedTime;
                 let friction;
-                if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION && !this.isMerging) {
+                if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION) {
                     this.isFrozen = true;
                     this.vx = 0;
                     this.vy = 0;
@@ -325,10 +324,6 @@
 
                 this.x = Math.max(this.radius * this.scale, Math.min(canvas.width - this.radius * this.scale, this.x));
                 this.y = Math.max(this.radius * this.scale, Math.min(canvas.height - this.radius * this.scale, this.y));
-                if (this.y + this.radius * this.scale > canvas.height) {
-                    this.y = canvas.height - this.radius * this.scale;
-                    this.vy = 0;
-                }
 
                 if (this.shrinkSpeed > 0) {
                     this.scale -= this.shrinkSpeed;
@@ -377,9 +372,8 @@
             if (gameOver) return;
             let newFruit = new Fruit(aimingX, 50, nextFruit.type);
             fruits.push(newFruit);
-            nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
+            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3));
             lastSpawnTime = Date.now();
-            isAiming = false; // Resetear isAiming al generar una fruta
         }
 
         function drawDashedLine() {
@@ -424,14 +418,19 @@
                         const timeSincePerturbed1 = Date.now() - f1.lastPerturbedTime;
                         const timeSincePerturbed2 = Date.now() - f2.lastPerturbedTime;
 
+                        // Si ambas están congeladas y han pasado más de 3 segundos, no colisionan
+                        if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
+
+                        if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
+                        if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
+                        f1.isFrozen = false;
+                        f2.isFrozen = false;
+
                         if (f1.type === f2.type && !f1.isMerging && !f2.isMerging) {
                             f1.isMerging = true;
                             f2.isMerging = true;
                             f1.shrinkSpeed = 0.1;
                             f2.shrinkSpeed = 0.1;
-                            f1.lastPerturbedTime = Date.now();
-                            f2.lastPerturbedTime = Date.now();
-
                             if (f1.type === 7) { // Sandía
                                 setTimeout(() => {
                                     const index1 = fruits.indexOf(f1);
@@ -464,12 +463,20 @@
                                     }
                                 }, 100);
                             }
-                        } else if (!f1.isFrozen || !f2.isFrozen || timeSincePerturbed1 <= 1500 || timeSincePerturbed2 <= 1500) {
-                            if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
-                            if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
-                            f1.isFrozen = false;
-                            f2.isFrozen = false;
-
+                        } else if (f1.isMerging || f2.isMerging) {
+                            let nx = dx / distance || 0;
+                            let ny = dy / distance || 0;
+                            let overlap = minDistance - distance;
+                            let correction = overlap / 2;
+                            if (!f1.isFrozen) {
+                                f1.x -= nx * correction;
+                                f1.y -= ny * correction;
+                            }
+                            if (!f2.isFrozen) {
+                                f2.x += nx * correction;
+                                f2.y += ny * correction;
+                            }
+                        } else if (!f1.isFrozen || !f2.isFrozen) {
                             let nx = dx / distance || 0;
                             let ny = dy / distance || 0;
 
@@ -538,15 +545,6 @@
                             if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
                             if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
                             if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
-
-                            if (f1.y + f1.radius * f1.scale > canvas.height) {
-                                f1.y = canvas.height - f1.radius * f1.scale;
-                                f1.vy = 0;
-                            }
-                            if (f2.y + f2.radius * f2.scale > canvas.height) {
-                                f2.y = canvas.height - f2.radius * f2.scale;
-                                f2.vy = 0;
-                            }
                         }
                     }
                 }
@@ -556,7 +554,6 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            fruits = fruits.filter(fruit => fruit.scale > 0);
             fruits.forEach(fruit => {
                 fruit.update();
                 if (fruit.scale > 0) fruit.draw();
@@ -579,19 +576,16 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Eventos táctiles revisados
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (!gameOver) {
-                isAiming = true;
-                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.getBoundingClientRect().left));
-            }
+            if (!gameOver) isAiming = true;
+            aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
         });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if (isAiming && !gameOver) {
-                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.getBoundingClientRect().left));
+                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
             }
         });
 
@@ -599,26 +593,7 @@
             e.preventDefault();
             if (isAiming && !gameOver) {
                 spawnFruit();
-            }
-        });
-
-        // Soporte para clics de ratón (para pruebas en escritorio)
-        canvas.addEventListener('mousedown', (e) => {
-            if (!gameOver) {
-                isAiming = true;
-                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.clientX - canvas.getBoundingClientRect().left));
-            }
-        });
-
-        canvas.addEventListener('mousemove', (e) => {
-            if (isAiming && !gameOver) {
-                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.clientX - canvas.getBoundingClientRect().left));
-            }
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
-            if (isAiming && !gameOver) {
-                spawnFruit();
+                isAiming = false;
             }
         });
 
