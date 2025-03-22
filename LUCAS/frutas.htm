@@ -76,7 +76,7 @@
         const FREEZE_DURATION = 1000;
         const MAX_COLLISION_VELOCITY = 10;
 
-        let score = 50;  // Puntaje inicial cambiado a 50
+        let score = 50;
         let lives = 3;
         let lastSpawnTime = Date.now();
         let gameOver = false;
@@ -296,6 +296,8 @@
 
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
                 const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
+
+                // Reubicar frutas que perforan los límites sin colisión
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
                     this.vx = Math.min(Math.abs(this.vx) * bounceWall, Math.sqrt(this.initialEnergy)) * Math.sign(this.vx);
@@ -307,8 +309,7 @@
                     this.y = canvas.height - this.radius * this.scale;
                     this.vy = -Math.min(Math.abs(this.vy) * bounceFloor, Math.sqrt(this.initialEnergy));
                     if (Math.abs(this.vy) < 0.5) this.vy = 0;
-                }
-                if (this.y - this.radius * this.scale < 0) {
+                } else if (this.y - this.radius * this.scale < 0) {
                     this.y = this.radius * this.scale;
                     this.vy = Math.min(Math.abs(this.vy) * bounceFloor, Math.sqrt(this.initialEnergy));
                     if (lives > 0) {
@@ -320,6 +321,19 @@
                             finalScoreDisplay.textContent = score;
                         }
                     }
+                }
+
+                // Ajuste mínimo si la fruta perfora el suelo u otros límites
+                if (this.y + this.radius * this.scale > canvas.height + 1) {
+                    this.y = canvas.height - this.radius * this.scale; // Reposicionar justo dentro del límite
+                }
+                if (this.x - this.radius * this.scale < -1) {
+                    this.x = this.radius * this.scale;
+                } else if (this.x + this.radius * this.scale > canvas.width + 1) {
+                    this.x = canvas.width - this.radius * this.scale;
+                }
+                if (this.y - this.radius * this.scale < -1) {
+                    this.y = this.radius * this.scale;
                 }
 
                 this.x = Math.max(this.radius * this.scale, Math.min(canvas.width - this.radius * this.scale, this.x));
@@ -374,9 +388,9 @@
             fruits.push(newFruit);
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3));
             lastSpawnTime = Date.now();
-            score--;  // Resta 1 punto por cada fruta que cae
+            score--;
             scoreDisplay.textContent = `Puntaje: ${score}`;
-            if (score <= 0) {  // Verifica si el puntaje llega a 0
+            if (score <= 0) {
                 gameOver = true;
                 gameOverDisplay.style.display = 'block';
                 finalScoreDisplay.textContent = score;
@@ -444,7 +458,7 @@
                                     if (index1 !== -1 && index2 !== -1) {
                                         fruits.splice(index1, 1);
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        score += 50;  // Suma 50 puntos por fusionar sandías
+                                        score += 50;
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
                                         triggerConfettiExplosion(f1.x, f1.y, 40, 7);
                                         setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
