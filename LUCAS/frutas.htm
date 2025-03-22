@@ -86,19 +86,19 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [10, 15, 24, 33, 42, 51, 60][type] * 1.2;
-                this.mass = [1, 2, 4, 8, 16, 32, 64][type];
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.2; // Arándano (8) agregado
+                this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type]; // Masa menor para arándano
                 this.vx = 0;
                 this.vy = 0;
                 this.scale = scale;
                 this.shrinkSpeed = 0;
                 this.growSpeed = 0;
                 this.angle = 0;
-                this.angularVelocity = (Math.random() - 0.5) * 0.05; // Rotación inicial aleatoria leve
+                this.angularVelocity = (Math.random() - 0.5) * 0.05;
                 this.isFrozen = false;
                 this.isMerging = false;
                 this.lastPerturbedTime = Date.now();
-                this.initialEnergy = GRAVITY * canvas.height; // Energía inicial basada en la caída máxima
+                this.initialEnergy = GRAVITY * canvas.height;
             }
 
             draw() {
@@ -106,7 +106,20 @@
                 ctx.translate(this.x, this.y);
                 ctx.scale(this.scale, this.scale);
                 ctx.rotate(this.angle);
-                if (this.type === 0) { // Uvas
+                if (this.type === 0) { // Arándano
+                    ctx.fillStyle = '#1E90FF'; // Azul característico
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(2, -2, 1.5, 0, Math.PI * 2); // Pequeño reflejo
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(0, 1, this.radius - 1, 0, Math.PI * 2); // Sombra
+                    ctx.fill();
+                } else if (this.type === 1) { // Uvas
                     ctx.fillStyle = '#90EE90';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -119,7 +132,7 @@
                     ctx.beginPath();
                     ctx.arc(0, 2, this.radius - 2, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 1) { // Cereza
+                } else if (this.type === 2) { // Cereza
                     ctx.fillStyle = '#FF4040';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -138,7 +151,7 @@
                     ctx.beginPath();
                     ctx.arc(0, 5, this.radius - 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 2) { // Ciruela
+                } else if (this.type === 3) { // Ciruela
                     ctx.fillStyle = '#800080';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -155,7 +168,7 @@
                     ctx.beginPath();
                     ctx.arc(8, -8, 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 3) { // Naranja
+                } else if (this.type === 4) { // Naranja
                     ctx.fillStyle = '#FFA500';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -173,7 +186,7 @@
                         ctx.arc(i * 5 - 5, i * 5 - 5, 2, 0, Math.PI * 2);
                         ctx.fill();
                     }
-                } else if (this.type === 4) { // Dragonfruit
+                } else if (this.type === 5) { // Dragonfruit
                     ctx.fillStyle = '#FF1493';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -192,7 +205,7 @@
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 5) { // Melón
+                } else if (this.type === 6) { // Melón
                     ctx.fillStyle = '#98FB98';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -244,7 +257,7 @@
 
             update() {
                 if (gameOver || this.isFrozen) {
-                    this.angularVelocity = 0; // Matar rotación al congelar
+                    this.angularVelocity = 0;
                     return;
                 }
 
@@ -258,7 +271,7 @@
                     this.isFrozen = true;
                     this.vx = 0;
                     this.vy = 0;
-                    this.angularVelocity = 0; // Matar rotación al congelar
+                    this.angularVelocity = 0;
                     return;
                 } else if (timeSinceLastPerturbed > FREEZE_DELAY) {
                     const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
@@ -279,7 +292,6 @@
                     this.angularVelocity = 0;
                 }
 
-                // Sistema anti-error: Corrección estricta de límites
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
                 const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
                 if (this.x - this.radius * this.scale < 0) {
@@ -308,7 +320,6 @@
                     }
                 }
 
-                // Anti-fruta escapadora: Forzar posición dentro del área
                 this.x = Math.max(this.radius * this.scale, Math.min(canvas.width - this.radius * this.scale, this.x));
                 this.y = Math.max(this.radius * this.scale, Math.min(canvas.height - this.radius * this.scale, this.y));
 
@@ -351,7 +362,7 @@
 
         let fruits = [];
         let confetti = [];
-        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 4));
+        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3)); // Solo tipos 0-2 caen
         let aimingX = canvas.width / 2;
         let isAiming = false;
 
@@ -359,7 +370,7 @@
             if (gameOver) return;
             let newFruit = new Fruit(aimingX, 50, nextFruit.type);
             fruits.push(newFruit);
-            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
+            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3)); // Solo arándano, uvas y cereza
             lastSpawnTime = Date.now();
         }
 
@@ -375,6 +386,7 @@
 
         function triggerConfettiExplosion(x, y, amount = 20, fruitType) {
             const colorSets = [
+                ['#1E90FF', '#FFFFFF', '#000000'], // Arándano
                 ['#90EE90', '#FFFFFF', '#000000'], // Uvas
                 ['#FF4040', '#228B22', '#FFFFFF'], // Cereza
                 ['#800080', '#654321', '#DDA0DD'], // Ciruela
@@ -413,7 +425,7 @@
                             f2.isMerging = true;
                             f1.shrinkSpeed = 0.1;
                             f2.shrinkSpeed = 0.1;
-                            if (f1.type === 6) {
+                            if (f1.type === 7) { // Sandía
                                 setTimeout(() => {
                                     const index1 = fruits.indexOf(f1);
                                     const index2 = fruits.indexOf(f2);
@@ -422,9 +434,9 @@
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
                                         score++;
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
-                                        triggerConfettiExplosion(f1.x, f1.y, 40, 6);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 200);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 400);
+                                        triggerConfettiExplosion(f1.x, f1.y, 40, 7);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 400);
                                     }
                                 }, 100);
                             } else {
@@ -439,7 +451,7 @@
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
                                         let newFruit = new Fruit(newX, newY, newType, 0);
                                         newFruit.growSpeed = 0.1;
-                                        newFruit.angularVelocity = (Math.random() - 0.5) * 0.1; // Nueva rotación por fusión
+                                        newFruit.angularVelocity = (Math.random() - 0.5) * 0.1;
                                         fruits.push(newFruit);
                                         triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
@@ -493,15 +505,13 @@
                             finalV1n *= bounceFactor * energyLoss;
                             finalV2n *= bounceFactor * energyLoss;
 
-                            // Limitar energía a la inicial
                             const maxSpeed = Math.sqrt(fallingFruit.initialEnergy);
                             finalV1n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV1n));
                             finalV2n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV2n));
 
-                            // Restricción: Frutas pequeñas no elevan a las grandes
                             if (fallingFruit.mass < restingFruit.mass) {
-                                finalV2n = Math.max(finalV2n, 0); // No permite elevación hacia arriba
-                                finalV1n *= Math.min(1, restingFruit.mass / fallingFruit.mass * 0.5); // Reduce rebote de la pequeña
+                                finalV2n = Math.max(finalV2n, 0);
+                                finalV1n *= Math.min(1, restingFruit.mass / fallingFruit.mass * 0.5);
                             } else {
                                 finalV2n *= Math.min(1, fallingFruit.mass / restingFruit.mass * 0.5);
                             }
