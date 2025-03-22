@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Frutas</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+            overflow: hidden;
+        }
+        canvas {
+            border: 1px solid #333;
+            background-color: #F5F5F5;
+            touch-action: none; /* Evita el scroll en móviles */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuración del canvas para móviles
+        canvas.width = Math.min(window.innerWidth * 0.9, 400);
+        canvas.height = Math.min(window.innerHeight * 0.9, 600);
+
+        const GRAVITY = 0.3;
+        const BOUNCE = 0.7; // Rebote moderado
+        const FRICTION = 0.99; // Fricción para desacelerar
+
+        class Fruit {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 0: cereza, 1: ciruela, 2: naranja
+                this.radius = [15, 25, 35][type];
+                this.vx = 0;
+                this.vy = 0;
+                this.mass = this.radius; // Masa proporcional al tamaño
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if (this.type === 0) { // Cereza
+                    ctx.fillStyle = '#FF4040';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#228B22';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.radius);
+                    ctx.lineTo(5, -this.radius - 10);
+                    ctx.lineTo(-5, -this.radius - 15);
+                    ctx.fill();
+                } else if (this.type === 1) { // Ciruela
+                    ctx.fillStyle = '#800080';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#654321';
+                    ctx.beginPath();
+                    ctx.arc(0, -this.radius + 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else { // Naranja
+                    ctx.fillStyle = '#FFA500';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(5, 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            update() {
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+
+                // Colisión con paredes
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx = -this.vx * BOUNCE;
+                } else if (this.x + this.radius > canvas.width) {
+                    this.x = canvas.width - this.radius;
+                    this.vx = -this.vx * BOUNCE;
+                }
+                if (this.y + this.radius > canvas.height) {
+                    this.y = canvas.height - this.radius;
+                    this.vy = -this.vy * BOUNCE;
+                }
+            }
+        }
+
+        let fruits = [];
+        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
+
+        function spawnFruit() {
+            fruits.push(nextFruit);
+            nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
+        }
+
+        function checkCollisions() {
+            for (let i = 0; i < fruits.length; i++) {
+                for (let j = i + 1; j < fruits.length; j++) {
+                    let f1 = fruits[i];
+                    let f2 = fruits[j];
+                    let dx = f2.x - f1.x;
+                    let dy = f2.y - f1.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < f1.radius + f2.radius) {
+                        if (f1.type === f2.type && f1.type < 2) {
+                            let newType = f1.type + 1;
+                            let newX = (f1.x + f2.x) / 2;
+                            let newY = (f1.y + f2.y) / 2;
+                            fruits.splice(j, 1);
+                            fruits.splice(i, 1, new Fruit(newX, newY, newType));
+                            return; // Salimos para evitar problemas con índices
+                        } else {
+                            // Colisión elástica simple
+                            let angle = Math.atan2(dy, dx);
+                            let sin = Math.sin(angle);
+                            let cos = Math.cos(angle);
+
+                            let vx1 = f1.vx * cos + f1.vy * sin;
+                            let vy1 = f1.vy * cos - f1.vx * sin;
+                            let vx2 = f2.vx * cos + f2.vy * sin;
+                            let vy2 = f2.vy * cos - f2.vx * sin;
+
+                            let finalVx1 = ((f1.mass - f2.mass) * vx1 + 2 * f2.mass * vx2) / (f1.mass + f2.mass);
+                            let finalVx2 = ((f2.mass - f1.mass) * vx2 + 2 * f1.mass * vx1) / (f1.mass + f2.mass);
+
+                            f1.vx = cos * finalVx1 - sin * vy1;
+                            f1.vy = sin * finalVx1 + cos * vy1;
+                            f2.vx = cos * finalVx2 - sin * vy2;
+                            f2.vy = sin * finalVx2 + cos * vy2;
+
+                            let overlap = (f1.radius + f2.radius) - distance;
+                            f1.x -= dx * overlap / distance / 2;
+                            f1.y -= dy * overlap / distance / 2;
+                            f2.x += dx * overlap / distance / 2;
+                            f2.y += dy * overlap / distance / 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            fruits.forEach(fruit => {
+                fruit.update();
+                fruit.draw();
+            });
+            nextFruit.draw();
+
+            checkCollisions();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            spawnFruit();
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
