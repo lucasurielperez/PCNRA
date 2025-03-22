@@ -86,15 +86,15 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.2; // Arándano (8) agregado
-                this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type]; // Masa menor para arándano
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44; // 1.2 * 1.2 = 1.44 (20% más grande)
+                this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
                 this.scale = scale;
                 this.shrinkSpeed = 0;
                 this.growSpeed = 0;
                 this.angle = 0;
-                this.angularVelocity = (Math.random() - 0.5) * 0.05;
+                this.angularVelocity = (Math.random() - 0.5) * 0.15; // Rotación inicial más fuerte
                 this.isFrozen = false;
                 this.isMerging = false;
                 this.lastPerturbedTime = Date.now();
@@ -107,17 +107,17 @@
                 ctx.scale(this.scale, this.scale);
                 ctx.rotate(this.angle);
                 if (this.type === 0) { // Arándano
-                    ctx.fillStyle = '#1E90FF'; // Azul característico
+                    ctx.fillStyle = '#1E90FF';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = '#FFFFFF';
                     ctx.beginPath();
-                    ctx.arc(2, -2, 1.5, 0, Math.PI * 2); // Pequeño reflejo
+                    ctx.arc(2, -2, 1.5, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                     ctx.beginPath();
-                    ctx.arc(0, 1, this.radius - 1, 0, Math.PI * 2); // Sombra
+                    ctx.arc(0, 1, this.radius - 1, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (this.type === 1) { // Uvas
                     ctx.fillStyle = '#90EE90';
@@ -258,6 +258,8 @@
             update() {
                 if (gameOver || this.isFrozen) {
                     this.angularVelocity = 0;
+                    this.vx = 0;
+                    this.vy = 0;
                     return;
                 }
 
@@ -362,7 +364,7 @@
 
         let fruits = [];
         let confetti = [];
-        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3)); // Solo tipos 0-2 caen
+        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
         let aimingX = canvas.width / 2;
         let isAiming = false;
 
@@ -370,7 +372,7 @@
             if (gameOver) return;
             let newFruit = new Fruit(aimingX, 50, nextFruit.type);
             fruits.push(newFruit);
-            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3)); // Solo arándano, uvas y cereza
+            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3));
             lastSpawnTime = Date.now();
         }
 
@@ -413,7 +415,11 @@
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
                     if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
-                        if (f1.isFrozen && f2.isFrozen) continue;
+                        const timeSincePerturbed1 = Date.now() - f1.lastPerturbedTime;
+                        const timeSincePerturbed2 = Date.now() - f2.lastPerturbedTime;
+
+                        // Si ambas están congeladas y han pasado más de 3 segundos, no colisionan
+                        if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
 
                         if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
                         if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
