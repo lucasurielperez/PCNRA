@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Frutas con Rebote y Rotación</title>
+    <title>Juego de Frutas con Rebote Realista</title>
     <style>
         body {
             margin: 0;
@@ -41,15 +41,11 @@
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
-        const GRAVITY = 1.4625;
-        const BOUNCE_WALL = 7.5;  // 5 veces más que 1.5
-        const BOUNCE_FLOOR = 7.5; // 5 veces más que 1.5
-        const BOUNCE_FRUIT = 6.5; // 5 veces más que 1.3
-        const FRICTION = 0.75;
-        const ROTATION_FRICTION = 0.98;
-        const MAX_ANGULAR_VELOCITY = Math.PI / 2 / 60; // 1/4 de vuelta por segundo
-        const MAX_VELOCITY = 20;
-        const ROTATION_TIMEOUT = 180; // 3 segundos a 60 FPS
+        // Constantes físicas
+        const GRAVITY = 9.81 / 60; // 9.81 m/s² ajustado a frames (60 FPS)
+        const TERMINAL_VELOCITY = 20; // Velocidad terminal razonable
+        const FRICTION = 0.98; // Fricción leve para desaceleración natural
+        const MAX_ANGULAR_VELOCITY = Math.PI / 4 / 60; // Rotación máxima inicial
 
         let score = 0;
 
@@ -67,8 +63,9 @@
                 this.growSpeed = 0;
                 this.angle = 0;
                 this.angularVelocity = 0;
-                this.rotationTimer = 0; // Nuevo temporizador para rotación
-                this.isNewlyDropped = false; // Para identificar la fruta que acaba de caer
+                this.bounceCount = 0; // Contador de rebotes
+                this.lastBounceHeight = 0; // Altura del último rebote
+                this.isSettled = false; // Indica si está quieta tras 5 rebotes
             }
 
             draw() {
@@ -213,50 +210,53 @@
             }
 
             update() {
-                this.vy += GRAVITY;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vx *= FRICTION;
-                this.vy *= FRICTION;
+                if (!this.isSettled) {
+                    // Aplicar gravedad hasta velocidad terminal
+                    this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vx *= FRICTION;
+                    this.vy *= FRICTION;
 
-                // Limitar velocidad máxima
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (speed > MAX_VELOCITY) {
-                    const scale = MAX_VELOCITY / speed;
-                    this.vx *= scale;
-                    this.vy *= scale;
-                }
-
-                // Manejo de rotación
-                if (this.rotationTimer > 0) {
-                    this.rotationTimer--;
-                    if (speed > 0.5) {
+                    // Rotación solo si no está asentada
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > 0.1 && this.bounceCount < 5) {
                         this.angle += this.angularVelocity;
-                        this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                        this.angularVelocity *= ROTATION_FRICTION;
-                    } else if (this.rotationTimer === 0) {
+                        this.angularVelocity *= FRICTION;
+                    } else if (this.bounceCount >= 5) {
                         this.angularVelocity = 0;
+                        this.isSettled = true;
                     }
-                } else {
-                    this.angularVelocity = 0;
+
+                    // Colisión con paredes
+                    if (this.x - this.radius * this.scale < 0) {
+                        this.x = this.radius * this.scale;
+                        this.vx = Math.abs(this.vx) * this.getBounceFactor();
+                        this.angularVelocity += this.vy * 0.03;
+                        this.countBounce();
+                    } else if (this.x + this.radius * this.scale > canvas.width) {
+                        this.x = canvas.width - this.radius * this.scale;
+                        this.vx = -Math.abs(this.vx) * this.getBounceFactor();
+                        this.angularVelocity -= this.vy * 0.03;
+                        this.countBounce();
+                    }
+
+                    // Colisión con el suelo
+                    if (this.y + this.radius * this.scale > canvas.height) {
+                        this.y = canvas.height - this.radius * this.scale;
+                        this.lastBounceHeight = Math.abs(this.vy);
+                        this.vy = -Math.abs(this.vy) * this.getBounceFactor();
+                        this.angularVelocity += this.vx * 0.03;
+                        this.countBounce();
+                        if (this.bounceCount >= 5) {
+                            this.vy = 0;
+                            this.vx = 0;
+                            this.isSettled = true;
+                        }
+                    }
                 }
 
-                if (this.x - this.radius * this.scale < 0) {
-                    this.x = this.radius * this.scale;
-                    this.vx = Math.abs(this.vx) * BOUNCE_WALL;
-                    this.angularVelocity += this.vy * 0.03;
-                } else if (this.x + this.radius * this.scale > canvas.width) {
-                    this.x = canvas.width - this.radius * this.scale;
-                    this.vx = -Math.abs(this.vx) * BOUNCE_WALL;
-                    this.angularVelocity -= this.vy * 0.03;
-                }
-                if (this.y + this.radius * this.scale > canvas.height) {
-                    this.y = canvas.height - this.radius * this.scale;
-                    this.vy = -Math.abs(this.vy) * BOUNCE_FLOOR;
-                    this.angularVelocity += this.vx * 0.03;
-                    if (Math.abs(this.vy) < 1) this.vy = 0;
-                }
-
+                // Animaciones de escala
                 if (this.shrinkSpeed > 0) {
                     this.scale -= this.shrinkSpeed;
                     if (this.scale <= 0) this.scale = 0;
@@ -265,9 +265,18 @@
                     this.scale += this.growSpeed;
                     if (this.scale >= 1) this.scale = 1;
                 }
+            }
 
-                // Resetear isNewlyDropped después del primer frame
-                if (this.isNewlyDropped) this.isNewlyDropped = false;
+            getBounceFactor() {
+                // Factores de rebote: 0.5, 0.25, 0.125, 0.0625, 0.03125
+                const factors = [0.5, 0.25, 0.125, 0.0625, 0.03125];
+                return this.bounceCount < 5 ? factors[this.bounceCount] : 0;
+            }
+
+            countBounce() {
+                if (Math.abs(this.vy) > 0.1 || Math.abs(this.vx) > 0.1) {
+                    this.bounceCount = Math.min(this.bounceCount + 1, 5);
+                }
             }
         }
 
@@ -304,9 +313,7 @@
         let isAiming = false;
 
         function spawnFruit() {
-            const newFruit = new Fruit(aimingX, 50, nextFruit.type);
-            newFruit.isNewlyDropped = true;
-            fruits.push(newFruit);
+            fruits.push(new Fruit(aimingX, 50, nextFruit.type));
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
         }
 
@@ -346,16 +353,10 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < (f1.radius * f1.scale + f2.radius * f2.scale) && f1.scale > 0 && f2.scale > 0) {
-                        // Activar temporizador de rotación si una de las frutas es la recién caída
-                        if (f1.isNewlyDropped || f2.isNewlyDropped) {
-                            f1.rotationTimer = ROTATION_TIMEOUT;
-                            f2.rotationTimer = ROTATION_TIMEOUT;
-                        }
-
                         if (f1.type === f2.type) {
                             f1.shrinkSpeed = 0.1;
                             f2.shrinkSpeed = 0.1;
-                            if (f1.type === 6) {
+                            if (f1.type === 6) { // Sandías
                                 setTimeout(() => {
                                     if (fruits.includes(f1)) fruits.splice(fruits.indexOf(f1), 1);
                                     if (fruits.includes(f2)) fruits.splice(fruits.indexOf(f2), 1);
@@ -365,7 +366,7 @@
                                     setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 300);
                                     setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 600);
                                 }, 200);
-                            } else {
+                            } else { // Fusión
                                 let newType = f1.type + 1;
                                 let newX = (f1.x + f2.x) / 2;
                                 let newY = (f1.y + f2.y) / 2;
@@ -375,7 +376,6 @@
                                         fruits.splice(fruits.indexOf(f2), 1);
                                         let newFruit = new Fruit(newX, newY, newType, 0);
                                         newFruit.growSpeed = 0.1;
-                                        newFruit.rotationTimer = ROTATION_TIMEOUT; // La nueva fruta también rota
                                         fruits.push(newFruit);
                                         triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
@@ -395,17 +395,11 @@
                             let finalVx1 = ((f1.mass - f2.mass) * vx1 + 2 * f2.mass * vx2) / (f1.mass + f2.mass);
                             let finalVx2 = ((f2.mass - f1.mass) * vx2 + 2 * f1.mass * vx1) / (f1.mass + f2.mass);
 
-                            let relativeVelocityX = vx2 - vx1;
-                            let relativeVelocityY = vy2 - vy1;
-                            let impulse = (finalVx1 - vx1) * f1.mass;
-                            let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
-                            f1.angularVelocity += angularImpulse / f1.radius * 0.03;
-                            f2.angularVelocity -= angularImpulse / f2.radius * 0.03;
-
-                            f1.vx = (cos * finalVx1 - sin * vy1) * BOUNCE_FRUIT;
-                            f1.vy = (sin * finalVx1 + cos * vy1) * BOUNCE_FRUIT;
-                            f2.vx = (cos * finalVx2 - sin * vy2) * BOUNCE_FRUIT;
-                            f2.vy = (sin * finalVx2 + cos * vy2) * BOUNCE_FRUIT;
+                            let bounceFactor = Math.min(f1.getBounceFactor(), f2.getBounceFactor());
+                            f1.vx = (cos * finalVx1 - sin * vy1) * bounceFactor;
+                            f1.vy = (sin * finalVx1 + cos * vy1) * bounceFactor;
+                            f2.vx = (cos * finalVx2 - sin * vy2) * bounceFactor;
+                            f2.vy = (sin * finalVx2 + cos * vy2) * bounceFactor;
 
                             let overlap = (f1.radius * f1.scale + f2.radius * f2.scale) - distance;
                             f1.x -= dx * overlap / distance / 2;
@@ -413,10 +407,19 @@
                             f2.x += dx * overlap / distance / 2;
                             f2.y += dy * overlap / distance / 2;
 
-                            if (Math.abs(f1.vx) < 1) f1.vx = 0;
-                            if (Math.abs(f1.vy) < 1) f1.vy = 0;
-                            if (Math.abs(f2.vx) < 1) f2.vx = 0;
-                            if (Math.abs(f2.vy) < 1) f2.vy = 0;
+                            f1.countBounce();
+                            f2.countBounce();
+
+                            // Aplicar rotación en colisión
+                            let angularImpulse = (vx2 - vx1) * dy - (vy2 - vy1) * dx;
+                            if (!f1.isSettled) f1.angularVelocity += angularImpulse / (f1.radius * f1.radius) * 0.03;
+                            if (!f2.isSettled) f2.angularVelocity -= angularImpulse / (f2.radius * f2.radius) * 0.03;
+
+                            // Apagar micromovimientos
+                            if (Math.abs(f1.vx) < 0.1 && f1.bounceCount >= 5) f1.vx = 0;
+                            if (Math.abs(f1.vy) < 0.1 && f1.bounceCount >= 5) f1.vy = 0;
+                            if (Math.abs(f2.vx) < 0.1 && f2.bounceCount >= 5) f2.vx = 0;
+                            if (Math.abs(f2.vy) < 0.1 && f2.bounceCount >= 5) f2.vy = 0;
                         }
                     }
                 }
