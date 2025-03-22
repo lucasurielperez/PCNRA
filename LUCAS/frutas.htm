@@ -28,15 +28,38 @@
             font-size: 20px;
             font-weight: bold;
         }
+        #lives {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <div id="score">Puntaje: 0</div>
+    <div id="lives">❤️❤️❤️</div>
+    <div id="gameOver">Fin!<br>Hiciste <span id="finalScore">0</span> puntos.</div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('score');
+        const livesDisplay = document.getElementById('lives');
+        const gameOverDisplay = document.getElementById('gameOver');
+        const finalScoreDisplay = document.getElementById('finalScore');
 
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
@@ -46,20 +69,23 @@
         const BASE_BOUNCE_WALL = 0.7;
         const BASE_BOUNCE_FLOOR = 0.6;
         const BASE_FRICTION = 0.92;
-        const FINAL_FRICTION = 0.5; // Fricción más fuerte para detener todo rápido
+        const FINAL_FRICTION = 0.3; // Fricción final tras el segundo de transición
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
+        const FREEZE_DELAY = 3000; // 3 segundos antes de empezar a congelar
+        const FREEZE_DURATION = 1000; // 1 segundo para la transición gradual
 
         let score = 0;
+        let lives = 3;
         let lastSpawnTime = Date.now();
-        const FREEZE_DELAY = 3000; // 3 segundos
+        let gameOver = false;
 
         class Fruit {
             constructor(x, y, type, scale = 1) {
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [10, 15, 24, 33, 42, 51, 60][type];
+                this.radius = [10, 15, 24, 33, 42, 51, 60][type] * 1.2; // Aumentar tamaño 20%
                 this.mass = [1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
@@ -161,7 +187,7 @@
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 5) { // Melón (corregido)
+                } else if (this.type === 5) { // Melón (líneas ajustadas)
                     ctx.fillStyle = '#98FB98';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -175,10 +201,10 @@
                     for (let i = 0; i < 6; i++) {
                         let angle = (Math.PI * 2 / 6) * i;
                         ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * this.radius * 0.9, -this.radius * 0.9);
+                        ctx.moveTo(Math.cos(angle) * this.radius * 0.8, -this.radius * 0.8); // Reducido a 80%
                         ctx.quadraticCurveTo(
-                            Math.cos(angle) * this.radius * 0.5, 0,
-                            Math.cos(angle) * this.radius * 0.9, this.radius * 0.9
+                            Math.cos(angle) * this.radius * 0.4, 0, // Punto de control más cerca
+                            Math.cos(angle) * this.radius * 0.8, this.radius * 0.8
                         );
                         ctx.stroke();
                     }
@@ -212,12 +238,24 @@
             }
 
             update() {
+                if (gameOver) return;
+
                 this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
                 this.x += this.vx;
                 this.y += this.vy;
 
                 const timeSinceLastSpawn = Date.now() - lastSpawnTime;
-                const friction = timeSinceLastSpawn > FREEZE_DELAY ? FINAL_FRICTION : (BASE_FRICTION - (this.mass / 64) * 0.1);
+                let friction;
+                if (timeSinceLastSpawn > FREEZE_DELAY + FREEZE_DURATION) {
+                    friction = FINAL_FRICTION; // Fricción final después de la transición
+                } else if (timeSinceLastSpawn > FREEZE_DELAY) {
+                    // Transición gradual durante 1 segundo
+                    const progress = (timeSinceLastSpawn - FREEZE_DELAY) / FREEZE_DURATION;
+                    friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
+                } else {
+                    friction = BASE_FRICTION - (this.mass / 64) * 0.1; // Fricción normal
+                }
+
                 this.vx *= friction;
                 this.vy *= friction;
 
@@ -225,16 +263,9 @@
                 if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
                     this.angle += this.angularVelocity;
                     this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                    this.angularVelocity *= (timeSinceLastSpawn > FREEZE_DELAY ? FINAL_FRICTION : ROTATION_FRICTION);
+                    this.angularVelocity *= friction; // Usar la misma fricción para rotación
                 } else {
-                    this.angularVelocity = 0; // Detener rotación si es muy pequeña
-                }
-
-                // Forzar detención completa tras 3 segundos
-                if (timeSinceLastSpawn > FREEZE_DELAY) {
-                    if (Math.abs(this.vx) < 0.1) this.vx = 0;
-                    if (Math.abs(this.vy) < 0.1) this.vy = 0;
-                    if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
+                    this.angularVelocity = 0;
                 }
 
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
@@ -254,14 +285,19 @@
                     this.angularVelocity += this.vx * 0.02 / this.mass;
                     if (Math.abs(this.vy) < 0.5) this.vy = 0;
                 }
-
-                if (this.shrinkSpeed > 0) {
-                    this.scale -= this.shrinkSpeed;
-                    if (this.scale <= 0) this.scale = 0;
-                }
-                if (this.growSpeed > 0) {
-                    this.scale += this.growSpeed;
-                    if (this.scale >= 1) this.scale = 1;
+                // Verificar si toca el techo
+                if (this.y - this.radius * this.scale < 0) {
+                    this.y = this.radius * this.scale;
+                    this.vy = -this.vy * bounceFloor;
+                    if (lives > 0) {
+                        lives--;
+                        livesDisplay.textContent = '❤️'.repeat(lives);
+                        if (lives === 0) {
+                            gameOver = true;
+                            gameOverDisplay.style.display = 'block';
+                            finalScoreDisplay.textContent = score;
+                        }
+                    }
                 }
             }
         }
@@ -299,6 +335,7 @@
         let isAiming = false;
 
         function spawnFruit() {
+            if (gameOver) return;
             fruits.push(new Fruit(aimingX, 50, nextFruit.type));
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
             lastSpawnTime = Date.now();
@@ -331,6 +368,7 @@
         }
 
         function checkCollisions() {
+            if (gameOver) return;
             for (let i = 0; i < fruits.length; i++) {
                 for (let j = i + 1; j < fruits.length; j++) {
                     let f1 = fruits[i];
@@ -436,9 +474,11 @@
                 if (c.life <= 0) confetti.splice(i, 1);
             });
 
-            if (isAiming) drawDashedLine();
-            nextFruit.x = aimingX;
-            nextFruit.draw();
+            if (isAiming && !gameOver) drawDashedLine();
+            if (!gameOver) {
+                nextFruit.x = aimingX;
+                nextFruit.draw();
+            }
 
             checkCollisions();
 
@@ -447,20 +487,20 @@
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            isAiming = true;
+            if (!gameOver) isAiming = true;
             aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
         });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            if (isAiming) {
+            if (isAiming && !gameOver) {
                 aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
             }
         });
 
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            if (isAiming) {
+            if (isAiming && !gameOver) {
                 spawnFruit();
                 isAiming = false;
             }
