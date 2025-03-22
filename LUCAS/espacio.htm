@@ -83,7 +83,6 @@
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
-        const MAX_COLLISION_VELOCITY = 10;
         const ROT_TIME = 60 * 1000;
         const STONE_FRICTION = 0.85;
         const INITIAL_SCORE = 50;
@@ -127,7 +126,7 @@
 
                 const rotFactor = this.rotProgress;
                 if (rotFactor >= 1) {
-                    context.fillStyle = '#333333'; // Gris oscuro para objetos "podridos"
+                    context.fillStyle = '#333333';
                     context.beginPath();
                     context.arc(0, 0, this.radius, 0, Math.PI * 2);
                     context.fill();
@@ -147,93 +146,103 @@
                     context.arc(0, 0, this.radius, 0, Math.PI * 2);
                     context.fill();
 
-                    if (this.type === 0) { // Asteroide
-                        context.fillStyle = `rgba(128, 128, 128, ${0.5 * (1 - rotFactor)})`;
-                        context.beginPath();
-                        context.arc(3, -3, 2, 0, Math.PI * 2);
-                        context.arc(-2, 2, 1.5, 0, Math.PI * 2);
-                        context.fill();
-                    } else if (this.type === 1) { // Luna
-                        context.fillStyle = `rgba(169, 169, 169, ${0.7 * (1 - rotFactor)})`;
-                        context.beginPath();
-                        context.arc(4, -4, 3, 0, Math.PI * 2);
-                        context.arc(-3, 3, 2, 0, Math.PI * 2);
-                        context.fill();
-                    } else if (this.type === 2) { // Planeta Tierra
-                        context.fillStyle = `rgba(0, 191, 255, ${1 - rotFactor})`;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                        context.fill();
-                        context.fillStyle = `rgba(34, 139, 34, ${1 - rotFactor})`;
-                        context.beginPath();
-                        context.arc(5, -5, 3, 0, Math.PI * 2);
-                        context.fill();
-                    } else if (this.type === 3) { // Júpiter
-                        context.fillStyle = `rgba(210, 105, 30, ${1 - rotFactor})`;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                        context.fill();
-                        context.strokeStyle = `rgba(255, 165, 0, ${1 - rotFactor})`;
-                        context.lineWidth = 2;
-                        context.beginPath();
-                        context.moveTo(-this.radius + 5, 0);
-                        context.lineTo(this.radius - 5, 0);
-                        context.stroke();
-                    } else if (this.type === 4) { // Sistema Solar
-                        context.fillStyle = `rgba(255, 215, 0, ${0.8 * (1 - rotFactor)})`;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius - 10, 0, Math.PI * 2);
-                        context.fill();
-                        context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
-                        context.lineWidth = 1;
-                        for (let i = 0; i < 3; i++) {
+                    switch (this.type) {
+                        case 0: // Asteroide
+                            context.fillStyle = `rgba(128, 128, 128, ${0.5 * (1 - rotFactor)})`;
                             context.beginPath();
-                            context.arc(0, 0, this.radius - 15 - i * 5, 0, Math.PI * 2);
-                            context.stroke();
-                        }
-                    } else if (this.type === 5) { // Galaxia
-                        context.fillStyle = `rgba(138, 43, 226, ${1 - rotFactor})`;
-                        for (let i = 0; i < 4; i++) {
-                            let angle = (Math.PI * 2 / 4) * i;
-                            context.beginPath();
-                            context.moveTo(0, 0);
-                            context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
-                            context.strokeStyle = `rgba(147, 112, 219, ${1 - rotFactor})`;
-                            context.lineWidth = 3;
-                            context.stroke();
-                        }
-                    } else if (this.type === 6) { // Cúmulo
-                        context.fillStyle = `rgba(0, 255, 127, ${1 - rotFactor})`;
-                        for (let i = 0; i < 5; i++) {
-                            let angle = (Math.PI * 2 / 5) * i;
-                            context.beginPath();
-                            context.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 5, 0, Math.PI * 2);
+                            context.arc(3, -3, 2, 0, Math.PI * 2);
+                            context.arc(-2, 2, 1.5, 0, Math.PI * 2);
                             context.fill();
-                        }
-                    } else if (this.type === 7) { // Agujero Negro
-                        context.fillStyle = `rgba(0, 0, 0, ${1 - rotFactor})`;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                        context.fill();
-                        context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
-                        context.lineWidth = 3;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius, 0, Math.PI * 2);
-                        context.stroke();
-                    } else { // Supernova
-                        context.fillStyle = `rgba(255, 0, 255, ${1 - rotFactor})`;
-                        context.beginPath();
-                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                        context.fill();
-                        context.strokeStyle = `rgba(255, 255, 0, ${1 - rotFactor})`;
-                        context.lineWidth = 2;
-                        for (let i = 0; i < 6; i++) {
-                            let angle = (Math.PI * 2 / 6) * i;
+                            break;
+                        case 1: // Luna
+                            context.fillStyle = `rgba(169, 169, 169, ${0.7 * (1 - rotFactor)})`;
                             context.beginPath();
-                            context.moveTo(0, 0);
-                            context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                            context.arc(4, -4, 3, 0, Math.PI * 2);
+                            context.arc(-3, 3, 2, 0, Math.PI * 2);
+                            context.fill();
+                            break;
+                        case 2: // Tierra
+                            context.fillStyle = `rgba(0, 191, 255, ${1 - rotFactor})`;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                            context.fill();
+                            context.fillStyle = `rgba(34, 139, 34, ${1 - rotFactor})`;
+                            context.beginPath();
+                            context.arc(5, -5, 3, 0, Math.PI * 2);
+                            context.fill();
+                            break;
+                        case 3: // Júpiter
+                            context.fillStyle = `rgba(210, 105, 30, ${1 - rotFactor})`;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                            context.fill();
+                            context.strokeStyle = `rgba(255, 165, 0, ${1 - rotFactor})`;
+                            context.lineWidth = 2;
+                            context.beginPath();
+                            context.moveTo(-this.radius + 5, 0);
+                            context.lineTo(this.radius - 5, 0);
                             context.stroke();
-                        }
+                            break;
+                        case 4: // Sistema Solar
+                            context.fillStyle = `rgba(255, 215, 0, ${0.8 * (1 - rotFactor)})`;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius - 10, 0, Math.PI * 2);
+                            context.fill();
+                            context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
+                            context.lineWidth = 1;
+                            for (let i = 0; i < 3; i++) {
+                                context.beginPath();
+                                context.arc(0, 0, this.radius - 15 - i * 5, 0, Math.PI * 2);
+                                context.stroke();
+                            }
+                            break;
+                        case 5: // Galaxia
+                            context.fillStyle = `rgba(138, 43, 226, ${1 - rotFactor})`;
+                            for (let i = 0; i < 4; i++) {
+                                let angle = (Math.PI * 2 / 4) * i;
+                                context.beginPath();
+                                context.moveTo(0, 0);
+                                context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                                context.strokeStyle = `rgba(147, 112, 219, ${1 - rotFactor})`;
+                                context.lineWidth = 3;
+                                context.stroke();
+                            }
+                            break;
+                        case 6: // Cúmulo
+                            context.fillStyle = `rgba(0, 255, 127, ${1 - rotFactor})`;
+                            for (let i = 0; i < 5; i++) {
+                                let angle = (Math.PI * 2 / 5) * i;
+                                context.beginPath();
+                                context.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 5, 0, Math.PI * 2);
+                                context.fill();
+                            }
+                            break;
+                        case 7: // Agujero Negro
+                            context.fillStyle = `rgba(0, 0, 0, ${1 - rotFactor})`;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                            context.fill();
+                            context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
+                            context.lineWidth = 3;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius, 0, Math.PI * 2);
+                            context.stroke();
+                            break;
+                        case 8: // Supernova
+                            context.fillStyle = `rgba(255, 0, 255, ${1 - rotFactor})`;
+                            context.beginPath();
+                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                            context.fill();
+                            context.strokeStyle = `rgba(255, 255, 0, ${1 - rotFactor})`;
+                            context.lineWidth = 2;
+                            for (let i = 0; i < 6; i++) {
+                                let angle = (Math.PI * 2 / 6) * i;
+                                context.beginPath();
+                                context.moveTo(0, 0);
+                                context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                                context.stroke();
+                            }
+                            break;
                     }
                 }
                 context.restore();
@@ -263,19 +272,6 @@
                     this.vy = 0;
                     this.angularVelocity = 0;
                     return;
-                }
-
-                if (this.x - this.radius * this.scale < 0) {
-                    this.x = this.radius * this.scale;
-                }
-                if (this.x + this.radius * this.scale > canvas.width) {
-                    this.x = canvas.width - this.radius * this.scale;
-                }
-                if (this.y - this.radius * this.scale < 0) {
-                    this.y = this.radius * this.scale;
-                }
-                if (this.y + this.radius * this.scale > canvas.height) {
-                    this.y = canvas.height - this.radius * this.scale;
                 }
 
                 this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
@@ -489,7 +485,7 @@
                             s2.isMerging = true;
                             s1.shrinkSpeed = 0.1;
                             s2.shrinkSpeed = 0.1;
-                            if (s1.type === 8) { // Supernova
+                            if (s1.type === 8) {
                                 setTimeout(() => {
                                     const index1 = spaceObjects.indexOf(s1);
                                     const index2 = spaceObjects.indexOf(s2);
@@ -561,15 +557,8 @@
 
                             if (s1.isRotten || s2.isRotten) {
                                 let movingObject = s1.isRotten ? s2 : s1;
-                                let rock = s1.isRotten ? s1 : s2;
-
-                                let vRelativeX = movingObject.vx;
-                                let vRelativeY = movingObject.vy;
-                                let speed = Math.sqrt(vRelativeX * vRelativeX + vRelativeY * vRelativeY);
-                                let impulse = speed * movingObject.mass;
-
-                                movingObject.vx = -vRelativeX * 0.7;
-                                movingObject.vy = -vRelativeY * 0.7;
+                                movingObject.vx = -movingObject.vx * 0.7;
+                                movingObject.vy = -movingObject.vy * 0.7;
                             } else {
                                 let fallingObject = s1.vy > s2.vy ? s1 : s2;
                                 let restingObject = s1.vy > s2.vy ? s2 : s1;
@@ -594,13 +583,6 @@
                                 finalV1n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV1n));
                                 finalV2n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV2n));
 
-                                if (fallingObject.mass < restingObject.mass) {
-                                    finalV2n = Math.max(finalV2n, 0);
-                                    finalV1n *= Math.min(1, restingObject.mass / fallingObject.mass * 0.5);
-                                } else {
-                                    finalV2n *= Math.min(1, fallingObject.mass / restingObject.mass * 0.5);
-                                }
-
                                 if (!fallingObject.isFrozen) {
                                     fallingObject.vx = v1t + finalV1n * nx;
                                     fallingObject.vy = finalV1n * ny;
@@ -617,14 +599,9 @@
                                 let relativeVelocityX = s2.vx - s1.vx;
                                 let relativeVelocityY = s2.vy - s1.vy;
                                 let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (s1.radius + s2.radius);
-                                if (!s1.isFrozen) s1.angularVelocity = Math.min(0.01, (angularImpulse / s1.radius * 0.005) / s1.mass);
-                                if (!s2.isFrozen) s2.angularVelocity = Math.min(0.01, (angularImpulse / s2.radius * 0.005) / s2.mass);
+                                if (!s1.isFrozen) s1.angularVelocity += angularImpulse / s1.radius * 0.005 / s1.mass;
+                                if (!s2.isFrozen) s2.angularVelocity -= angularImpulse / s2.radius * 0.005 / s2.mass;
                             }
-
-                            if (!s1.isFrozen && Math.abs(s1.vx) < 0.1) s1.vx = 0;
-                            if (!s1.isFrozen && Math.abs(s1.vy) < 0.1) s1.vy = 0;
-                            if (!s2.isFrozen && Math.abs(s2.vx) < 0.1) s2.vx = 0;
-                            if (!s2.isFrozen && Math.abs(s2.vy) < 0.1) s2.vy = 0;
                         }
                     }
                 }
@@ -658,8 +635,10 @@
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (!gameOver) isAiming = true;
-            aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.touches[0].clientX - canvas.offsetLeft));
+            if (!gameOver) {
+                isAiming = true;
+                aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.touches[0].clientX - canvas.offsetLeft));
+            }
         });
 
         canvas.addEventListener('touchmove', (e) => {
@@ -679,8 +658,10 @@
 
         canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            if (!gameOver) isAiming = true;
-            aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.clientX - canvas.offsetLeft));
+            if (!gameOver) {
+                isAiming = true;
+                aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.clientX - canvas.offsetLeft));
+            }
         });
 
         canvas.addEventListener('mousemove', (e) => {
