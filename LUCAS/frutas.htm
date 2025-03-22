@@ -263,6 +263,21 @@
                     return;
                 }
 
+                // Asegurar que la fruta esté dentro del área de juego al inicio
+                if (this.x - this.radius * this.scale < 0) {
+                    this.x = this.radius * this.scale;
+                }
+                if (this.x + this.radius * this.scale > canvas.width) {
+                    this.x = canvas.width - this.radius * this.scale;
+                }
+                if (this.y - this.radius * this.scale < 0) {
+                    this.y = this.radius * this.scale;
+                }
+                if (this.y + this.radius * this.scale > canvas.height) {
+                    this.y = canvas.height - this.radius * this.scale;
+                }
+
+                // Aplicar física
                 this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
                 this.x += this.vx;
                 this.y += this.vy;
@@ -297,19 +312,20 @@
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
                 const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
 
-                // Reubicar frutas que perforan los límites sin colisión
+                // Rebotes y límites
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
-                    this.vx = Math.min(Math.abs(this.vx) * bounceWall, Math.sqrt(this.initialEnergy)) * Math.sign(this.vx);
+                    this.vx = Math.min(Math.abs(this.vx) * bounceWall, Math.sqrt(this.initialEnergy));
                 } else if (this.x + this.radius * this.scale > canvas.width) {
                     this.x = canvas.width - this.radius * this.scale;
-                    this.vx = Math.min(Math.abs(this.vx) * bounceWall, Math.sqrt(this.initialEnergy)) * Math.sign(this.vx);
+                    this.vx = -Math.min(Math.abs(this.vx) * bounceWall, Math.sqrt(this.initialEnergy));
                 }
                 if (this.y + this.radius * this.scale > canvas.height) {
                     this.y = canvas.height - this.radius * this.scale;
                     this.vy = -Math.min(Math.abs(this.vy) * bounceFloor, Math.sqrt(this.initialEnergy));
                     if (Math.abs(this.vy) < 0.5) this.vy = 0;
-                } else if (this.y - this.radius * this.scale < 0) {
+                }
+                if (this.y - this.radius * this.scale < 0) {
                     this.y = this.radius * this.scale;
                     this.vy = Math.min(Math.abs(this.vy) * bounceFloor, Math.sqrt(this.initialEnergy));
                     if (lives > 0) {
@@ -323,19 +339,7 @@
                     }
                 }
 
-                // Ajuste mínimo si la fruta perfora el suelo u otros límites
-                if (this.y + this.radius * this.scale > canvas.height + 1) {
-                    this.y = canvas.height - this.radius * this.scale; // Reposicionar justo dentro del límite
-                }
-                if (this.x - this.radius * this.scale < -1) {
-                    this.x = this.radius * this.scale;
-                } else if (this.x + this.radius * this.scale > canvas.width + 1) {
-                    this.x = canvas.width - this.radius * this.scale;
-                }
-                if (this.y - this.radius * this.scale < -1) {
-                    this.y = this.radius * this.scale;
-                }
-
+                // Clamp final para asegurar que no se salga del área
                 this.x = Math.max(this.radius * this.scale, Math.min(canvas.width - this.radius * this.scale, this.x));
                 this.y = Math.max(this.radius * this.scale, Math.min(canvas.height - this.radius * this.scale, this.y));
 
