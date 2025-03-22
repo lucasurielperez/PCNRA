@@ -94,6 +94,8 @@
                 this.growSpeed = 0;
                 this.angle = 0;
                 this.angularVelocity = 0;
+                this.isFrozen = false;
+                this.lastPerturbedTime = Date.now(); // Tiempo de la última perturbación
             }
 
             draw() {
@@ -240,56 +242,70 @@
             update() {
                 if (gameOver) return;
 
-                this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
-                this.x += this.vx;
-                this.y += this.vy;
+                // Aplicar gravedad y movimiento solo si no está congelada
+                if (!this.isFrozen) {
+                    this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
+                    this.x += this.vx;
+                    this.y += this.vy;
+                }
 
-                const timeSinceLastSpawn = Date.now() - lastSpawnTime;
+                const timeSinceLastPerturbed = Date.now() - this.lastPerturbedTime;
                 let friction;
-                if (timeSinceLastSpawn > FREEZE_DELAY + FREEZE_DURATION) {
+                if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION) {
                     friction = FINAL_FRICTION;
+                    this.isFrozen = true;
                     if (Math.abs(this.vx) < 0.1) this.vx = 0;
                     if (Math.abs(this.vy) < 0.1) this.vy = 0;
                     if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
-                } else if (timeSinceLastSpawn > FREEZE_DELAY) {
-                    const progress = (timeSinceLastSpawn - FREEZE_DELAY) / FREEZE_DURATION;
+                } else if (timeSinceLastPerturbed > FREEZE_DELAY) {
+                    const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
                     friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
                 } else {
                     friction = BASE_FRICTION - (this.mass / 64) * 0.1;
                 }
 
-                this.vx *= friction;
-                this.vy *= friction;
+                if (!this.isFrozen) {
+                    this.vx *= friction;
+                    this.vy *= friction;
 
-                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
-                    this.angle += this.angularVelocity;
-                    this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                    this.angularVelocity *= friction;
-                } else {
-                    this.angularVelocity = 0;
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
+                        this.angle += this.angularVelocity;
+                        this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
+                        this.angularVelocity *= friction;
+                    } else {
+                        this.angularVelocity = 0;
+                    }
                 }
 
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
                 const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
-                    this.vx = -this.vx * bounceWall;
-                    this.angularVelocity += this.vy * 0.02 / this.mass;
+                    if (!this.isFrozen) {
+                        this.vx = -this.vx * bounceWall;
+                        this.angularVelocity += this.vy * 0.02 / this.mass;
+                    }
                 } else if (this.x + this.radius * this.scale > canvas.width) {
                     this.x = canvas.width - this.radius * this.scale;
-                    this.vx = -this.vx * bounceWall;
-                    this.angularVelocity -= this.vy * 0.02 / this.mass;
+                    if (!this.isFrozen) {
+                        this.vx = -this.vx * bounceWall;
+                        this.angularVelocity -= this.vy * 0.02 / this.mass;
+                    }
                 }
                 if (this.y + this.radius * this.scale > canvas.height) {
                     this.y = canvas.height - this.radius * this.scale;
-                    this.vy = -this.vy * bounceFloor;
-                    this.angularVelocity += this.vx * 0.02 / this.mass;
-                    if (Math.abs(this.vy) < 0.5) this.vy = 0;
+                    if (!this.isFrozen) {
+                        this.vy = -this.vy * bounceFloor;
+                        this.angularVelocity += this.vx * 0.02 / this.mass;
+                        if (Math.abs(this.vy) < 0.5) this.vy = 0;
+                    }
                 }
                 if (this.y - this.radius * this.scale < 0) {
                     this.y = this.radius * this.scale;
-                    this.vy = -this.vy * bounceFloor;
+                    if (!this.isFrozen) {
+                        this.vy = -this.vy * bounceFloor;
+                    }
                     if (lives > 0) {
                         lives--;
                         livesDisplay.textContent = '❤️'.repeat(lives);
@@ -346,7 +362,8 @@
 
         function spawnFruit() {
             if (gameOver) return;
-            fruits.push(new Fruit(aimingX, 50, nextFruit.type));
+            let newFruit = new Fruit(aimingX, 50, nextFruit.type);
+            fruits.push(newFruit);
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
             lastSpawnTime = Date.now();
         }
@@ -389,6 +406,12 @@
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
                     if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
+                        // Actualizar tiempo de perturbación para ambas frutas
+                        f1.lastPerturbedTime = Date.now();
+                        f2.lastPerturbedTime = Date.now();
+                        f1.isFrozen = false;
+                        f2.isFrozen = false;
+
                         if (f1.type === f2.type) {
                             f1.shrinkSpeed = 0.05;
                             f2.shrinkSpeed = 0.05;
@@ -445,20 +468,17 @@
 
                             let totalMass = fallingFruit.mass + restingFruit.mass;
                             let massRatio = fallingFruit.mass / restingFruit.mass;
-                            let frictionFactor = Math.min(1, 0.1 + 0.9 * (1 - massRatio)); // Más fricción si la masa es muy diferente
+                            let frictionFactor = Math.min(1, 0.1 + 0.9 * (1 - massRatio));
 
                             let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
                             let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-                            // Reducir transferencia de energía según la diferencia de masa
                             const baseBounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
                             finalV1n *= baseBounceFactor * frictionFactor;
                             finalV2n *= baseBounceFactor * frictionFactor;
 
-                            // Si la fruta en reposo está quieta y es mucho más pesada, no se mueve
                             if (restingFruit.vy === 0 && restingFruit.vx === 0 && massRatio < 0.5) {
                                 finalV2n = 0;
-                                finalV1n *= 0.8; // Rebote adicional para la fruta ligera
                             }
 
                             if (restingFruit.vy <= 0 && fallingFruit.vy > 0) {
