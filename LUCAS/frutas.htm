@@ -41,14 +41,15 @@
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
-        const GRAVITY = 1.4625; // 50% más que 0.975
-        const BOUNCE_WALL = 1.5;  // Ajustado a 1.5 en lugar de 9.5
-        const BOUNCE_FLOOR = 1.5; // Ajustado a 1.5 en lugar de 9.5
-        const BOUNCE_FRUIT = 1.3; // Ajustado a 1.3 en lugar de 8.5
-        const FRICTION = 0.75;    // Reducido de 0.85 a 0.75
+        const GRAVITY = 1.4625;
+        const BOUNCE_WALL = 7.5;  // 5 veces más que 1.5
+        const BOUNCE_FLOOR = 7.5; // 5 veces más que 1.5
+        const BOUNCE_FRUIT = 6.5; // 5 veces más que 1.3
+        const FRICTION = 0.75;
         const ROTATION_FRICTION = 0.98;
         const MAX_ANGULAR_VELOCITY = Math.PI / 2 / 60; // 1/4 de vuelta por segundo
-        const MAX_VELOCITY = 20;  // Nuevo límite máximo de velocidad
+        const MAX_VELOCITY = 20;
+        const ROTATION_TIMEOUT = 180; // 3 segundos a 60 FPS
 
         let score = 0;
 
@@ -66,6 +67,8 @@
                 this.growSpeed = 0;
                 this.angle = 0;
                 this.angularVelocity = 0;
+                this.rotationTimer = 0; // Nuevo temporizador para rotación
+                this.isNewlyDropped = false; // Para identificar la fruta que acaba de caer
             }
 
             draw() {
@@ -224,10 +227,16 @@
                     this.vy *= scale;
                 }
 
-                if (speed > 0.5) {
-                    this.angle += this.angularVelocity;
-                    this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                    this.angularVelocity *= ROTATION_FRICTION;
+                // Manejo de rotación
+                if (this.rotationTimer > 0) {
+                    this.rotationTimer--;
+                    if (speed > 0.5) {
+                        this.angle += this.angularVelocity;
+                        this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
+                        this.angularVelocity *= ROTATION_FRICTION;
+                    } else if (this.rotationTimer === 0) {
+                        this.angularVelocity = 0;
+                    }
                 } else {
                     this.angularVelocity = 0;
                 }
@@ -256,6 +265,9 @@
                     this.scale += this.growSpeed;
                     if (this.scale >= 1) this.scale = 1;
                 }
+
+                // Resetear isNewlyDropped después del primer frame
+                if (this.isNewlyDropped) this.isNewlyDropped = false;
             }
         }
 
@@ -292,7 +304,9 @@
         let isAiming = false;
 
         function spawnFruit() {
-            fruits.push(new Fruit(aimingX, 50, nextFruit.type));
+            const newFruit = new Fruit(aimingX, 50, nextFruit.type);
+            newFruit.isNewlyDropped = true;
+            fruits.push(newFruit);
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4));
         }
 
@@ -332,6 +346,12 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < (f1.radius * f1.scale + f2.radius * f2.scale) && f1.scale > 0 && f2.scale > 0) {
+                        // Activar temporizador de rotación si una de las frutas es la recién caída
+                        if (f1.isNewlyDropped || f2.isNewlyDropped) {
+                            f1.rotationTimer = ROTATION_TIMEOUT;
+                            f2.rotationTimer = ROTATION_TIMEOUT;
+                        }
+
                         if (f1.type === f2.type) {
                             f1.shrinkSpeed = 0.1;
                             f2.shrinkSpeed = 0.1;
@@ -355,6 +375,7 @@
                                         fruits.splice(fruits.indexOf(f2), 1);
                                         let newFruit = new Fruit(newX, newY, newType, 0);
                                         newFruit.growSpeed = 0.1;
+                                        newFruit.rotationTimer = ROTATION_TIMEOUT; // La nueva fruta también rota
                                         fruits.push(newFruit);
                                         triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
