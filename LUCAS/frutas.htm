@@ -69,11 +69,11 @@
         const BASE_BOUNCE_WALL = 0.7;
         const BASE_BOUNCE_FLOOR = 0.6;
         const BASE_FRICTION = 0.92;
-        const FINAL_FRICTION = 0.3; // Fricción final tras el segundo de transición
+        const FINAL_FRICTION = 0.3;
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
         const FREEZE_DELAY = 3000; // 3 segundos antes de empezar a congelar
-        const FREEZE_DURATION = 1000; // 1 segundo para la transición gradual
+        const FREEZE_DURATION = 1000; // 1 segundo para la transición
 
         let score = 0;
         let lives = 3;
@@ -85,7 +85,7 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [10, 15, 24, 33, 42, 51, 60][type] * 1.2; // Aumentar tamaño 20%
+                this.radius = [10, 15, 24, 33, 42, 51, 60][type] * 1.2;
                 this.mass = [1, 2, 4, 8, 16, 32, 64][type];
                 this.vx = 0;
                 this.vy = 0;
@@ -187,7 +187,7 @@
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (this.type === 5) { // Melón (líneas ajustadas)
+                } else if (this.type === 5) { // Melón
                     ctx.fillStyle = '#98FB98';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -201,9 +201,9 @@
                     for (let i = 0; i < 6; i++) {
                         let angle = (Math.PI * 2 / 6) * i;
                         ctx.beginPath();
-                        ctx.moveTo(Math.cos(angle) * this.radius * 0.8, -this.radius * 0.8); // Reducido a 80%
+                        ctx.moveTo(Math.cos(angle) * this.radius * 0.8, -this.radius * 0.8);
                         ctx.quadraticCurveTo(
-                            Math.cos(angle) * this.radius * 0.4, 0, // Punto de control más cerca
+                            Math.cos(angle) * this.radius * 0.4, 0,
                             Math.cos(angle) * this.radius * 0.8, this.radius * 0.8
                         );
                         ctx.stroke();
@@ -247,13 +247,16 @@
                 const timeSinceLastSpawn = Date.now() - lastSpawnTime;
                 let friction;
                 if (timeSinceLastSpawn > FREEZE_DELAY + FREEZE_DURATION) {
-                    friction = FINAL_FRICTION; // Fricción final después de la transición
+                    friction = FINAL_FRICTION;
+                    // Congelamiento total al final de la transición
+                    if (Math.abs(this.vx) < 0.1) this.vx = 0;
+                    if (Math.abs(this.vy) < 0.1) this.vy = 0;
+                    if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
                 } else if (timeSinceLastSpawn > FREEZE_DELAY) {
-                    // Transición gradual durante 1 segundo
                     const progress = (timeSinceLastSpawn - FREEZE_DELAY) / FREEZE_DURATION;
                     friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
                 } else {
-                    friction = BASE_FRICTION - (this.mass / 64) * 0.1; // Fricción normal
+                    friction = BASE_FRICTION - (this.mass / 64) * 0.1;
                 }
 
                 this.vx *= friction;
@@ -263,7 +266,7 @@
                 if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
                     this.angle += this.angularVelocity;
                     this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                    this.angularVelocity *= friction; // Usar la misma fricción para rotación
+                    this.angularVelocity *= friction;
                 } else {
                     this.angularVelocity = 0;
                 }
@@ -285,7 +288,6 @@
                     this.angularVelocity += this.vx * 0.02 / this.mass;
                     if (Math.abs(this.vy) < 0.5) this.vy = 0;
                 }
-                // Verificar si toca el techo
                 if (this.y - this.radius * this.scale < 0) {
                     this.y = this.radius * this.scale;
                     this.vy = -this.vy * bounceFloor;
@@ -298,6 +300,15 @@
                             finalScoreDisplay.textContent = score;
                         }
                     }
+                }
+
+                if (this.shrinkSpeed > 0) {
+                    this.scale -= this.shrinkSpeed;
+                    if (this.scale <= 0) this.scale = 0;
+                }
+                if (this.growSpeed > 0) {
+                    this.scale += this.growSpeed;
+                    if (this.scale >= 1) this.scale = 1;
                 }
             }
         }
@@ -378,30 +389,36 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
-                    if (distance < minDistance && f1.scale > 0 && f2.scale > 0) {
+                    if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) { // Asegurar que estén casi completas
                         if (f1.type === f2.type) {
-                            f1.shrinkSpeed = 0.1;
-                            f2.shrinkSpeed = 0.1;
-                            if (f1.type === 6) {
+                            f1.shrinkSpeed = 0.05; // Reducir más lento para ver la fusión
+                            f2.shrinkSpeed = 0.05;
+                            if (f1.type === 6) { // Sandía
                                 setTimeout(() => {
-                                    if (fruits.includes(f1)) fruits.splice(fruits.indexOf(f1), 1);
-                                    if (fruits.includes(f2)) fruits.splice(fruits.indexOf(f2), 1);
-                                    score++;
-                                    scoreDisplay.textContent = `Puntaje: ${score}`;
-                                    triggerConfettiExplosion(f1.x, f1.y, 40, 6);
-                                    setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 300);
-                                    setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 600);
+                                    const index1 = fruits.indexOf(f1);
+                                    const index2 = fruits.indexOf(f2);
+                                    if (index1 !== -1 && index2 !== -1) {
+                                        fruits.splice(index1, 1);
+                                        fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
+                                        score++;
+                                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                                        triggerConfettiExplosion(f1.x, f1.y, 40, 6);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 300);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 6), 600);
+                                    }
                                 }, 200);
                             } else {
                                 let newType = f1.type + 1;
                                 let newX = (f1.x + f2.x) / 2;
                                 let newY = (f1.y + f2.y) / 2;
                                 setTimeout(() => {
-                                    if (fruits.includes(f1) && fruits.includes(f2)) {
-                                        fruits.splice(fruits.indexOf(f1), 1);
-                                        fruits.splice(fruits.indexOf(f2), 1);
+                                    const index1 = fruits.indexOf(f1);
+                                    const index2 = fruits.indexOf(f2);
+                                    if (index1 !== -1 && index2 !== -1) {
+                                        fruits.splice(index1, 1);
+                                        fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
                                         let newFruit = new Fruit(newX, newY, newType, 0);
-                                        newFruit.growSpeed = 0.1;
+                                        newFruit.growSpeed = 0.05;
                                         fruits.push(newFruit);
                                         triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
