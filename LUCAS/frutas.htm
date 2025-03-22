@@ -469,7 +469,7 @@
                                     if (index1 !== -1 && index2 !== -1) {
                                         fruits.splice(index1, 1);
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        score += 50;
+                                        score += 500;
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
                                         triggerConfettiExplosion(f1.x, f1.y, 40, 7);
                                         setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
