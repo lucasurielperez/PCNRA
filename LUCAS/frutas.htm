@@ -74,7 +74,7 @@
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
-        const MAX_COLLISION_VELOCITY = 10; // Nueva constante para limitar velocidad post-colisión
+        const MAX_COLLISION_VELOCITY = 10;
 
         let score = 0;
         let lives = 3;
@@ -242,22 +242,20 @@
             }
 
             update() {
-                if (gameOver) return;
+                if (gameOver || this.isFrozen) return;
 
-                if (!this.isFrozen) {
-                    this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
-                    this.x += this.vx;
-                    this.y += this.vy;
-                }
+                this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
+                this.x += this.vx;
+                this.y += this.vy;
 
                 const timeSinceLastPerturbed = Date.now() - this.lastPerturbedTime;
                 let friction;
                 if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION) {
-                    friction = FINAL_FRICTION;
                     this.isFrozen = true;
                     this.vx = 0;
                     this.vy = 0;
                     this.angularVelocity = 0;
+                    return; // Salimos de la función para no actualizar más
                 } else if (timeSinceLastPerturbed > FREEZE_DELAY) {
                     const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
                     friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
@@ -265,48 +263,38 @@
                     friction = BASE_FRICTION - (this.mass / 64) * 0.1;
                 }
 
-                if (!this.isFrozen) {
-                    this.vx *= friction;
-                    this.vy *= friction;
+                this.vx *= friction;
+                this.vy *= friction;
 
-                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                    if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
-                        this.angle += this.angularVelocity;
-                        this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
-                        this.angularVelocity *= friction;
-                    } else {
-                        this.angularVelocity = 0;
-                    }
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > 0.1 || Math.abs(this.angularVelocity) > 0.01) {
+                    this.angle += this.angularVelocity;
+                    this.angularVelocity = Math.max(-MAX_ANGULAR_VELOCITY, Math.min(MAX_ANGULAR_VELOCITY, this.angularVelocity));
+                    this.angularVelocity *= friction;
+                } else {
+                    this.angularVelocity = 0;
                 }
 
                 const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
                 const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
-                    if (!this.isFrozen) {
-                        this.vx = -this.vx * bounceWall;
-                        this.angularVelocity += this.vy * 0.02 / this.mass;
-                    }
+                    this.vx = -this.vx * bounceWall;
+                    this.angularVelocity += this.vy * 0.02 / this.mass;
                 } else if (this.x + this.radius * this.scale > canvas.width) {
                     this.x = canvas.width - this.radius * this.scale;
-                    if (!this.isFrozen) {
-                        this.vx = -this.vx * bounceWall;
-                        this.angularVelocity -= this.vy * 0.02 / this.mass;
-                    }
+                    this.vx = -this.vx * bounceWall;
+                    this.angularVelocity -= this.vy * 0.02 / this.mass;
                 }
                 if (this.y + this.radius * this.scale > canvas.height) {
                     this.y = canvas.height - this.radius * this.scale;
-                    if (!this.isFrozen) {
-                        this.vy = -this.vy * bounceFloor;
-                        this.angularVelocity += this.vx * 0.02 / this.mass;
-                        if (Math.abs(this.vy) < 0.5) this.vy = 0;
-                    }
+                    this.vy = -this.vy * bounceFloor;
+                    this.angularVelocity += this.vx * 0.02 / this.mass;
+                    if (Math.abs(this.vy) < 0.5) this.vy = 0;
                 }
                 if (this.y - this.radius * this.scale < 0) {
                     this.y = this.radius * this.scale;
-                    if (!this.isFrozen) {
-                        this.vy = -this.vy * bounceFloor;
-                    }
+                    this.vy = -this.vy * bounceFloor;
                     if (lives > 0) {
                         lives--;
                         livesDisplay.textContent = '❤️'.repeat(lives);
@@ -407,8 +395,12 @@
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
                     if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
-                        f1.lastPerturbedTime = Date.now();
-                        f2.lastPerturbedTime = Date.now();
+                        // Si ambas frutas están congeladas, no hacemos nada
+                        if (f1.isFrozen && f2.isFrozen) continue;
+
+                        // Solo actualizamos lastPerturbedTime si alguna no está congelada
+                        if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
+                        if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
                         f1.isFrozen = false;
                         f2.isFrozen = false;
 
@@ -454,21 +446,29 @@
                             let ny = dy / distance || 0;
                             let overlap = minDistance - distance;
                             let correction = overlap / 2;
-                            f1.x -= nx * correction;
-                            f1.y -= ny * correction;
-                            f2.x += nx * correction;
-                            f2.y += ny * correction;
+                            if (!f1.isFrozen) {
+                                f1.x -= nx * correction;
+                                f1.y -= ny * correction;
+                            }
+                            if (!f2.isFrozen) {
+                                f2.x += nx * correction;
+                                f2.y += ny * correction;
+                            }
                         }
-                        else {
+                        else if (!f1.isFrozen || !f2.isFrozen) { // Solo colisionamos si al menos una no está congelada
                             let nx = dx / distance || 0;
                             let ny = dy / distance || 0;
 
                             let overlap = minDistance - distance;
                             let correction = overlap / 2;
-                            f1.x -= nx * correction;
-                            f1.y -= ny * correction;
-                            f2.x += nx * correction;
-                            f2.y += ny * correction;
+                            if (!f1.isFrozen) {
+                                f1.x -= nx * correction;
+                                f1.y -= ny * correction;
+                            }
+                            if (!f2.isFrozen) {
+                                f2.x += nx * correction;
+                                f2.y += ny * correction;
+                            }
 
                             let fallingFruit = f1.vy > f2.vy ? f1 : f2;
                             let restingFruit = f1.vy > f2.vy ? f2 : f1;
@@ -482,58 +482,54 @@
                             let totalMass = fallingFruit.mass + restingFruit.mass;
                             let massRatio = fallingFruit.mass / restingFruit.mass;
 
-                            // Conservación del momento con disipación de energía
                             let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
                             let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-                            // Reducir rebote y respetar masas
                             const bounceFactor = 0.3 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
-                            const energyLoss = 0.7; // 70% de pérdida de energía
+                            const energyLoss = 0.7;
                             finalV1n *= bounceFactor * energyLoss;
                             finalV2n *= bounceFactor * energyLoss;
 
-                            // Limitar velocidad máxima después de la colisión
                             const initialEnergy = Math.max(Math.abs(v1n), Math.abs(v2n));
                             finalV1n = Math.min(Math.max(finalV1n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
                             finalV2n = Math.min(Math.max(finalV2n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
 
-                            // Ajustar según masa relativa
                             if (massRatio > 1) {
-                                finalV2n *= Math.min(1, massRatio * 0.5); // Mayor efecto en la fruta más ligera
-                                finalV1n *= Math.max(0.2, 1 / massRatio); // Menor efecto en la fruta pesada
+                                finalV2n *= Math.min(1, massRatio * 0.5);
+                                finalV1n *= Math.max(0.2, 1 / massRatio);
                             } else {
                                 finalV1n *= Math.min(1, 1 / massRatio * 0.5);
                                 finalV2n *= Math.max(0.2, massRatio);
                             }
 
-                            // Minimizar rebotes posteriores
                             if (Date.now() - fallingFruit.lastPerturbedTime < FREEZE_DELAY) {
-                                finalV2n = Math.max(finalV2n, 0); // No rebota hacia arriba
+                                finalV2n = Math.max(finalV2n, 0);
                                 if (Math.abs(finalV2n) < 0.5) finalV2n = 0;
                             }
 
-                            fallingFruit.vx = v1t + finalV1n * nx;
-                            fallingFruit.vy = finalV1n * ny;
-                            restingFruit.vx = v2t + finalV2n * nx;
-                            restingFruit.vy = finalV2n * ny;
+                            if (!fallingFruit.isFrozen) {
+                                fallingFruit.vx = v1t + finalV1n * nx;
+                                fallingFruit.vy = finalV1n * ny;
+                                fallingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vx));
+                                fallingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vy));
+                            }
+                            if (!restingFruit.isFrozen) {
+                                restingFruit.vx = v2t + finalV2n * nx;
+                                restingFruit.vy = finalV2n * ny;
+                                restingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vx));
+                                restingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vy));
+                            }
 
-                            // Limitar velocidad total
-                            fallingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vx));
-                            fallingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vy));
-                            restingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vx));
-                            restingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vy));
-
-                            // Rotación mínima
                             let relativeVelocityX = f2.vx - f1.vx;
                             let relativeVelocityY = f2.vy - f1.vy;
                             let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
-                            f1.angularVelocity += Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
-                            f2.angularVelocity -= Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
+                            if (!f1.isFrozen) f1.angularVelocity += Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
+                            if (!f2.isFrozen) f2.angularVelocity -= Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
 
-                            if (Math.abs(f1.vx) < 0.1) f1.vx = 0;
-                            if (Math.abs(f1.vy) < 0.1) f1.vy = 0;
-                            if (Math.abs(f2.vx) < 0.1) f2.vx = 0;
-                            if (Math.abs(f2.vy) < 0.1) f2.vy = 0;
+                            if (!f1.isFrozen && Math.abs(f1.vx) < 0.1) f1.vx = 0;
+                            if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
+                            if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
+                            if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
                         }
                     }
                 }
