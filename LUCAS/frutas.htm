@@ -1,315 +1,71 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Frutas</title>
-    <style>
-        body {
-            background-color: #87CEEB;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        canvas {
-            background-color: #F5F5F5;
-            border: 1px solid black;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="gameCanvas"></canvas>
-    
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 400;
+canvas.height = 600;
 
-        // Ajustar tamaño del canvas
-        const maxWidth = 400;
-        const maxHeight = 600;
-        canvas.width = Math.min(maxWidth, window.innerWidth * 0.9);
-        canvas.height = Math.min(maxHeight, window.innerHeight * 0.9);
+class Fruit {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 20;
+        this.vy = 0; // Velocidad vertical
+        this.gravity = 0.5; // Gravedad
+        this.bounceCount = 0; // Contador de rebotes
+        this.maxBounces = 5; // Máximo de rebotes
+        this.isSettled = false; // Indica si la fruta está quieta
+    }
 
-        // Constantes del juego
-        const GRAVITY = 9.81 / 60; // Gravedad ajustada a 60 FPS
-        const TERMINAL_VELOCITY = 20; // Velocidad terminal en px por frame
-        const FRICTION = 0.98; // Fricción para desaceleración
-        const ROTATION_SPEED = Math.PI / 2; // 1/4 de vuelta por segundo
-        const CONFETTI_GRAVITY = 0.1; // Gravedad leve para confeti
+    update() {
+        if (!this.isSettled) {
+            this.vy += this.gravity; // Aplicar gravedad
+            this.y += this.vy; // Actualizar posición vertical
 
-        // Definición de frutas
-        const fruits = [
-            { name: 'grape', radius: 10, color: '#90EE90', details: ['#FFFFFF', '#000000'] }, // Uvas
-            { name: 'cherry', radius: 15, color: '#FF0000', details: ['#228B22', '#FFFFFF'] }, // Cerezas
-            { name: 'plum', radius: 24, color: '#800080', details: ['#4B0082', '#FFFFFF'] }, // Ciruelas
-            { name: 'orange', radius: 33, color: '#FFA500', details: ['#FFFFFF', '#000000'] }, // Naranjas
-            { name: 'dragonfruit', radius: 42, color: '#FF69B4', details: ['#FFFFFF', '#000000'] }, // Dragonfruits
-            { name: 'melon', radius: 51, color: '#32CD32', details: ['#FFFFFF', '#000000'] }, // Melones
-            { name: 'watermelon', radius: 60, color: '#FF0000', details: ['#006400', '#000000'] } // Sandías
-        ];
-
-        // Variables del juego
-        let score = 0;
-        let aiming = false;
-        let aimX = canvas.width / 2;
-        let nextFruitIndex = 0;
-        let fruitsOnScreen = [];
-        let confettiParticles = [];
-
-        // Dibujar el contador de puntaje
-        function drawScore() {
-            ctx.font = 'bold 20px Arial';
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'right';
-            ctx.fillText(`Puntaje: ${score}`, canvas.width - 10, 30);
-        }
-
-        // Generar una nueva fruta
-        function generateFruit() {
-            const fruit = fruits[nextFruitIndex];
-            nextFruitIndex = Math.floor(Math.random() * fruits.length); // Aleatorio para variedad
-            return {
-                x: canvas.width / 2,
-                y: fruit.radius,
-                radius: fruit.radius,
-                type: fruit.name,
-                color: fruit.color,
-                details: fruit.details,
-                vy: 0,
-                vx: 0,
-                rotation: 0,
-                angularVelocity: 0,
-                bounceCount: 0,
-                scale: 1
-            };
-        }
-
-        // Dibujar una fruta
-        function drawFruit(fruit) {
-            ctx.save();
-            ctx.translate(fruit.x, fruit.y);
-            ctx.rotate(fruit.rotation);
-            ctx.beginPath();
-            ctx.arc(0, 0, fruit.radius * fruit.scale, 0, Math.PI * 2);
-            ctx.fillStyle = fruit.color;
-            ctx.fill();
-            // Detalles simplificados
-            fruit.details.forEach((color, index) => {
-                ctx.beginPath();
-                ctx.arc(0, 0, (fruit.radius * fruit.scale) / (index + 2), 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.fill();
-            });
-            ctx.restore();
-        }
-
-        // Dibujar la línea punteada de puntería
-        function drawAimLine() {
-            if (aiming) {
-                const fruit = fruits[nextFruitIndex];
-                ctx.beginPath();
-                ctx.setLineDash([5, 5]);
-                ctx.moveTo(canvas.width / 2, fruit.radius);
-                ctx.lineTo(aimX, fruit.radius + 100);
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.setLineDash([]);
-                drawFruit({ ...fruit, x: canvas.width / 2, y: fruit.radius, rotation: 0 });
+            // Detectar impacto con el suelo
+            if (this.y + this.radius > canvas.height) {
+                this.y = canvas.height - this.radius; // Corregir posición al suelo
+                this.bounce();
             }
         }
+    }
 
-        // Actualizar la posición de una fruta
-        function updateFruit(fruit) {
-            fruit.vy += GRAVITY;
-            if (fruit.vy > TERMINAL_VELOCITY) fruit.vy = TERMINAL_VELOCITY;
-            fruit.y += fruit.vy;
-            fruit.x += fruit.vx;
-            fruit.rotation += fruit.angularVelocity;
-
-            // Rebote en el suelo
-            if (fruit.y + fruit.radius > canvas.height) {
-                fruit.y = canvas.height - fruit.radius;
-                if (fruit.bounceCount < 5) {
-                    fruit.vy = -Math.abs(fruit.vy) / (2 ** fruit.bounceCount);
-                    fruit.angularVelocity = ROTATION_SPEED * (Math.random() - 0.5);
-                    fruit.bounceCount++;
-                } else {
-                    fruit.vy = 0;
-                    fruit.vx *= FRICTION;
-                    if (Math.abs(fruit.vx) < 0.1) fruit.vx = 0;
-                    if (Math.abs(fruit.vy) < 0.1 && Math.abs(fruit.vx) < 0.1) {
-                        fruit.angularVelocity = 0;
-                    }
-                }
-            }
-
-            // Rebote en las paredes
-            if (fruit.x - fruit.radius < 0) {
-                fruit.x = fruit.radius;
-                fruit.vx = -fruit.vx * FRICTION;
-            } else if (fruit.x + fruit.radius > canvas.width) {
-                fruit.x = canvas.width - fruit.radius;
-                fruit.vx = -fruit.vx * FRICTION;
-            }
+    bounce() {
+        if (this.bounceCount < this.maxBounces) {
+            // Rebote: subir la mitad de la altura del canvas
+            const bounceHeight = canvas.height / 2;
+            this.vy = -Math.sqrt(2 * this.gravity * bounceHeight); // Velocidad para alcanzar la mitad del canvas
+            this.bounceCount++;
+        } else {
+            this.vy = 0; // Detener la fruta
+            this.isSettled = true;
         }
+    }
 
-        // Detectar y manejar colisiones entre frutas
-        function detectCollisions() {
-            for (let i = 0; i < fruitsOnScreen.length; i++) {
-                for (let j = i + 1; j < fruitsOnScreen.length; j++) {
-                    const fruitA = fruitsOnScreen[i];
-                    const fruitB = fruitsOnScreen[j];
-                    const dx = fruitA.x - fruitB.x;
-                    const dy = fruitA.y - fruitB.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < fruitA.radius * fruitA.scale + fruitB.radius * fruitB.scale) {
-                        if (fruitA.type === fruitB.type) {
-                            // Fusionar frutas
-                            const typeIndex = fruits.findIndex(f => f.name === fruitA.type);
-                            if (typeIndex < fruits.length - 1) {
-                                const newFruit = {
-                                    x: (fruitA.x + fruitB.x) / 2,
-                                    y: (fruitA.y + fruitB.y) / 2,
-                                    radius: fruits[typeIndex + 1].radius,
-                                    type: fruits[typeIndex + 1].name,
-                                    color: fruits[typeIndex + 1].color,
-                                    details: fruits[typeIndex + 1].details,
-                                    vy: 0,
-                                    vx: 0,
-                                    rotation: 0,
-                                    angularVelocity: 0,
-                                    bounceCount: 0,
-                                    scale: 0
-                                };
-                                fruitsOnScreen.push(newFruit);
-                                const growthInterval = setInterval(() => {
-                                    newFruit.scale += 0.1;
-                                    if (newFruit.scale >= 1) clearInterval(growthInterval);
-                                }, 1000 / 60);
-                            } else {
-                                // Son sandías
-                                score++;
-                                generateConfetti(fruitA.x, fruitA.y, 0);
-                                generateConfetti(fruitA.x, fruitA.y, 300);
-                                generateConfetti(fruitA.x, fruitA.y, 600);
-                            }
-                            fruitsOnScreen.splice(fruitsOnScreen.indexOf(fruitA), 1);
-                            fruitsOnScreen.splice(fruitsOnScreen.indexOf(fruitB), 1);
-                            return; // Evitar problemas con índices
-                        } else {
-                            // Rebote entre frutas diferentes
-                            const angle = Math.atan2(dy, dx);
-                            const speedA = Math.sqrt(fruitA.vx * fruitA.vx + fruitA.vy * fruitA.vy);
-                            const speedB = Math.sqrt(fruitB.vx * fruitB.vx + fruitB.vy * fruitB.vy);
-                            fruitA.vx = speedB * Math.cos(angle) * FRICTION;
-                            fruitA.vy = speedB * Math.sin(angle) * FRICTION;
-                            fruitB.vx = speedA * -Math.cos(angle) * FRICTION;
-                            fruitB.vy = speedA * -Math.sin(angle) * FRICTION;
-                            fruitA.bounceCount = Math.min(fruitA.bounceCount, 4);
-                            fruitB.bounceCount = Math.min(fruitB.bounceCount, 4);
-                        }
-                    }
-                }
-            }
-        }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+        ctx.closePath();
+    }
+}
 
-        // Generar confeti
-        function generateConfetti(x, y, delay) {
-            setTimeout(() => {
-                for (let i = 0; i < 40; i++) {
-                    confettiParticles.push({
-                        x: x,
-                        y: y,
-                        radius: 4,
-                        color: fruits[fruits.length - 1].details[Math.floor(Math.random() * 3)],
-                        vx: (Math.random() - 0.5) * 10,
-                        vy: (Math.random() - 0.5) * 10,
-                        life: 60
-                    });
-                }
-            }, delay);
-        }
+let fruit = new Fruit(canvas.width / 2, 0); // Primera fruta en el centro superior
+let fruits = [fruit]; // Lista para manejar múltiples frutas más adelante
 
-        // Actualizar y dibujar confeti
-        function updateAndDrawConfetti() {
-            confettiParticles.forEach((particle, index) => {
-                particle.x += particle.vx;
-                particle.y += particle.vy;
-                particle.vy += CONFETTI_GRAVITY;
-                particle.life--;
-                if (particle.life <= 0) {
-                    confettiParticles.splice(index, 1);
-                } else {
-                    ctx.beginPath();
-                    ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = particle.color;
-                    ctx.fill();
-                }
-            });
-        }
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar canvas
 
-        // Bucle principal de animación
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawScore();
-            drawAimLine();
-            fruitsOnScreen.forEach(fruit => {
-                updateFruit(fruit);
-                drawFruit(fruit);
-            });
-            detectCollisions();
-            updateAndDrawConfetti();
-            requestAnimationFrame(animate);
-        }
+    // Actualizar y dibujar la fruta actual
+    fruit.update();
+    fruit.draw();
 
-        // Controles táctiles
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            aiming = true;
-            aimX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
-        });
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (aiming) {
-                aimX = Math.max(fruits[nextFruitIndex].radius, Math.min(canvas.width - fruits[nextFruitIndex].radius, 
-                        e.touches[0].clientX - canvas.getBoundingClientRect().left));
-            }
-        });
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (aiming) {
-                aiming = false;
-                const newFruit = generateFruit();
-                newFruit.x = aimX;
-                fruitsOnScreen.push(newFruit);
-            }
-        });
+    // Si la fruta está quieta, lanzar una nueva
+    if (fruit.isSettled && fruits.length === 1) {
+        fruit = new Fruit(canvas.width / 2, 0); // Nueva fruta en el mismo lugar
+        fruits.push(fruit); // Añadir a la lista (para colisiones futuras)
+    }
 
-        // Controles con ratón (opcional para escritorio)
-        canvas.addEventListener('mousedown', (e) => {
-            aiming = true;
-            aimX = e.clientX - canvas.getBoundingClientRect().left;
-        });
-        canvas.addEventListener('mousemove', (e) => {
-            if (aiming) {
-                aimX = Math.max(fruits[nextFruitIndex].radius, Math.min(canvas.width - fruits[nextFruitIndex].radius, 
-                        e.clientX - canvas.getBoundingClientRect().left));
-            }
-        });
-        canvas.addEventListener('mouseup', () => {
-            if (aiming) {
-                aiming = false;
-                const newFruit = generateFruit();
-                newFruit.x = aimX;
-                fruitsOnScreen.push(newFruit);
-            }
-        });
+    requestAnimationFrame(gameLoop);
+}
 
-        // Iniciar el juego
-        animate();
-    </script>
-</body>
-</html>
+gameLoop();
