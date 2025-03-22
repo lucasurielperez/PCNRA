@@ -395,6 +395,17 @@
             score--;
             scoreDisplay.textContent = `Puntaje: ${score}`;
             if (score <= 0) {
+                if (lives > 0) {
+                        lives--;
+                        livesDisplay.textContent = '❤️'.repeat(lives);
+                        score=50;
+                        if (lives === 0) {
+                            gameOver = true;
+                            gameOverDisplay.style.display = 'block';
+                            finalScoreDisplay.textContent = score;
+                        }
+                }
+                
                 gameOver = true;
                 gameOverDisplay.style.display = 'block';
                 finalScoreDisplay.textContent = score;
