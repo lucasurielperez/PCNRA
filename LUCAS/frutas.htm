@@ -41,11 +41,11 @@
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
-        const GRAVITY = 0.3; // Restaurado al valor original
+        const GRAVITY = 0.3;
         const BOUNCE_WALL = 0.6;
         const BOUNCE_FLOOR = 0.5;
-        const BOUNCE_FRUIT = 0.7; // Restaurado al valor original (igual que paredes antes)
-        const FRICTION = 0.95;
+        const BOUNCE_FRUIT = 0.7;
+        const FRICTION = 0.85; // Reducido para que sea más "lubricado"
 
         let score = 0;
 
@@ -54,7 +54,7 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [15, 24, 33, 42, 51, 60][type]; // Cereza 15, Sandía 60 (doble de 30), interpolados
+                this.radius = [15, 24, 33, 42, 51, 60][type];
                 this.vx = 0;
                 this.vy = 0;
                 this.mass = this.radius;
@@ -82,6 +82,11 @@
                     ctx.beginPath();
                     ctx.arc(5, 5, 3, 0, Math.PI * 2);
                     ctx.stroke();
+                    // Detalle adicional: sombra
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(0, 5, this.radius - 5, 0, Math.PI * 2);
+                    ctx.fill();
                 } else if (this.type === 1) { // Ciruela
                     ctx.fillStyle = '#800080';
                     ctx.beginPath();
@@ -95,6 +100,11 @@
                     ctx.beginPath();
                     ctx.arc(-5, 5, 4, 0, Math.PI * 2);
                     ctx.stroke();
+                    // Detalle adicional: brillo
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(8, -8, 5, 0, Math.PI * 2);
+                    ctx.fill();
                 } else if (this.type === 2) { // Naranja
                     ctx.fillStyle = '#FFA500';
                     ctx.beginPath();
@@ -107,6 +117,13 @@
                     ctx.beginPath();
                     ctx.arc(-5, -5, 3, 0, Math.PI * 2);
                     ctx.stroke();
+                    // Detalle adicional: poros
+                    ctx.fillStyle = '#FF8C00';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.arc(i * 5 - 5, i * 5 - 5, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 } else if (this.type === 3) { // Dragonfruit
                     ctx.fillStyle = '#FF1493';
                     ctx.beginPath();
@@ -122,6 +139,11 @@
                         ctx.lineWidth = 3;
                         ctx.stroke();
                     }
+                    // Detalle adicional: sombra interior
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                    ctx.fill();
                 } else if (this.type === 4) { // Melón
                     ctx.fillStyle = '#98FB98';
                     ctx.beginPath();
@@ -133,6 +155,11 @@
                         ctx.arc(0, 0, this.radius - 2, (Math.PI / 4) * i, (Math.PI / 4) * (i + 0.5));
                         ctx.stroke();
                     }
+                    // Detalle adicional: semilla
+                    ctx.fillStyle = '#8B4513';
+                    ctx.beginPath();
+                    ctx.arc(10, 10, 3, 0, Math.PI * 2);
+                    ctx.fill();
                 } else { // Sandía
                     ctx.fillStyle = '#FF4500';
                     ctx.beginPath();
@@ -149,6 +176,12 @@
                         ctx.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 2, 0, Math.PI * 2);
                         ctx.fill();
                     }
+                    // Detalle adicional: línea de corte
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.moveTo(-this.radius + 5, 0);
+                    ctx.lineTo(this.radius - 5, 0);
+                    ctx.stroke();
                 }
                 ctx.restore();
             }
@@ -211,13 +244,13 @@
 
         let fruits = [];
         let confetti = [];
-        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 6));
+        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 4)); // Solo 4 primeras
         let aimingX = canvas.width / 2;
         let isAiming = false;
 
         function spawnFruit() {
             fruits.push(new Fruit(aimingX, 50, nextFruit.type));
-            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 6));
+            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 4)); // Solo 4 primeras
         }
 
         function drawDashedLine() {
@@ -231,17 +264,17 @@
         }
 
         function triggerConfettiExplosion(x, y, amount = 20, fruitType) {
-            const colors = [
-                '#FF4040', // Cereza
-                '#800080', // Ciruela
-                '#FFA500', // Naranja
-                '#FF1493', // Dragonfruit
-                '#98FB98', // Melón
-                '#FF4500'  // Sandía
+            const colorSets = [
+                ['#FF4040', '#228B22', '#FFFFFF'], // Cereza: rojo, verde, blanco
+                ['#800080', '#654321', '#DDA0DD'], // Ciruela: púrpura, marrón, lila
+                ['#FFA500', '#FFD700', '#FF8C00'], // Naranja: naranja, amarillo, naranja oscuro
+                ['#FF1493', '#32CD32', '#000000'], // Dragonfruit: rosa, verde, negro
+                ['#98FB98', '#006400', '#8B4513'], // Melón: verde claro, verde oscuro, marrón
+                ['#FF4500', '#006400', '#000000']  // Sandía: rojo, verde oscuro, negro
             ];
-            const color = colors[fruitType];
+            const colors = colorSets[fruitType];
             for (let j = 0; j < amount; j++) {
-                confetti.push(new Confetti(x, y, color));
+                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)]));
             }
         }
 
