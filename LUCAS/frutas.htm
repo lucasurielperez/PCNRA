@@ -41,13 +41,13 @@
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
-        const GRAVITY = 0.98; // Gravedad más realista
+        const GRAVITY = 0.98; // Gravedad realista
         const TERMINAL_VELOCITY = 20; // Velocidad máxima de caída
-        const BOUNCE_WALL = 0.85; // Rebote en paredes
-        const BOUNCE_FLOOR = 0.75; // Rebote en suelo
-        const BOUNCE_FRUIT = 0.9; // Rebote entre frutas
-        const FRICTION = 0.98; // Fricción reducida
-        const ROTATION_FRICTION = 0.99; // Rotación más suave
+        const BASE_BOUNCE_WALL = 0.8; // Rebote base en paredes
+        const BASE_BOUNCE_FLOOR = 0.7; // Rebote base en suelo
+        const BASE_BOUNCE_FRUIT = 0.8; // Rebote base entre frutas
+        const BASE_FRICTION = 0.95; // Fricción base
+        const ROTATION_FRICTION = 0.95; // Rotación decae más rápido
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
 
         let score = 0;
@@ -213,8 +213,11 @@
                 this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vx *= FRICTION;
-                this.vy *= FRICTION;
+
+                // Fricción ajustada por masa (más masa = más fricción)
+                const friction = BASE_FRICTION - (this.mass / 64) * 0.1; // Entre 0.95 y 0.85
+                this.vx *= friction;
+                this.vy *= friction;
 
                 const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                 if (speed > 0.1) {
@@ -225,19 +228,21 @@
                     this.angularVelocity *= 0.9;
                 }
 
-                const bounceFactor = (this.type === 0) ? BOUNCE_FLOOR * 1.5 : BOUNCE_FLOOR;
+                // Rebote ajustado por masa (menos masa = más rebote)
+                const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5); // Entre 0.7 y 0.35
+                const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5); // Entre 0.8 y 0.4
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
-                    this.vx = -this.vx * BOUNCE_WALL;
+                    this.vx = -this.vx * bounceWall;
                     this.angularVelocity += this.vy * 0.02 / this.mass;
                 } else if (this.x + this.radius * this.scale > canvas.width) {
                     this.x = canvas.width - this.radius * this.scale;
-                    this.vx = -this.vx * BOUNCE_WALL;
+                    this.vx = -this.vx * bounceWall;
                     this.angularVelocity -= this.vy * 0.02 / this.mass;
                 }
                 if (this.y + this.radius * this.scale > canvas.height) {
                     this.y = canvas.height - this.radius * this.scale;
-                    this.vy = -this.vy * bounceFactor;
+                    this.vy = -this.vy * bounceFloor;
                     this.angularVelocity += this.vx * 0.02 / this.mass;
                     if (Math.abs(this.vy) < 0.5) this.vy = 0;
                 }
@@ -373,9 +378,11 @@
                             let finalV1 = ((f1.mass - f2.mass) * v1 + 2 * f2.mass * v2) / totalMass;
                             let finalV2 = ((f2.mass - f1.mass) * v2 + 2 * f1.mass * v1) / totalMass;
 
-                            let bounceFactor = (f1.type === 0 || f2.type === 0) ? BOUNCE_FRUIT * 1.5 : BOUNCE_FRUIT;
-                            let dvx = (finalV1 - v1) * nx * bounceFactor;
-                            let dvy = (finalV1 - v1) * ny * bounceFactor;
+                            // Rebote ajustado por masa promedio
+                            const avgMass = (f1.mass + f2.mass) / 2;
+                            const bounceFruit = BASE_BOUNCE_FRUIT * (1 - avgMass / 64 * 0.5); // Entre 0.8 y 0.4
+                            let dvx = (finalV1 - v1) * nx * bounceFruit;
+                            let dvy = (finalV1 - v1) * ny * bounceFruit;
                             f1.vx -= dvx;
                             f1.vy -= dvy;
                             f2.vx += dvx;
