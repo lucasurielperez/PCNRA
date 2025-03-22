@@ -72,8 +72,8 @@
         const FINAL_FRICTION = 0.3;
         const ROTATION_FRICTION = 0.95;
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
-        const FREEZE_DELAY = 3000; // 3 segundos antes de empezar a congelar
-        const FREEZE_DURATION = 1000; // 1 segundo para la transición
+        const FREEZE_DELAY = 3000;
+        const FREEZE_DURATION = 1000;
 
         let score = 0;
         let lives = 3;
@@ -248,7 +248,6 @@
                 let friction;
                 if (timeSinceLastSpawn > FREEZE_DELAY + FREEZE_DURATION) {
                     friction = FINAL_FRICTION;
-                    // Congelamiento total al final de la transición
                     if (Math.abs(this.vx) < 0.1) this.vx = 0;
                     if (Math.abs(this.vy) < 0.1) this.vy = 0;
                     if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
@@ -389,9 +388,9 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
-                    if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) { // Asegurar que estén casi completas
+                    if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
                         if (f1.type === f2.type) {
-                            f1.shrinkSpeed = 0.05; // Reducir más lento para ver la fusión
+                            f1.shrinkSpeed = 0.05;
                             f2.shrinkSpeed = 0.05;
                             if (f1.type === 6) { // Sandía
                                 setTimeout(() => {
@@ -445,12 +444,22 @@
                             let v2t = restingFruit.vx - v2n * nx;
 
                             let totalMass = fallingFruit.mass + restingFruit.mass;
+                            let massRatio = fallingFruit.mass / restingFruit.mass;
+                            let frictionFactor = Math.min(1, 0.1 + 0.9 * (1 - massRatio)); // Más fricción si la masa es muy diferente
+
                             let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
                             let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-                            const bounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
-                            finalV1n *= bounceFactor;
-                            finalV2n *= bounceFactor;
+                            // Reducir transferencia de energía según la diferencia de masa
+                            const baseBounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
+                            finalV1n *= baseBounceFactor * frictionFactor;
+                            finalV2n *= baseBounceFactor * frictionFactor;
+
+                            // Si la fruta en reposo está quieta y es mucho más pesada, no se mueve
+                            if (restingFruit.vy === 0 && restingFruit.vx === 0 && massRatio < 0.5) {
+                                finalV2n = 0;
+                                finalV1n *= 0.8; // Rebote adicional para la fruta ligera
+                            }
 
                             if (restingFruit.vy <= 0 && fallingFruit.vy > 0) {
                                 finalV2n = Math.max(finalV2n, 0);
@@ -464,8 +473,8 @@
                             let relativeVelocityX = f2.vx - f1.vx;
                             let relativeVelocityY = f2.vy - f1.vy;
                             let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
-                            f1.angularVelocity += (angularImpulse / f1.radius * 0.02) / f1.mass;
-                            f2.angularVelocity -= (angularImpulse / f2.radius * 0.02) / f2.mass;
+                            f1.angularVelocity += (angularImpulse / f1.radius * 0.02) / f1.mass * frictionFactor;
+                            f2.angularVelocity -= (angularImpulse / f2.radius * 0.02) / f2.mass * frictionFactor;
 
                             if (Math.abs(f1.vx) < 0.1) f1.vx = 0;
                             if (Math.abs(f1.vy) < 0.1) f1.vy = 0;
