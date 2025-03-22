@@ -39,28 +39,34 @@
         const scoreDisplay = document.getElementById('score');
 
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
-        canvas.height = Math.min(window.innerHeight * 0.9, 600);
+        canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50; // Ajuste para que el fondo sea visible
 
         const GRAVITY = 0.3;
-        const BOUNCE = 0.7;
-        const FRICTION = 0.99;
+        const BOUNCE_WALL = 0.6; // Rebote reducido con paredes
+        const BOUNCE_FLOOR = 0.5; // Rebote aún más reducido con el suelo
+        const BOUNCE_FRUIT = 0.4; // Rebote mínimo entre frutas
+        const FRICTION = 0.95; // Más resbaloso (menos fricción)
 
         let score = 0;
 
         class Fruit {
-            constructor(x, y, type) {
+            constructor(x, y, type, scale = 1) {
                 this.x = x;
                 this.y = y;
-                this.type = type; // 0: cereza, 1: ciruela, 2: naranja, 3: dragonfruit, 4: melón, 5: sandía
+                this.type = type;
                 this.radius = [15, 20, 25, 30, 35, 40][type];
                 this.vx = 0;
                 this.vy = 0;
                 this.mass = this.radius;
+                this.scale = scale; // Para animaciones de crecimiento/achicamiento
+                this.shrinkSpeed = 0; // Velocidad de achicamiento
+                this.growSpeed = 0; // Velocidad de crecimiento
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
+                ctx.scale(this.scale, this.scale);
                 if (this.type === 0) { // Cereza
                     ctx.fillStyle = '#FF4040';
                     ctx.beginPath();
@@ -154,21 +160,57 @@
                 this.vx *= FRICTION;
                 this.vy *= FRICTION;
 
-                if (this.x - this.radius < 0) {
-                    this.x = this.radius;
-                    this.vx = -this.vx * BOUNCE;
-                } else if (this.x + this.radius > canvas.width) {
-                    this.x = canvas.width - this.radius;
-                    this.vx = -this.vx * BOUNCE;
+                if (this.x - this.radius * this.scale < 0) {
+                    this.x = this.radius * this.scale;
+                    this.vx = -this.vx * BOUNCE_WALL;
+                } else if (this.x + this.radius * this.scale > canvas.width) {
+                    this.x = canvas.width - this.radius * this.scale;
+                    this.vx = -this.vx * BOUNCE_WALL;
                 }
-                if (this.y + this.radius > canvas.height) {
-                    this.y = canvas.height - this.radius;
-                    this.vy = -this.vy * BOUNCE;
+                if (this.y + this.radius * this.scale > canvas.height) {
+                    this.y = canvas.height - this.radius * this.scale;
+                    this.vy = -this.vy * BOUNCE_FLOOR;
+                }
+
+                if (this.shrinkSpeed > 0) {
+                    this.scale -= this.shrinkSpeed;
+                    if (this.scale <= 0) this.scale = 0;
+                }
+                if (this.growSpeed > 0) {
+                    this.scale += this.growSpeed;
+                    if (this.scale >= 1) this.scale = 1;
                 }
             }
         }
 
+        class Confetti {
+            constructor(x, y, color, size = 4) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = size;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 60; // Frames de vida
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1;
+                this.life--;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         let fruits = [];
+        let confetti = [];
         let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 6));
         let aimingX = canvas.width / 2;
         let isAiming = false;
@@ -188,6 +230,13 @@
             ctx.setLineDash([]);
         }
 
+        function triggerConfettiExplosion(x, y, amount = 20) {
+            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+            for (let j = 0; j < amount; j++) {
+                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)]));
+            }
+        }
+
         function checkCollisions() {
             for (let i = 0; i < fruits.length; i++) {
                 for (let j = i + 1; j < fruits.length; j++) {
@@ -197,19 +246,34 @@
                     let dy = f2.y - f1.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
-                    if (distance < f1.radius + f2.radius) {
+                    if (distance < (f1.radius * f1.scale + f2.radius * f2.scale) && f1.scale > 0 && f2.scale > 0) {
                         if (f1.type === f2.type) {
+                            f1.shrinkSpeed = 0.1;
+                            f2.shrinkSpeed = 0.1;
                             if (f1.type === 5) { // Dos sandías
-                                fruits.splice(j, 1);
-                                fruits.splice(i, 1);
-                                score++;
-                                scoreDisplay.textContent = `Puntaje: ${score}`;
+                                setTimeout(() => {
+                                    if (fruits.includes(f1)) fruits.splice(fruits.indexOf(f1), 1);
+                                    if (fruits.includes(f2)) fruits.splice(fruits.indexOf(f2), 1);
+                                    score++;
+                                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                                    triggerConfettiExplosion(f1.x, f1.y, 40);
+                                    setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40), 300);
+                                    setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40), 600);
+                                }, 200);
                             } else { // Fusión normal
                                 let newType = f1.type + 1;
                                 let newX = (f1.x + f2.x) / 2;
                                 let newY = (f1.y + f2.y) / 2;
-                                fruits.splice(j, 1);
-                                fruits.splice(i, 1, new Fruit(newX, newY, newType));
+                                setTimeout(() => {
+                                    if (fruits.includes(f1) && fruits.includes(f2)) {
+                                        fruits.splice(fruits.indexOf(f1), 1);
+                                        fruits.splice(fruits.indexOf(f2), 1);
+                                        let newFruit = new Fruit(newX, newY, newType, 0);
+                                        newFruit.growSpeed = 0.1;
+                                        fruits.push(newFruit);
+                                        triggerConfettiExplosion(newX, newY, 20);
+                                    }
+                                }, 200);
                             }
                             return;
                         } else {
@@ -230,11 +294,16 @@
                             f2.vx = cos * finalVx2 - sin * vy2;
                             f2.vy = sin * finalVx2 + cos * vy2;
 
-                            let overlap = (f1.radius + f2.radius) - distance;
+                            let overlap = (f1.radius * f1.scale + f2.radius * f2.scale) - distance;
                             f1.x -= dx * overlap / distance / 2;
                             f1.y -= dy * overlap / distance / 2;
                             f2.x += dx * overlap / distance / 2;
                             f2.y += dy * overlap / distance / 2;
+
+                            f1.vx *= BOUNCE_FRUIT;
+                            f1.vy *= BOUNCE_FRUIT;
+                            f2.vx *= BOUNCE_FRUIT;
+                            f2.vy *= BOUNCE_FRUIT;
                         }
                     }
                 }
@@ -246,7 +315,13 @@
 
             fruits.forEach(fruit => {
                 fruit.update();
-                fruit.draw();
+                if (fruit.scale > 0) fruit.draw();
+            });
+
+            confetti.forEach((c, i) => {
+                c.update();
+                c.draw();
+                if (c.life <= 0) confetti.splice(i, 1);
             });
 
             if (isAiming) drawDashedLine();
