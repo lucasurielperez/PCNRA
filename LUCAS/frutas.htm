@@ -74,6 +74,7 @@
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
+        const MAX_COLLISION_VELOCITY = 10; // Nueva constante para limitar velocidad post-colisión
 
         let score = 0;
         let lives = 3;
@@ -254,9 +255,9 @@
                 if (timeSinceLastPerturbed > FREEZE_DELAY + FREEZE_DURATION) {
                     friction = FINAL_FRICTION;
                     this.isFrozen = true;
-                    if (Math.abs(this.vx) < 0.1) this.vx = 0;
-                    if (Math.abs(this.vy) < 0.1) this.vy = 0;
-                    if (Math.abs(this.angularVelocity) < 0.01) this.angularVelocity = 0;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.angularVelocity = 0;
                 } else if (timeSinceLastPerturbed > FREEZE_DELAY) {
                     const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
                     friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
@@ -480,21 +481,35 @@
 
                             let totalMass = fallingFruit.mass + restingFruit.mass;
                             let massRatio = fallingFruit.mass / restingFruit.mass;
-                            let frictionFactor = Math.min(1, 0.1 + 0.9 * (1 - massRatio));
 
+                            // Conservación del momento con disipación de energía
                             let finalV1n = ((fallingFruit.mass - restingFruit.mass) * v1n + 2 * restingFruit.mass * v2n) / totalMass;
                             let finalV2n = ((restingFruit.mass - fallingFruit.mass) * v2n + 2 * fallingFruit.mass * v1n) / totalMass;
 
-                            const baseBounceFactor = 0.5 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
-                            finalV1n *= baseBounceFactor * frictionFactor;
-                            finalV2n *= baseBounceFactor * frictionFactor;
+                            // Reducir rebote y respetar masas
+                            const bounceFactor = 0.3 * (1 - (fallingFruit.mass + restingFruit.mass) / 128 * 0.5);
+                            const energyLoss = 0.7; // 70% de pérdida de energía
+                            finalV1n *= bounceFactor * energyLoss;
+                            finalV2n *= bounceFactor * energyLoss;
 
-                            if (restingFruit.vy === 0 && restingFruit.vx === 0 && massRatio < 0.5) {
-                                finalV2n = 0;
+                            // Limitar velocidad máxima después de la colisión
+                            const initialEnergy = Math.max(Math.abs(v1n), Math.abs(v2n));
+                            finalV1n = Math.min(Math.max(finalV1n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
+                            finalV2n = Math.min(Math.max(finalV2n, -MAX_COLLISION_VELOCITY), Math.min(initialEnergy * 0.8, MAX_COLLISION_VELOCITY));
+
+                            // Ajustar según masa relativa
+                            if (massRatio > 1) {
+                                finalV2n *= Math.min(1, massRatio * 0.5); // Mayor efecto en la fruta más ligera
+                                finalV1n *= Math.max(0.2, 1 / massRatio); // Menor efecto en la fruta pesada
+                            } else {
+                                finalV1n *= Math.min(1, 1 / massRatio * 0.5);
+                                finalV2n *= Math.max(0.2, massRatio);
                             }
 
-                            if (restingFruit.vy <= 0 && fallingFruit.vy > 0) {
-                                finalV2n = Math.max(finalV2n, 0);
+                            // Minimizar rebotes posteriores
+                            if (Date.now() - fallingFruit.lastPerturbedTime < FREEZE_DELAY) {
+                                finalV2n = Math.max(finalV2n, 0); // No rebota hacia arriba
+                                if (Math.abs(finalV2n) < 0.5) finalV2n = 0;
                             }
 
                             fallingFruit.vx = v1t + finalV1n * nx;
@@ -502,11 +517,18 @@
                             restingFruit.vx = v2t + finalV2n * nx;
                             restingFruit.vy = finalV2n * ny;
 
+                            // Limitar velocidad total
+                            fallingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vx));
+                            fallingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, fallingFruit.vy));
+                            restingFruit.vx = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vx));
+                            restingFruit.vy = Math.max(-MAX_COLLISION_VELOCITY, Math.min(MAX_COLLISION_VELOCITY, restingFruit.vy));
+
+                            // Rotación mínima
                             let relativeVelocityX = f2.vx - f1.vx;
                             let relativeVelocityY = f2.vy - f1.vy;
                             let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
-                            f1.angularVelocity += (angularImpulse / f1.radius * 0.02) / f1.mass * frictionFactor;
-                            f2.angularVelocity -= (angularImpulse / f2.radius * 0.02) / f2.mass * frictionFactor;
+                            f1.angularVelocity += Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
+                            f2.angularVelocity -= Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
 
                             if (Math.abs(f1.vx) < 0.1) f1.vx = 0;
                             if (Math.abs(f1.vy) < 0.1) f1.vy = 0;
