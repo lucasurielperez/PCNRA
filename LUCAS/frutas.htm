@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Frutas</title>
+    <title>Juego de Frutas Mejorado</title>
     <style>
         body {
             margin: 0;
@@ -13,37 +13,49 @@
             height: 100vh;
             background-color: #87CEEB;
             overflow: hidden;
+            font-family: Arial, sans-serif;
         }
         canvas {
             border: 1px solid #333;
             background-color: #F5F5F5;
-            touch-action: none; /* Evita el scroll en móviles */
+            touch-action: none;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <div id="score">Puntaje: 0</div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
 
-        // Configuración del canvas para móviles
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600);
 
         const GRAVITY = 0.3;
-        const BOUNCE = 0.7; // Rebote moderado
-        const FRICTION = 0.99; // Fricción para desacelerar
+        const BOUNCE = 0.7;
+        const FRICTION = 0.99;
+
+        let score = 0;
 
         class Fruit {
             constructor(x, y, type) {
                 this.x = x;
                 this.y = y;
-                this.type = type; // 0: cereza, 1: ciruela, 2: naranja
-                this.radius = [15, 25, 35][type];
+                this.type = type; // 0: cereza, 1: ciruela, 2: naranja, 3: dragonfruit, 4: melón, 5: sandía
+                this.radius = [15, 20, 25, 30, 35, 40][type];
                 this.vx = 0;
                 this.vy = 0;
-                this.mass = this.radius; // Masa proporcional al tamaño
+                this.mass = this.radius;
             }
 
             draw() {
@@ -60,6 +72,10 @@
                     ctx.lineTo(5, -this.radius - 10);
                     ctx.lineTo(-5, -this.radius - 15);
                     ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(5, 5, 3, 0, Math.PI * 2);
+                    ctx.stroke();
                 } else if (this.type === 1) { // Ciruela
                     ctx.fillStyle = '#800080';
                     ctx.beginPath();
@@ -69,7 +85,11 @@
                     ctx.beginPath();
                     ctx.arc(0, -this.radius + 5, 5, 0, Math.PI * 2);
                     ctx.fill();
-                } else { // Naranja
+                    ctx.strokeStyle = '#DDA0DD';
+                    ctx.beginPath();
+                    ctx.arc(-5, 5, 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (this.type === 2) { // Naranja
                     ctx.fillStyle = '#FFA500';
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
@@ -78,6 +98,51 @@
                     ctx.beginPath();
                     ctx.arc(5, 5, 5, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(-5, -5, 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (this.type === 3) { // Dragonfruit
+                    ctx.fillStyle = '#FF1493';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#32CD32';
+                    for (let i = 0; i < 6; i++) {
+                        let angle = (Math.PI * 2 / 6) * i;
+                        ctx.beginPath();
+                        ctx.moveTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                        ctx.lineTo(Math.cos(angle) * (this.radius + 8), Math.sin(angle) * (this.radius + 8));
+                        ctx.strokeStyle = '#32CD32';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    }
+                } else if (this.type === 4) { // Melón
+                    ctx.fillStyle = '#98FB98';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#006400';
+                    for (let i = 0; i < 8; i++) {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius - 2, (Math.PI / 4) * i, (Math.PI / 4) * (i + 0.5));
+                        ctx.stroke();
+                    }
+                } else { // Sandía
+                    ctx.fillStyle = '#FF4500';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#006400';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    for (let i = 0; i < 5; i++) {
+                        let angle = (Math.PI * 2 / 5) * i;
+                        ctx.beginPath();
+                        ctx.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
                 ctx.restore();
             }
@@ -89,7 +154,6 @@
                 this.vx *= FRICTION;
                 this.vy *= FRICTION;
 
-                // Colisión con paredes
                 if (this.x - this.radius < 0) {
                     this.x = this.radius;
                     this.vx = -this.vx * BOUNCE;
@@ -105,11 +169,23 @@
         }
 
         let fruits = [];
-        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
+        let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 6));
+        let aimingX = canvas.width / 2;
+        let isAiming = false;
 
         function spawnFruit() {
-            fruits.push(nextFruit);
-            nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
+            fruits.push(new Fruit(aimingX, 50, nextFruit.type));
+            nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 6));
+        }
+
+        function drawDashedLine() {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#666';
+            ctx.beginPath();
+            ctx.moveTo(aimingX, 0);
+            ctx.lineTo(aimingX, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
 
         function checkCollisions() {
@@ -122,15 +198,21 @@
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < f1.radius + f2.radius) {
-                        if (f1.type === f2.type && f1.type < 2) {
-                            let newType = f1.type + 1;
-                            let newX = (f1.x + f2.x) / 2;
-                            let newY = (f1.y + f2.y) / 2;
-                            fruits.splice(j, 1);
-                            fruits.splice(i, 1, new Fruit(newX, newY, newType));
-                            return; // Salimos para evitar problemas con índices
+                        if (f1.type === f2.type) {
+                            if (f1.type === 5) { // Dos sandías
+                                fruits.splice(j, 1);
+                                fruits.splice(i, 1);
+                                score++;
+                                scoreDisplay.textContent = `Puntaje: ${score}`;
+                            } else { // Fusión normal
+                                let newType = f1.type + 1;
+                                let newX = (f1.x + f2.x) / 2;
+                                let newY = (f1.y + f2.y) / 2;
+                                fruits.splice(j, 1);
+                                fruits.splice(i, 1, new Fruit(newX, newY, newType));
+                            }
+                            return;
                         } else {
-                            // Colisión elástica simple
                             let angle = Math.atan2(dy, dx);
                             let sin = Math.sin(angle);
                             let cos = Math.cos(angle);
@@ -166,6 +248,9 @@
                 fruit.update();
                 fruit.draw();
             });
+
+            if (isAiming) drawDashedLine();
+            nextFruit.x = aimingX;
             nextFruit.draw();
 
             checkCollisions();
@@ -175,7 +260,23 @@
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            spawnFruit();
+            isAiming = true;
+            aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isAiming) {
+                aimingX = Math.max(nextFruit.radius, Math.min(canvas.width - nextFruit.radius, e.touches[0].clientX - canvas.offsetLeft));
+            }
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (isAiming) {
+                spawnFruit();
+                isAiming = false;
+            }
         });
 
         gameLoop();
