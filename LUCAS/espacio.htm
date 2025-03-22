@@ -11,20 +11,20 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #0A0A23;
+            background-color: #0A0A23; /* Fondo oscuro espacial */
             overflow: hidden;
             font-family: Arial, sans-serif;
         }
         canvas {
-            border: 1px solid #FFFFFF;
-            background-color: #1C2526;
+            border: 1px solid #FFFFFF; /* Borde blanco */
+            background-color: #1C2526; /* Lienzo gris oscuro */
             touch-action: none;
         }
         #score {
             position: absolute;
             top: 10px;
             right: 10px;
-            color: #FFFFFF;
+            color: #FFFFFF; /* Texto blanco */
             font-size: 20px;
             font-weight: bold;
         }
@@ -83,6 +83,7 @@
         const MAX_ANGULAR_VELOCITY = 2 * Math.PI / 60;
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
+        const MAX_COLLISION_VELOCITY = 10;
         const ROT_TIME = 60 * 1000;
         const STONE_FRICTION = 0.85;
         const INITIAL_SCORE = 50;
@@ -99,8 +100,8 @@
                 this.x = x;
                 this.y = y;
                 this.type = type;
-                this.radius = [8, 10, 15, 24, 33, 42, 51, 60, 70][type] * 1.44;
-                this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64, 128][type];
+                this.radius = [8, 10, 15, 24, 33, 42, 51, 60][type] * 1.44;
+                this.mass = [0.5, 1, 2, 4, 8, 16, 32, 64][type];
                 this.originalMass = this.mass;
                 this.vx = 0;
                 this.vy = 0;
@@ -126,15 +127,14 @@
 
                 const rotFactor = this.rotProgress;
                 if (rotFactor >= 1) {
-                    context.fillStyle = '#333333';
+                    context.fillStyle = '#333333'; // Gris oscuro para "podrido"
                     context.beginPath();
                     context.arc(0, 0, this.radius, 0, Math.PI * 2);
                     context.fill();
                 } else {
                     const baseColors = [
-                        '#808080', '#C0C0C0', '#00CED1', '#FF4500',
-                        '#FFD700', '#8A2BE2', '#00FF7F', '#000000',
-                        '#FF00FF'
+                        '#808080', '#C0C0C0', '#00CED1', '#FF4500', // Asteroide, Luna, Tierra, Júpiter
+                        '#FFD700', '#8A2BE2', '#00FF7F', '#FF00FF'  // Sistema Solar, Galaxia, Cúmulo, Supernova
                     ];
                     const baseColor = baseColors[this.type];
                     const r = parseInt(baseColor.slice(1, 3), 16) * (1 - rotFactor);
@@ -146,103 +146,117 @@
                     context.arc(0, 0, this.radius, 0, Math.PI * 2);
                     context.fill();
 
-                    switch (this.type) {
-                        case 0: // Asteroide
-                            context.fillStyle = `rgba(128, 128, 128, ${0.5 * (1 - rotFactor)})`;
+                    if (this.type === 0) { // Asteroide
+                        context.fillStyle = `rgba(128, 128, 128, ${1 - rotFactor})`;
+                        context.beginPath();
+                        context.arc(2, -2, 1.5, 0, Math.PI * 2);
+                        context.fill();
+                        context.fillStyle = `rgba(105, 105, 105, ${0.2 * (1 - rotFactor)})`;
+                        context.beginPath();
+                        context.arc(0, 1, this.radius - 1, 0, Math.PI * 2);
+                        context.fill();
+                    } else if (this.type === 1) { // Luna
+                        context.fillStyle = `rgba(169, 169, 169, ${1 - rotFactor})`;
+                        context.beginPath();
+                        context.arc(3, -3, 2, 0, Math.PI * 2);
+                        context.fill();
+                        context.fillStyle = `rgba(105, 105, 105, ${0.2 * (1 - rotFactor)})`;
+                        context.beginPath();
+                        context.arc(0, 2, this.radius - 2, 0, Math.PI * 2);
+                        context.fill();
+                    } else if (this.type === 2) { // Tierra
+                        context.fillStyle = `rgba(0, 191, 255, ${1 - rotFactor})`; // Océanos
+                        context.beginPath();
+                        context.arc(0, -this.radius, 5, 0, Math.PI * 2);
+                        context.fill();
+                        context.strokeStyle = `rgba(34, 139, 34, ${1 - rotFactor})`; // Continentes
+                        context.beginPath();
+                        context.arc(5, 5, 3, 0, Math.PI * 2);
+                        context.stroke();
+                        context.fillStyle = `rgba(0, 0, 139, ${0.2 * (1 - rotFactor)})`;
+                        context.beginPath();
+                        context.arc(0, 5, this.radius - 5, 0, Math.PI * 2);
+                        context.fill();
+                    } else if (this.type === 3) { // Júpiter
+                        context.fillStyle = `rgba(210, 105, 30, ${1 - rotFactor})`; // Bandas
+                        context.beginPath();
+                        context.arc(0, -this.radius + 5, 5, 0, Math.PI * 2);
+                        context.fill();
+                        context.strokeStyle = `rgba(255, 165, 0, ${1 - rotFactor})`;
+                        context.beginPath();
+                        context.arc(-5, 5, 4, 0, Math.PI * 2);
+                        context.stroke();
+                        context.fillStyle = `rgba(255, 69, 0, ${0.3 * (1 - rotFactor)})`;
+                        context.beginPath();
+                        context.arc(8, -8, 5, 0, Math.PI * 2);
+                        context.fill();
+                    } else if (this.type === 4) { // Sistema Solar
+                        context.fillStyle = `rgba(255, 215, 0, ${1 - rotFactor})`; // Sol
+                        context.beginPath();
+                        context.arc(5, 5, 5, 0, Math.PI * 2);
+                        context.fill();
+                        context.beginPath();
+                        context.arc(-5, -5, 3, 0, Math.PI * 2);
+                        context.stroke();
+                        context.fillStyle = `rgba(255, 140, 0, ${1 - rotFactor})`; // Planetas
+                        for (let i = 0; i < 3; i++) {
                             context.beginPath();
-                            context.arc(3, -3, 2, 0, Math.PI * 2);
-                            context.arc(-2, 2, 1.5, 0, Math.PI * 2);
+                            context.arc(i * 5 - 5, i * 5 - 5, 2, 0, Math.PI * 2);
                             context.fill();
-                            break;
-                        case 1: // Luna
-                            context.fillStyle = `rgba(169, 169, 169, ${0.7 * (1 - rotFactor)})`;
+                        }
+                    } else if (this.type === 5) { // Galaxia
+                        context.fillStyle = `rgba(138, 43, 226, ${1 - rotFactor})`; // Brazos
+                        for (let i = 0; i < 6; i++) {
+                            let angle = (Math.PI * 2 / 6) * i;
                             context.beginPath();
-                            context.arc(4, -4, 3, 0, Math.PI * 2);
-                            context.arc(-3, 3, 2, 0, Math.PI * 2);
-                            context.fill();
-                            break;
-                        case 2: // Tierra
-                            context.fillStyle = `rgba(0, 191, 255, ${1 - rotFactor})`;
-                            context.beginPath();
-                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                            context.fill();
-                            context.fillStyle = `rgba(34, 139, 34, ${1 - rotFactor})`;
-                            context.beginPath();
-                            context.arc(5, -5, 3, 0, Math.PI * 2);
-                            context.fill();
-                            break;
-                        case 3: // Júpiter
-                            context.fillStyle = `rgba(210, 105, 30, ${1 - rotFactor})`;
-                            context.beginPath();
-                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                            context.fill();
-                            context.strokeStyle = `rgba(255, 165, 0, ${1 - rotFactor})`;
-                            context.lineWidth = 2;
-                            context.beginPath();
-                            context.moveTo(-this.radius + 5, 0);
-                            context.lineTo(this.radius - 5, 0);
-                            context.stroke();
-                            break;
-                        case 4: // Sistema Solar
-                            context.fillStyle = `rgba(255, 215, 0, ${0.8 * (1 - rotFactor)})`;
-                            context.beginPath();
-                            context.arc(0, 0, this.radius - 10, 0, Math.PI * 2);
-                            context.fill();
-                            context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
-                            context.lineWidth = 1;
-                            for (let i = 0; i < 3; i++) {
-                                context.beginPath();
-                                context.arc(0, 0, this.radius - 15 - i * 5, 0, Math.PI * 2);
-                                context.stroke();
-                            }
-                            break;
-                        case 5: // Galaxia
-                            context.fillStyle = `rgba(138, 43, 226, ${1 - rotFactor})`;
-                            for (let i = 0; i < 4; i++) {
-                                let angle = (Math.PI * 2 / 4) * i;
-                                context.beginPath();
-                                context.moveTo(0, 0);
-                                context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
-                                context.strokeStyle = `rgba(147, 112, 219, ${1 - rotFactor})`;
-                                context.lineWidth = 3;
-                                context.stroke();
-                            }
-                            break;
-                        case 6: // Cúmulo
-                            context.fillStyle = `rgba(0, 255, 127, ${1 - rotFactor})`;
-                            for (let i = 0; i < 5; i++) {
-                                let angle = (Math.PI * 2 / 5) * i;
-                                context.beginPath();
-                                context.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 5, 0, Math.PI * 2);
-                                context.fill();
-                            }
-                            break;
-                        case 7: // Agujero Negro
-                            context.fillStyle = `rgba(0, 0, 0, ${1 - rotFactor})`;
-                            context.beginPath();
-                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
-                            context.fill();
-                            context.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - rotFactor)})`;
+                            context.moveTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
+                            context.lineTo(Math.cos(angle) * (this.radius + 8), Math.sin(angle) * (this.radius + 8));
+                            context.strokeStyle = `rgba(147, 112, 219, ${1 - rotFactor})`;
                             context.lineWidth = 3;
-                            context.beginPath();
-                            context.arc(0, 0, this.radius, 0, Math.PI * 2);
                             context.stroke();
-                            break;
-                        case 8: // Supernova
-                            context.fillStyle = `rgba(255, 0, 255, ${1 - rotFactor})`;
+                        }
+                        context.fillStyle = `rgba(75, 0, 130, ${0.2 * (1 - rotFactor)})`;
+                        context.beginPath();
+                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                        context.fill();
+                    } else if (this.type === 6) { // Cúmulo
+                        context.strokeStyle = `rgba(0, 255, 127, ${1 - rotFactor})`; // Estrellas
+                        context.lineWidth = 2;
+                        context.beginPath();
+                        context.arc(0, 0, this.radius, 0, Math.PI * 2);
+                        context.stroke();
+                        context.strokeStyle = `rgba(0, 206, 209, ${1 - rotFactor})`;
+                        for (let i = 0; i < 6; i++) {
+                            let angle = (Math.PI * 2 / 6) * i;
                             context.beginPath();
-                            context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                            context.moveTo(Math.cos(angle) * this.radius * 0.8, -this.radius * 0.8);
+                            context.quadraticCurveTo(
+                                Math.cos(angle) * this.radius * 0.4, 0,
+                                Math.cos(angle) * this.radius * 0.8, this.radius * 0.8
+                            );
+                            context.stroke();
+                        }
+                        context.fillStyle = `rgba(0, 191, 255, ${1 - rotFactor})`;
+                        context.beginPath();
+                        context.arc(10, 10, 3, 0, Math.PI * 2);
+                        context.fill();
+                    } else { // Supernova
+                        context.fillStyle = `rgba(255, 0, 255, ${1 - rotFactor})`; // Explosión
+                        context.beginPath();
+                        context.arc(0, 0, this.radius - 5, 0, Math.PI * 2);
+                        context.fill();
+                        context.fillStyle = `rgba(255, 255, 0, ${1 - rotFactor})`; // Rayos
+                        for (let i = 0; i < 5; i++) {
+                            let angle = (Math.PI * 2 / 5) * i;
+                            context.beginPath();
+                            context.arc(Math.cos(angle) * (this.radius - 10), Math.sin(angle) * (this.radius - 10), 2, 0, Math.PI * 2);
                             context.fill();
-                            context.strokeStyle = `rgba(255, 255, 0, ${1 - rotFactor})`;
-                            context.lineWidth = 2;
-                            for (let i = 0; i < 6; i++) {
-                                let angle = (Math.PI * 2 / 6) * i;
-                                context.beginPath();
-                                context.moveTo(0, 0);
-                                context.lineTo(Math.cos(angle) * this.radius, Math.sin(angle) * this.radius);
-                                context.stroke();
-                            }
-                            break;
+                        }
+                        context.strokeStyle = `rgba(255, 215, 0, ${1 - rotFactor})`;
+                        context.beginPath();
+                        context.moveTo(-this.radius + 5, 0);
+                        context.lineTo(this.radius - 5, 0);
+                        context.stroke();
                     }
                 }
                 context.restore();
@@ -274,6 +288,19 @@
                     return;
                 }
 
+                if (this.x - this.radius * this.scale < 0) {
+                    this.x = this.radius * this.scale;
+                }
+                if (this.x + this.radius * this.scale > canvas.width) {
+                    this.x = canvas.width - this.radius * this.scale;
+                }
+                if (this.y - this.radius * this.scale < 0) {
+                    this.y = this.radius * this.scale;
+                }
+                if (this.y + this.radius * this.scale > canvas.height) {
+                    this.y = canvas.height - this.radius * this.scale;
+                }
+
                 this.vy = Math.min(this.vy + GRAVITY, TERMINAL_VELOCITY);
                 this.x += this.vx;
                 this.y += this.vy;
@@ -290,7 +317,7 @@
                     const progress = (timeSinceLastPerturbed - FREEZE_DELAY) / FREEZE_DURATION;
                     friction = BASE_FRICTION - (BASE_FRICTION - FINAL_FRICTION) * progress;
                 } else {
-                    friction = BASE_FRICTION - (this.mass / 128) * 0.1;
+                    friction = BASE_FRICTION - (this.mass / 64) * 0.1;
                 }
 
                 this.vx *= friction;
@@ -305,8 +332,8 @@
                     this.angularVelocity = 0;
                 }
 
-                const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 128 * 0.5);
-                const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 128 * 0.5);
+                const bounceFloor = BASE_BOUNCE_FLOOR * (1 - this.mass / 64 * 0.5);
+                const bounceWall = BASE_BOUNCE_WALL * (1 - this.mass / 64 * 0.5);
 
                 if (this.x - this.radius * this.scale < 0) {
                     this.x = this.radius * this.scale;
@@ -385,16 +412,16 @@
             const spaceCtx = spaceOrderCanvas.getContext('2d');
             const maxSize = 24;
             const baseRadius = 10;
-            const relativeRadii = [0.5, 0.625, 1, 1.5, 2, 2.5, 3, 3.5, 4];
+            const relativeRadii = [0.5, 0.625, 1, 1.5, 2, 2.5, 3, 3.5];
             const slotSize = maxSize;
             const padding = 2;
 
-            spaceOrderCanvas.width = slotSize * 9 + padding * 2;
+            spaceOrderCanvas.width = slotSize * 8 + padding * 2;
             spaceOrderCanvas.height = slotSize + padding * 2;
-            spaceCtx.fillStyle = '#0A0A23';
+            spaceCtx.fillStyle = '#0A0A23'; // Fondo espacial
             spaceCtx.fillRect(0, 0, spaceOrderCanvas.width, spaceOrderCanvas.height);
 
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < 8; i++) {
                 const radius = Math.min(baseRadius * relativeRadii[i], maxSize / 2);
                 const spaceObj = new SpaceObject(0, 0, i);
                 spaceObj.radius = radius;
@@ -432,7 +459,7 @@
 
         function drawDashedLine() {
             ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = '#FFFFFF';
+            ctx.strokeStyle = '#FFFFFF'; // Línea blanca
             ctx.beginPath();
             ctx.moveTo(aimingX, 0);
             ctx.lineTo(aimingX, canvas.height);
@@ -442,15 +469,14 @@
 
         function triggerConfettiExplosion(x, y, amount = 20, spaceType) {
             const colorSets = [
-                ['#808080', '#A9A9A9', '#696969'], // Asteroide
-                ['#C0C0C0', '#D3D3D3', '#FFFFFF'], // Luna
-                ['#00CED1', '#228B22', '#000080'], // Tierra
+                ['#808080', '#FFFFFF', '#696969'], // Asteroide
+                ['#C0C0C0', '#FFFFFF', '#A9A9A9'], // Luna
+                ['#00CED1', '#228B22', '#FFFFFF'], // Tierra
                 ['#FF4500', '#D2691E', '#FFA500'], // Júpiter
                 ['#FFD700', '#FFFFFF', '#FF8C00'], // Sistema Solar
-                ['#8A2BE2', '#9370DB', '#4B0082'], // Galaxia
-                ['#00FF7F', '#98FB98', '#00CED1'], // Cúmulo
-                ['#000000', '#FFFFFF', '#696969'], // Agujero Negro
-                ['#FF00FF', '#FFFF00', '#FF69B4']  // Supernova
+                ['#8A2BE2', '#9370DB', '#FFFFFF'], // Galaxia
+                ['#00FF7F', '#98FB98', '#FFFFFF'], // Cúmulo
+                ['#FF00FF', '#FFFF00', '#FFFFFF']  // Supernova
             ];
             const colors = colorSets[spaceType];
             for (let j = 0; j < amount; j++) {
@@ -462,146 +488,165 @@
             if (gameOver) return;
             for (let i = 0; i < spaceObjects.length; i++) {
                 for (let j = i + 1; j < spaceObjects.length; j++) {
-                    let s1 = spaceObjects[i];
-                    let s2 = spaceObjects[j];
-                    let dx = s2.x - s1.x;
-                    let dy = s2.y - s1.y;
+                    let f1 = spaceObjects[i];
+                    let f2 = spaceObjects[j];
+                    let dx = f2.x - f1.x;
+                    let dy = f2.y - f1.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
-                    let minDistance = s1.radius * s1.scale + s2.radius * s2.scale;
+                    let minDistance = f1.radius * f1.scale + f2.radius * f2.scale;
 
-                    if (distance < minDistance && s1.scale >= 0.9 && s2.scale >= 0.9) {
-                        const timeSincePerturbed1 = Date.now() - s1.lastPerturbedTime;
-                        const timeSincePerturbed2 = Date.now() - s2.lastPerturbedTime;
+                    if (distance < minDistance && f1.scale >= 0.9 && f2.scale >= 0.9) {
+                        const timeSincePerturbed1 = Date.now() - f1.lastPerturbedTime;
+                        const timeSincePerturbed2 = Date.now() - f2.lastPerturbedTime;
 
-                        if (s1.isFrozen && s2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
+                        if (f1.isFrozen && f2.isFrozen && timeSincePerturbed1 > 3000 && timeSincePerturbed2 > 3000) continue;
 
-                        if (!s1.isFrozen) s1.lastPerturbedTime = Date.now();
-                        if (!s2.isFrozen) s2.lastPerturbedTime = Date.now();
-                        s1.isFrozen = false;
-                        s2.isFrozen = false;
+                        if (!f1.isFrozen) f1.lastPerturbedTime = Date.now();
+                        if (!f2.isFrozen) f2.lastPerturbedTime = Date.now();
+                        f1.isFrozen = false;
+                        f2.isFrozen = false;
 
-                        if (s1.type === s2.type && !s1.isMerging && !s2.isMerging && !s1.isRotten && !s2.isRotten) {
-                            s1.isMerging = true;
-                            s2.isMerging = true;
-                            s1.shrinkSpeed = 0.1;
-                            s2.shrinkSpeed = 0.1;
-                            if (s1.type === 8) {
+                        if (f1.type === f2.type && !f1.isMerging && !f2.isMerging && !f1.isRotten && !f2.isRotten) {
+                            f1.isMerging = true;
+                            f2.isMerging = true;
+                            f1.shrinkSpeed = 0.1;
+                            f2.shrinkSpeed = 0.1;
+                            if (f1.type === 7) {
                                 setTimeout(() => {
-                                    const index1 = spaceObjects.indexOf(s1);
-                                    const index2 = spaceObjects.indexOf(s2);
+                                    const index1 = spaceObjects.indexOf(f1);
+                                    const index2 = spaceObjects.indexOf(f2);
                                     if (index1 !== -1 && index2 !== -1) {
                                         spaceObjects.splice(index1, 1);
                                         spaceObjects.splice(index2 > index1 ? index2 - 1 : index2, 1);
                                         score += 300;
                                         totalScore += 300;
                                         scoreDisplay.textContent = `Puntaje: ${score}`;
-                                        triggerConfettiExplosion(s1.x, s1.y, 40, 8);
-                                        setTimeout(() => triggerConfettiExplosion(s1.x, s1.y, 40, 8), 200);
-                                        setTimeout(() => triggerConfettiExplosion(s1.x, s1.y, 40, 8), 400);
+                                        triggerConfettiExplosion(f1.x, f1.y, 40, 7);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
+                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 400);
                                     }
                                 }, 100);
                             } else {
-                                let newType = s1.type + 1;
-                                let newX = (s1.x + s2.x) / 2;
-                                let newY = (s1.y + s2.y) / 2;
+                                let newType = f1.type + 1;
+                                let newX = (f1.x + f2.x) / 2;
+                                let newY = (f1.y + f2.y) / 2;
                                 setTimeout(() => {
-                                    const index1 = spaceObjects.indexOf(s1);
-                                    const index2 = spaceObjects.indexOf(s2);
+                                    const index1 = spaceObjects.indexOf(f1);
+                                    const index2 = spaceObjects.indexOf(f2);
                                     if (index1 !== -1 && index2 !== -1) {
                                         spaceObjects.splice(index1, 1);
                                         spaceObjects.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        let newObject = new SpaceObject(newX, newY, newType, 0);
-                                        newObject.growSpeed = 0.1;
-                                        newObject.angularVelocity = (Math.random() - 0.5) * 0.1;
-                                        spaceObjects.push(newObject);
-                                        triggerConfettiExplosion(newX, newY, 20, s1.type);
+                                        let newSpaceObject = new SpaceObject(newX, newY, newType, 0);
+                                        newSpaceObject.growSpeed = 0.1;
+                                        newSpaceObject.angularVelocity = (Math.random() - 0.5) * 0.1;
+                                        spaceObjects.push(newSpaceObject);
+                                        triggerConfettiExplosion(newX, newY, 20, f1.type);
                                     }
                                 }, 100);
                             }
-                        } else if (s1.isMerging || s2.isMerging) {
+                        } else if (f1.isMerging || f2.isMerging) {
                             let nx = dx / distance || 0;
                             let ny = dy / distance || 0;
                             let overlap = minDistance - distance;
                             let correction = overlap / 2;
-                            if (!s1.isFrozen) {
-                                s1.x -= nx * correction;
-                                s1.y -= ny * correction;
+                            if (!f1.isFrozen) {
+                                f1.x -= nx * correction;
+                                f1.y -= ny * correction;
                             }
-                            if (!s2.isFrozen) {
-                                s2.x += nx * correction;
-                                s2.y += ny * correction;
+                            if (!f2.isFrozen) {
+                                f2.x += nx * correction;
+                                f2.y += ny * correction;
                             }
-                        } else if (!s1.isFrozen || !s2.isFrozen) {
+                        } else if (!f1.isFrozen || !f2.isFrozen) {
                             let nx = dx / distance || 0;
                             let ny = dy / distance || 0;
 
                             let overlap = minDistance - distance;
                             let correction = overlap / 2;
 
-                            if (s1.isRotten && !s2.isRotten) {
-                                s2.x += nx * overlap;
-                                s2.y += ny * overlap;
-                            } else if (s2.isRotten && !s1.isRotten) {
-                                s1.x -= nx * overlap;
-                                s1.y -= ny * overlap;
+                            if (f1.isRotten && !f2.isRotten) {
+                                f2.x += nx * overlap;
+                                f2.y += ny * overlap;
+                            } else if (f2.isRotten && !f1.isRotten) {
+                                f1.x -= nx * overlap;
+                                f1.y -= ny * overlap;
                             } else {
-                                if (!s1.isFrozen) {
-                                    s1.x -= nx * correction;
-                                    s1.y -= ny * correction;
+                                if (!f1.isFrozen) {
+                                    f1.x -= nx * correction;
+                                    f1.y -= ny * correction;
                                 }
-                                if (!s2.isFrozen) {
-                                    s2.x += nx * correction;
-                                    s2.y += ny * correction;
+                                if (!f2.isFrozen) {
+                                    f2.x += nx * correction;
+                                    f2.y += ny * correction;
                                 }
                             }
 
-                            if (s1.isRotten || s2.isRotten) {
-                                let movingObject = s1.isRotten ? s2 : s1;
-                                movingObject.vx = -movingObject.vx * 0.7;
-                                movingObject.vy = -movingObject.vy * 0.7;
+                            if (f1.isRotten || f2.isRotten) {
+                                let movingSpaceObject = f1.isRotten ? f2 : f1;
+                                let rock = f1.isRotten ? f1 : f2;
+
+                                let vRelativeX = movingSpaceObject.vx;
+                                let vRelativeY = movingSpaceObject.vy;
+                                let speed = Math.sqrt(vRelativeX * vRelativeX + vRelativeY * vRelativeY);
+                                let impulse = speed * movingSpaceObject.mass;
+
+                                movingSpaceObject.vx = -vRelativeX * 0.7;
+                                movingSpaceObject.vy = -vRelativeY * 0.7;
                             } else {
-                                let fallingObject = s1.vy > s2.vy ? s1 : s2;
-                                let restingObject = s1.vy > s2.vy ? s2 : s1;
+                                let fallingSpaceObject = f1.vy > f2.vy ? f1 : f2;
+                                let restingSpaceObject = f1.vy > f2.vy ? f2 : f1;
 
-                                let v1n = fallingObject.vx * nx + fallingObject.vy * ny;
-                                let v2n = restingObject.vx * nx + restingObject.vy * ny;
+                                let v1n = fallingSpaceObject.vx * nx + fallingSpaceObject.vy * ny;
+                                let v2n = restingSpaceObject.vx * nx + restingSpaceObject.vy * ny;
 
-                                let v1t = fallingObject.vx - v1n * nx;
-                                let v2t = restingObject.vx - v2n * nx;
+                                let v1t = fallingSpaceObject.vx - v1n * nx;
+                                let v2t = restingSpaceObject.vx - v2n * nx;
 
-                                let totalMass = fallingObject.mass + restingObject.mass;
+                                let totalMass = fallingSpaceObject.mass + restingSpaceObject.mass;
 
-                                let finalV1n = ((fallingObject.mass - restingObject.mass) * v1n + 2 * restingObject.mass * v2n) / totalMass;
-                                let finalV2n = ((restingObject.mass - fallingObject.mass) * v2n + 2 * fallingObject.mass * v1n) / totalMass;
+                                let finalV1n = ((fallingSpaceObject.mass - restingSpaceObject.mass) * v1n + 2 * restingSpaceObject.mass * v2n) / totalMass;
+                                let finalV2n = ((restingSpaceObject.mass - fallingSpaceObject.mass) * v2n + 2 * fallingSpaceObject.mass * v1n) / totalMass;
 
-                                const bounceFactor = 0.3 * (1 - (fallingObject.mass + restingObject.mass) / 256 * 0.5);
+                                const bounceFactor = 0.3 * (1 - (fallingSpaceObject.mass + restingSpaceObject.mass) / 128 * 0.5);
                                 const energyLoss = 0.7;
                                 finalV1n *= bounceFactor * energyLoss;
                                 finalV2n *= bounceFactor * energyLoss;
 
-                                const maxSpeed = Math.sqrt(fallingObject.initialEnergy);
+                                const maxSpeed = Math.sqrt(fallingSpaceObject.initialEnergy);
                                 finalV1n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV1n));
                                 finalV2n = Math.max(-maxSpeed, Math.min(maxSpeed, finalV2n));
 
-                                if (!fallingObject.isFrozen) {
-                                    fallingObject.vx = v1t + finalV1n * nx;
-                                    fallingObject.vy = finalV1n * ny;
-                                    fallingObject.vx = Math.max(-maxSpeed, Math.min(maxSpeed, fallingObject.vx));
-                                    fallingObject.vy = Math.max(-maxSpeed, Math.min(maxSpeed, fallingObject.vy));
-                                }
-                                if (!restingObject.isFrozen) {
-                                    restingObject.vx = v2t + finalV2n * nx;
-                                    restingObject.vy = finalV2n * ny;
-                                    restingObject.vx = Math.max(-maxSpeed, Math.min(maxSpeed, restingObject.vx));
-                                    restingObject.vy = Math.max(-maxSpeed, Math.min(maxSpeed, restingObject.vy));
+                                if (fallingSpaceObject.mass < restingSpaceObject.mass) {
+                                    finalV2n = Math.max(finalV2n, 0);
+                                    finalV1n *= Math.min(1, restingSpaceObject.mass / fallingSpaceObject.mass * 0.5);
+                                } else {
+                                    finalV2n *= Math.min(1, fallingSpaceObject.mass / restingSpaceObject.mass * 0.5);
                                 }
 
-                                let relativeVelocityX = s2.vx - s1.vx;
-                                let relativeVelocityY = s2.vy - s1.vy;
-                                let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (s1.radius + s2.radius);
-                                if (!s1.isFrozen) s1.angularVelocity += angularImpulse / s1.radius * 0.005 / s1.mass;
-                                if (!s2.isFrozen) s2.angularVelocity -= angularImpulse / s2.radius * 0.005 / s2.mass;
+                                if (!fallingSpaceObject.isFrozen) {
+                                    fallingSpaceObject.vx = v1t + finalV1n * nx;
+                                    fallingSpaceObject.vy = finalV1n * ny;
+                                    fallingSpaceObject.vx = Math.max(-maxSpeed, Math.min(maxSpeed, fallingSpaceObject.vx));
+                                    fallingSpaceObject.vy = Math.max(-maxSpeed, Math.min(maxSpeed, fallingSpaceObject.vy));
+                                }
+                                if (!restingSpaceObject.isFrozen) {
+                                    restingSpaceObject.vx = v2t + finalV2n * nx;
+                                    restingSpaceObject.vy = finalV2n * ny;
+                                    restingSpaceObject.vx = Math.max(-maxSpeed, Math.min(maxSpeed, restingSpaceObject.vx));
+                                    restingSpaceObject.vy = Math.max(-maxSpeed, Math.min(maxSpeed, restingSpaceObject.vy));
+                                }
+
+                                let relativeVelocityX = f2.vx - f1.vx;
+                                let relativeVelocityY = f2.vy - f1.vy;
+                                let angularImpulse = (relativeVelocityX * dy - relativeVelocityY * dx) / (f1.radius + f2.radius);
+                                if (!f1.isFrozen) f1.angularVelocity = Math.min(0.01, (angularImpulse / f1.radius * 0.005) / f1.mass);
+                                if (!f2.isFrozen) f2.angularVelocity = Math.min(0.01, (angularImpulse / f2.radius * 0.005) / f2.mass);
                             }
+
+                            if (!f1.isFrozen && Math.abs(f1.vx) < 0.1) f1.vx = 0;
+                            if (!f1.isFrozen && Math.abs(f1.vy) < 0.1) f1.vy = 0;
+                            if (!f2.isFrozen && Math.abs(f2.vx) < 0.1) f2.vx = 0;
+                            if (!f2.isFrozen && Math.abs(f2.vy) < 0.1) f2.vy = 0;
                         }
                     }
                 }
@@ -611,9 +656,9 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            spaceObjects.forEach(obj => {
-                obj.update();
-                if (obj.scale > 0) obj.draw();
+            spaceObjects.forEach(spaceObject => {
+                spaceObject.update();
+                if (spaceObject.scale > 0) spaceObject.draw();
             });
 
             confetti.forEach((c, i) => {
@@ -635,10 +680,8 @@
 
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (!gameOver) {
-                isAiming = true;
-                aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.touches[0].clientX - canvas.offsetLeft));
-            }
+            if (!gameOver) isAiming = true;
+            aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.touches[0].clientX - canvas.offsetLeft));
         });
 
         canvas.addEventListener('touchmove', (e) => {
@@ -658,10 +701,8 @@
 
         canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            if (!gameOver) {
-                isAiming = true;
-                aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.clientX - canvas.offsetLeft));
-            }
+            if (!gameOver) isAiming = true;
+            aimingX = Math.max(nextObject.radius, Math.min(canvas.width - nextObject.radius, e.clientX - canvas.offsetLeft));
         });
 
         canvas.addEventListener('mousemove', (e) => {
