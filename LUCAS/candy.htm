@@ -241,6 +241,7 @@
                     grid[row][col] = new Fruit(row, col, Math.floor(Math.random() * fruitTypes));
                 }
             }
+            console.log("Cuadrícula inicializada:", grid); // Depuración
             removeInitialMatches(); // Evitar combinaciones iniciales
         }
 
@@ -258,6 +259,7 @@
                     });
                 }
             }
+            console.log("Combinaciones iniciales eliminadas:", grid); // Depuración
         }
 
         function findMatches() {
@@ -438,9 +440,9 @@
             gameStartTime = Date.now();
             lastMoveTime = Date.now();
             startScreen.style.display = 'none';
-            initializeGrid();
             setInterval(updateTimer, 1000);
             setInterval(checkInactivity, 1000);
+            console.log("Juego iniciado"); // Depuración
         }
 
         function gameLoop() {
@@ -462,9 +464,11 @@
             }
 
             // Dibujar frutas
-            for (let row = 0; row < GRID_SIZE; row++) {
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    if (grid[row][col]) grid[row][col].draw();
+            if (grid.length > 0) {
+                for (let row = 0; row < GRID_SIZE; row++) {
+                    for (let col = 0; col < GRID_SIZE; col++) {
+                        if (grid[row][col]) grid[row][col].draw();
+                    }
                 }
             }
 
@@ -557,6 +561,8 @@
 
         startButton.addEventListener('click', startGame);
 
+        // Inicializar la cuadrícula inmediatamente para mostrar las frutas
+        initializeGrid();
         gameLoop();
     </script>
 </body>
