@@ -124,10 +124,13 @@
         <p>Reglas:</p>
         <ul style="text-align: left; padding-left: 20px;">
             <li>Tienes 5 vidas iniciales (máximo 5).</li>
-            <li>Intercambia frutas adyacentes para alinear 3 o más iguales.</li>
-            <li>3 frutas = 10 puntos, 4 frutas = 20 puntos, 5 frutas = 50 puntos.</li>
+            <li>Intercambia frutas para alinear 3 o más iguales.</li>
+            <li>3 frutas = 10 puntos (desaparecen).</li>
+            <li>4 frutas = 20 puntos (aparece una bomba titilante; explota en +1 al fusionarse).</li>
+            <li>5 frutas = 50 puntos (aparece una sandía titilante; elimina un tipo de fruta al interactuar).</li>
+            <li>Bomba + Bomba = explosión en +2.</li>
+            <li>Bomba + Sandía = convierte frutas del tipo de la bomba en bombas.</li>
             <li>Si no haces movimientos en 5 segundos, pierdes 1 vida.</li>
-            <li>Combina 5 frutas para ganar una vida extra.</li>
             <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación: vidas × puntaje.</li>
             <li>Pierdes si te quedas sin vidas.</li>
         </ul>
@@ -148,13 +151,14 @@
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
 
-        const GRID_SIZE = 8;
-        const CELL_SIZE = canvas.width / GRID_SIZE;
+        const GRID_SIZE_ROWS = 11; // 8 + 3 filas
+        const GRID_SIZE_COLS = 8;
+        const CELL_SIZE = canvas.width / GRID_SIZE_COLS;
         const INITIAL_LIVES = 5;
         const MAX_LIVES = 5;
         const GAME_DURATION = 180;
         const INACTIVITY_THRESHOLD = 5000;
-        const ANIMATION_DURATION = 200; // Milisegundos para las animaciones
+        const ANIMATION_DURATION = 200;
 
         let score = 0;
         let lives = INITIAL_LIVES;
@@ -164,7 +168,7 @@
         let gameStarted = false;
         let useImages = true;
         let gameStartTime;
-        let isAnimating = false; // Controlar animaciones en curso
+        let isAnimating = false;
 
         const fruitImages = {};
         const fruitTypes = 6;
@@ -188,33 +192,31 @@
         loadFruitImages();
 
         class Fruit {
-            constructor(row, col, type) {
+            constructor(row, col, type, isBomb = false, isWatermelon = false) {
                 this.row = row;
                 this.col = col;
                 this.type = type;
                 this.size = CELL_SIZE * 0.8;
                 this.isMarked = false;
-                this.x = col * CELL_SIZE + CELL_SIZE / 2; // Posición actual en píxeles
+                this.isBomb = isBomb;
+                this.isWatermelon = isWatermelon;
+                this.x = col * CELL_SIZE + CELL_SIZE / 2;
                 this.y = row * CELL_SIZE + CELL_SIZE / 2;
-                this.targetX = this.x; // Posición objetivo
+                this.targetX = this.x;
                 this.targetY = this.y;
-                this.opacity = 1; // Para animación de desaparición
+                this.opacity = 1;
                 this.animationStart = null;
+                this.blink = 0; // Para efecto titilante
             }
 
             update() {
                 if (this.animationStart !== null) {
                     const elapsed = Date.now() - this.animationStart;
                     const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-
                     if (this.isMarked) {
-                        // Animación de desaparición
                         this.opacity = 1 - progress;
-                        if (progress >= 1) {
-                            this.animationStart = null;
-                        }
+                        if (progress >= 1) this.animationStart = null;
                     } else {
-                        // Animación de movimiento
                         this.x = this.x + (this.targetX - this.x) * progress;
                         this.y = this.y + (this.targetY - this.y) * progress;
                         if (progress >= 1) {
@@ -224,13 +226,21 @@
                         }
                     }
                 }
+                if (this.isBomb || this.isWatermelon) {
+                    this.blink = (this.blink + 0.1) % (2 * Math.PI); // Efecto titilante
+                }
             }
 
             draw() {
-                if (this.opacity <= 0) return; // No dibujar si ya desapareció
+                if (this.opacity <= 0) return;
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.globalAlpha = this.opacity;
+                let scale = 1;
+                if (this.isBomb || this.isWatermelon) {
+                    scale = 1 + Math.sin(this.blink) * 0.1; // Titilar
+                }
+                ctx.scale(scale, scale);
                 if (useImages && allImagesLoaded) {
                     ctx.drawImage(fruitImages[this.type], -this.size / 2, -this.size / 2, this.size, this.size);
                 } else {
@@ -239,6 +249,19 @@
                     ctx.beginPath();
                     ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
                     ctx.fill();
+                }
+                if (this.isBomb) {
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = `${this.size / 2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('💣', 0, 0);
+                } else if (this.isWatermelon) {
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = `${this.size / 2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('🍉', 0, 0);
                 }
                 ctx.restore();
             }
@@ -261,9 +284,9 @@
 
         function initializeGrid() {
             grid = [];
-            for (let row = 0; row < GRID_SIZE; row++) {
+            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
                 grid[row] = [];
-                for (let col = 0; col < GRID_SIZE; col++) {
+                for (let col = 0; col < GRID_SIZE_COLS; col++) {
                     grid[row][col] = new Fruit(row, col, Math.floor(Math.random() * fruitTypes));
                 }
             }
@@ -288,11 +311,11 @@
 
         function findMatches() {
             let matches = [];
-            for (let row = 0; row < GRID_SIZE; row++) {
+            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
                 let count = 1;
                 let startCol = 0;
-                for (let col = 1; col < GRID_SIZE; col++) {
-                    if (grid[row][col].type === grid[row][col - 1].type) {
+                for (let col = 1; col < GRID_SIZE_COLS; col++) {
+                    if (grid[row][col].type === grid[row][col - 1].type && !grid[row][col].isBomb && !grid[row][col].isWatermelon) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -314,11 +337,11 @@
                     matches.push(match);
                 }
             }
-            for (let col = 0; col < GRID_SIZE; col++) {
+            for (let col = 0; col < GRID_SIZE_COLS; col++) {
                 let count = 1;
                 let startRow = 0;
-                for (let row = 1; row < GRID_SIZE; row++) {
-                    if (grid[row][col].type === grid[row - 1][col].type) {
+                for (let row = 1; row < GRID_SIZE_ROWS; row++) {
+                    if (grid[row][col].type === grid[row - 1][col].type && !grid[row][col].isBomb && !grid[row][col].isWatermelon) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -343,20 +366,38 @@
             return matches;
         }
 
+        function explodeBomb(row, col, radius) {
+            for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
+                for (let c = Math.max(0, col - radius); c <= Math.min(GRID_SIZE_COLS - 1, col + radius); c++) {
+                    if (grid[r][c]) {
+                        grid[r][c].isMarked = true;
+                        grid[r][c].startFade();
+                    }
+                }
+            }
+        }
+
         function removeMatches() {
             const matches = findMatches();
             if (matches.length === 0) return;
             isAnimating = true;
             matches.forEach(match => {
+                const centerRow = match[Math.floor(match.length / 2)][0];
+                const centerCol = match[Math.floor(match.length / 2)][1];
                 match.forEach(([row, col]) => {
                     grid[row][col].isMarked = true;
                     grid[row][col].startFade();
                 });
                 let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
                 score += points;
-                if (match.length >= 5 && lives < MAX_LIVES) {
-                    lives++;
-                    updateLivesDisplay();
+                if (match.length === 4) {
+                    setTimeout(() => {
+                        grid[centerRow][centerCol] = new Fruit(centerRow, centerCol, grid[centerRow][centerCol].type, true);
+                    }, ANIMATION_DURATION);
+                } else if (match.length >= 5) {
+                    setTimeout(() => {
+                        grid[centerRow][centerCol] = new Fruit(centerRow, centerCol, grid[centerRow][centerCol].type, false, true);
+                    }, ANIMATION_DURATION);
                 }
             });
             scoreDisplay.textContent = `Puntaje: ${score}`;
@@ -370,13 +411,13 @@
 
         function dropFruits() {
             isAnimating = true;
-            for (let col = 0; col < GRID_SIZE; col++) {
+            for (let col = 0; col < GRID_SIZE_COLS; col++) {
                 let emptySpaces = 0;
-                for (let row = GRID_SIZE - 1; row >= 0; row--) {
-                    if (grid[row][col].isMarked) {
+                for (let row = GRID_SIZE_ROWS - 1; row >= 0; row--) {
+                    if (grid[row][col] && grid[row][col].isMarked) {
                         emptySpaces++;
                         grid[row][col] = null;
-                    } else if (emptySpaces > 0) {
+                    } else if (emptySpaces > 0 && grid[row][col]) {
                         grid[row + emptySpaces][col] = grid[row][col];
                         grid[row + emptySpaces][col].startAnimation(row + emptySpaces, col);
                         grid[row][col] = null;
@@ -384,7 +425,7 @@
                 }
                 for (let i = 0; i < emptySpaces; i++) {
                     grid[i][col] = new Fruit(i, col, Math.floor(Math.random() * fruitTypes));
-                    grid[i][col].y = -CELL_SIZE / 2; // Comienza fuera del canvas
+                    grid[i][col].y = -CELL_SIZE / 2;
                     grid[i][col].startAnimation(i, col);
                 }
             }
@@ -407,16 +448,127 @@
 
             setTimeout(() => {
                 const matches = findMatches();
-                if (matches.length === 0) {
-                    // Revertir si no hay coincidencias
+                if (matches.length > 0) {
+                    lastMoveTime = Date.now();
+                    removeMatches();
+                } else if (fruit1.isBomb && fruit2.isBomb) {
+                    explodeBomb(row1, col1, 2);
+                    grid[row1][col1].startFade();
+                    grid[row2][col2].startFade();
+                    setTimeout(() => {
+                        grid[row1][col1] = null;
+                        grid[row2][col2] = null;
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 30;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit1.isBomb && !fruit2.isWatermelon) {
+                    explodeBomb(row1, col1, 1);
+                    grid[row1][col1].startFade();
+                    setTimeout(() => {
+                        grid[row1][col1] = null;
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 15;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit2.isBomb && !fruit1.isWatermelon) {
+                    explodeBomb(row2, col2, 1);
+                    grid[row2][col2].startFade();
+                    setTimeout(() => {
+                        grid[row2][col2] = null;
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 15;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit1.isWatermelon) {
+                    const typeToRemove = fruit2.type;
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].type === typeToRemove) {
+                                grid[r][c].isMarked = true;
+                                grid[r][c].startFade();
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                            }
+                        }
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 50;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit2.isWatermelon) {
+                    const typeToRemove = fruit1.type;
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].type === typeToRemove) {
+                                grid[r][c].isMarked = true;
+                                grid[r][c].startFade();
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                            }
+                        }
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 50;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit1.isBomb && fruit2.isWatermelon) {
+                    const bombType = fruit1.type;
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon) {
+                                grid[r][c] = new Fruit(r, c, bombType, true);
+                            }
+                        }
+                    }
+                    grid[row1][col1].startFade();
+                    grid[row2][col2].startFade();
+                    setTimeout(() => {
+                        grid[row1][col1] = null;
+                        grid[row2][col2] = null;
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 40;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else if (fruit2.isBomb && fruit1.isWatermelon) {
+                    const bombType = fruit2.type;
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon) {
+                                grid[r][c] = new Fruit(r, c, bombType, true);
+                            }
+                        }
+                    }
+                    grid[row1][col1].startFade();
+                    grid[row2][col2].startFade();
+                    setTimeout(() => {
+                        grid[row1][col1] = null;
+                        grid[row2][col2] = null;
+                        dropFruits();
+                        isAnimating = false;
+                    }, ANIMATION_DURATION);
+                    score += 40;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                } else {
                     grid[row1][col1] = fruit1;
                     grid[row2][col2] = fruit2;
                     fruit1.startAnimation(row1, col1);
                     fruit2.startAnimation(row2, col2);
                     setTimeout(() => isAnimating = false, ANIMATION_DURATION);
-                } else {
-                    lastMoveTime = Date.now();
-                    removeMatches();
                 }
             }, ANIMATION_DURATION);
         }
@@ -479,25 +631,23 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Dibujar cuadrícula
             ctx.strokeStyle = '#333';
-            for (let row = 0; row <= GRID_SIZE; row++) {
+            for (let row = 0; row <= GRID_SIZE_ROWS; row++) {
                 ctx.beginPath();
                 ctx.moveTo(0, row * CELL_SIZE);
                 ctx.lineTo(canvas.width, row * CELL_SIZE);
                 ctx.stroke();
             }
-            for (let col = 0; col <= GRID_SIZE; col++) {
+            for (let col = 0; col <= GRID_SIZE_COLS; col++) {
                 ctx.beginPath();
                 ctx.moveTo(col * CELL_SIZE, 0);
                 ctx.lineTo(col * CELL_SIZE, canvas.height);
                 ctx.stroke();
             }
 
-            // Actualizar y dibujar frutas
             if (grid.length > 0) {
-                for (let row = 0; row < GRID_SIZE; row++) {
-                    for (let col = 0; col < GRID_SIZE; col++) {
+                for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+                    for (let col = 0; col < GRID_SIZE_COLS; col++) {
                         if (grid[row][col]) {
                             grid[row][col].update();
                             grid[row][col].draw();
@@ -506,7 +656,6 @@
                 }
             }
 
-            // Resaltar fruta seleccionada
             if (selectedFruit && !isAnimating) {
                 const x = selectedFruit.col * CELL_SIZE;
                 const y = selectedFruit.row * CELL_SIZE;
@@ -525,7 +674,7 @@
                 const y = e.clientY - canvas.offsetTop;
                 const col = Math.floor(x / CELL_SIZE);
                 const row = Math.floor(y / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS) {
                     selectedFruit = { row, col };
                 }
             }
@@ -538,7 +687,7 @@
                 const y = e.clientY - canvas.offsetTop;
                 const col = Math.floor(x / CELL_SIZE);
                 const row = Math.floor(y / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE &&
+                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS &&
                     (row !== selectedFruit.row || col !== selectedFruit.col)) {
                     swapFruits(selectedFruit.row, selectedFruit.col, row, col);
                     selectedFruit = null;
@@ -558,7 +707,7 @@
                 const touchY = e.touches[0].clientY - canvas.offsetTop;
                 const col = Math.floor(touchX / CELL_SIZE);
                 const row = Math.floor(touchY / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS) {
                     selectedFruit = { row, col };
                 }
             }
@@ -571,7 +720,7 @@
                 const touchY = e.touches[0].clientY - canvas.offsetTop;
                 const col = Math.floor(touchX / CELL_SIZE);
                 const row = Math.floor(touchY / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE &&
+                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS &&
                     (row !== selectedFruit.row || col !== selectedFruit.col)) {
                     swapFruits(selectedFruit.row, selectedFruit.col, row, col);
                     selectedFruit = null;
