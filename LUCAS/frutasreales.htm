@@ -113,7 +113,7 @@
             <li>Si no tiras frutas por 3 segundos, el puntaje late en rojo y pierdes 5 puntos por segundo.</li>
             <li>Fusiona frutas iguales para crear una mayor.</li>
             <li>Fusionar sandías te da una vida extra.</li>
-            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación: vidas restantes x 100.</li>
+            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación: vidas restantes × puntaje.</li>
             <li>Pierdes si te quedas sin vidas, y tu puntuación será 0.</li>
         </ul>
         <button id="startButton">Comenzar</button>
@@ -669,7 +669,7 @@
             gameOverDisplay.style.display = 'block';
             if (won) {
                 gameResultDisplay.textContent = '¡Ganaste!';
-                finalScoreDisplay.textContent = lives * 100;
+                finalScoreDisplay.textContent = lives * score; // Cambio aquí: vidas × puntaje
             } else {
                 gameResultDisplay.textContent = 'Perdiste';
                 finalScoreDisplay.textContent = 0;
