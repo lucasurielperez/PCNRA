@@ -68,15 +68,16 @@
             transform: translate(-50%, -50%);
             background-color: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 20px;
-            font-size: 20px;
+            padding: 10px;
+            font-size: 14px;
             text-align: center;
-            max-width: 80%;
+            width: 80%;
+            max-width: 600px;
         }
         #startButton {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 18px;
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 16px;
             cursor: pointer;
             background-color: #4CAF50;
             color: white;
@@ -94,17 +95,17 @@
     <div id="lives">❤️❤️❤️❤️🖤</div>
     <div id="timer">Tiempo: 180s</div>
     <div id="fruitOrder"></div>
-    <div id="gameOver"><span id="gameResult">Fin!</span><br>Tiempo total: <span id="finalTime">0</span>s</div>
+    <div id="gameOver"><span id="gameResult">Fin!</span><br>Puntuación: <span id="finalScore">0</span></div>
     <div id="startScreen">
         <h2>¡Bienvenido al Juego de Frutas!</h2>
         <p>Reglas:</p>
-        <ul style="text-align: left;">
+        <ul style="text-align: left; padding-left: 20px;">
             <li>Tienes 4 vidas iniciales (máximo 5).</li>
-            <li>Cada segundo pierdes 1 punto.</li>
-            <li>Si el puntaje llega a 0 o pasan 3 minutos, pierdes una vida y el ciclo se reinicia.</li>
+            <li>Cada segundo pierdes 1 punto. Si llegas a 0, pierdes una vida y el puntaje vuelve a 50.</li>
             <li>Fusiona frutas iguales para crear una mayor.</li>
-            <li>Fusionar sandías (la fruta más grande) te da una vida extra.</li>
-            <li>Sobrevive el mayor tiempo posible. ¡Pierdes si te quedas sin vidas!</li>
+            <li>Fusionar sandías te da una vida extra.</li>
+            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación = vidas restantes × puntos restantes.</li>
+            <li>Pierdes si te quedas sin vidas, y tu puntuación será 0.</li>
         </ul>
         <button id="startButton">Comenzar</button>
     </div>
@@ -117,7 +118,7 @@
         const fruitOrderDisplay = document.getElementById('fruitOrder');
         const gameOverDisplay = document.getElementById('gameOver');
         const gameResultDisplay = document.getElementById('gameResult');
-        const finalTimeDisplay = document.getElementById('finalTime');
+        const finalScoreDisplay = document.getElementById('finalScore');
         const startScreen = document.getElementById('startScreen');
         const startButton = document.getElementById('startButton');
 
@@ -142,7 +143,6 @@
         let score = INITIAL_SCORE;
         let lives = INITIAL_LIVES;
         let gameTime = GAME_DURATION; // Comienza en 180 y baja
-        let totalTime = 0; // Tiempo total jugado
         let lastSpawnTime = Date.now();
         let gameOver = false;
         let gameStarted = false;
@@ -388,7 +388,7 @@
                         lives--;
                         updateLivesDisplay();
                         if (lives === 0) {
-                            endGame();
+                            endGame(false);
                         }
                     }
                 }
@@ -623,10 +623,9 @@
             if (gameOver || !gameStarted) return;
             const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
             gameTime = GAME_DURATION - elapsed;
-            totalTime = elapsed + (180 * (INITIAL_LIVES - lives));
             timerDisplay.textContent = `Tiempo: ${gameTime}s`;
             if (gameTime <= 0) {
-                resetCycle();
+                endGame(true);
             }
         }
 
@@ -635,29 +634,29 @@
             score--;
             scoreDisplay.textContent = `Puntaje: ${score}`;
             if (score <= 0) {
-                resetCycle();
-            }
-        }
-
-        function resetCycle() {
-            if (lives > 0) {
-                lives--;
-                updateLivesDisplay();
-                score = INITIAL_SCORE;
-                scoreDisplay.textContent = `Puntaje: ${score}`;
-                gameStartTime = Date.now();
-                fruits = []; // Opcional: limpia las frutas para un nuevo ciclo
-                if (lives === 0) {
-                    endGame();
+                if (lives > 0) {
+                    lives--;
+                    updateLivesDisplay();
+                    score = INITIAL_SCORE;
+                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                    if (lives === 0) {
+                        endGame(false);
+                    }
                 }
             }
         }
 
-        function endGame() {
+        function endGame(won) {
             gameOver = true;
             gameOverDisplay.style.display = 'block';
-            gameResultDisplay.textContent = 'Fin del juego';
-            finalTimeDisplay.textContent = totalTime;
+            if (won) {
+                gameResultDisplay.textContent = '¡Ganaste!';
+                const finalScore = lives * score;
+                finalScoreDisplay.textContent = finalScore;
+            } else {
+                gameResultDisplay.textContent = 'Fin del juego';
+                finalScoreDisplay.textContent = 0;
+            }
         }
 
         function startGame() {
