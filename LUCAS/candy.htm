@@ -29,13 +29,6 @@
             font-weight: bold;
             transition: color 0.5s ease-in-out;
         }
-        #score.pulse {
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); color: #FF0000; }
-            50% { transform: scale(1.2); color: #FF4444; }
-        }
         #score.scoreAdd {
             animation: scoreAdd 0.5s ease-out;
         }
@@ -58,20 +51,13 @@
             50% { transform: scale(1.2); color: #FF0000; }
             100% { transform: scale(1); color: #000; }
         }
-        #timer {
+        #moves {
             position: absolute;
             top: 40px;
             right: 10px;
             color: #333;
             font-size: 20px;
             font-weight: bold;
-        }
-        #timer.pulseGreen {
-            animation: pulseGreen 1s infinite;
-        }
-        @keyframes pulseGreen {
-            0%, 100% { transform: scale(1); color: #00FF00; }
-            50% { transform: scale(1.2); color: #00CC00; }
         }
         #gameOver {
             position: absolute;
@@ -115,24 +101,23 @@
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <div id="score">Puntaje: 0</div>
+    <div id="score">Puntaje: 0 / 1000</div>
     <div id="lives">❤️❤️❤️❤️❤️</div>
-    <div id="timer">Tiempo: 180s</div>
+    <div id="moves">Movimientos: 50</div>
     <div id="gameOver"><span id="gameResult">Fin!</span><br>Puntuación: <span id="finalScore">0</span></div>
     <div id="startScreen">
         <h2>¡Bienvenido al Juego de Frutas Match-3!</h2>
         <p>Reglas:</p>
         <ul style="text-align: left; padding-left: 20px;">
-            <li>Tienes 5 vidas iniciales (máximo 5).</li>
+            <li>Tienes 5 vidas iniciales (máximo 5) y 50 movimientos.</li>
             <li>Intercambia frutas para alinear 3 o más iguales.</li>
-            <li>3 frutas = 10 puntos (desaparecen).</li>
-            <li>4 frutas = 20 puntos (aparece una bomba titilante; explota en +1 al fusionarse con 2+ de su tipo).</li>
-            <li>5 frutas = 50 puntos (aparece una sandía titilante; elimina un tipo de fruta al interactuar).</li>
-            <li>Bomba + Bomba = explosión en +2.</li>
-            <li>Bomba + Sandía = convierte frutas del tipo de la bomba en bombas.</li>
-            <li>Si no haces movimientos en 5 segundos, pierdes 1 vida.</li>
-            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación: vidas × puntaje.</li>
-            <li>Pierdes si te quedas sin vidas.</li>
+            <li>3 frutas = 10 puntos; 4 frutas = 20 puntos (bomba); 5 frutas = 50 puntos (sandía).</li>
+            <li>Bomba explota en +1 con 2+ de su tipo; Bomba + Bomba = +2; Sandía elimina un tipo de fruta.</li>
+            <li>Bomba + Sandía = convierte frutas del tipo de la bomba en bombas y explota.</li>
+            <li>Frutas especiales en grupos de 3+ activan su efecto.</li>
+            <li>Si no mueves en 5 segundos, pierdes 1 vida.</li>
+            <li>Ganas si alcanzas 1000 puntos antes de que se acaben los movimientos.</li>
+            <li>Pierdes si te quedas sin vidas o movimientos sin llegar a 1000 puntos.</li>
         </ul>
         <button id="startButton">Comenzar</button>
     </div>
@@ -141,7 +126,7 @@
         const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('score');
         const livesDisplay = document.getElementById('lives');
-        const timerDisplay = document.getElementById('timer');
+        const movesDisplay = document.getElementById('moves');
         const gameOverDisplay = document.getElementById('gameOver');
         const gameResultDisplay = document.getElementById('gameResult');
         const finalScoreDisplay = document.getElementById('finalScore');
@@ -149,25 +134,26 @@
         const startButton = document.getElementById('startButton');
 
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
-        canvas.height = 11 * (canvas.width / 8); // Ajustar altura para 11 filas
+        canvas.height = 11 * (canvas.width / 8);
 
         const GRID_SIZE_ROWS = 11;
         const GRID_SIZE_COLS = 8;
         const CELL_SIZE = canvas.width / GRID_SIZE_COLS;
         const INITIAL_LIVES = 5;
         const MAX_LIVES = 5;
-        const GAME_DURATION = 180;
+        const INITIAL_MOVES = 50;
+        const SCORE_GOAL = 1000;
         const INACTIVITY_THRESHOLD = 5000;
         const ANIMATION_DURATION = 200;
+        const EXPLOSION_ANIMATION_DURATION = 300;
 
         let score = 0;
         let lives = INITIAL_LIVES;
-        let gameTime = GAME_DURATION;
+        let moves = INITIAL_MOVES;
         let lastMoveTime = Date.now();
         let gameOver = false;
         let gameStarted = false;
         let useImages = true;
-        let gameStartTime;
         let isAnimating = false;
 
         const fruitImages = {};
@@ -207,13 +193,14 @@
                 this.opacity = 1;
                 this.animationStart = null;
                 this.blink = 0;
+                this.explosionStart = null; // Para animación de explosión
             }
 
             update() {
                 if (this.animationStart !== null) {
                     const elapsed = Date.now() - this.animationStart;
                     const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-                    if (this.isMarked) {
+                    if (this.isMarked && !this.explosionStart) {
                         this.opacity = 1 - progress;
                         if (progress >= 1) this.animationStart = null;
                     } else {
@@ -225,6 +212,12 @@
                             this.animationStart = null;
                         }
                     }
+                }
+                if (this.explosionStart !== null) {
+                    const elapsed = Date.now() - this.explosionStart;
+                    const progress = Math.min(elapsed / EXPLOSION_ANIMATION_DURATION, 1);
+                    this.opacity = 1 - progress;
+                    if (progress >= 1) this.explosionStart = null;
                 }
                 if (this.isBomb || this.isWatermelon) {
                     this.blink = (this.blink + 0.1) % (2 * Math.PI);
@@ -239,6 +232,13 @@
                 let scale = 1;
                 if (this.isBomb || this.isWatermelon) {
                     scale = 1 + Math.sin(this.blink) * 0.1;
+                }
+                if (this.explosionStart !== null) {
+                    scale *= 1 + Math.sin(Date.now() * 0.02) * 0.2; // Temblor antes de explotar
+                    ctx.fillStyle = 'rgba(255, 165, 0, 0.5)'; // Destello naranja
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size / 1.5, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 ctx.scale(scale, scale);
                 if (useImages && allImagesLoaded) {
@@ -276,6 +276,11 @@
 
             startFade() {
                 this.animationStart = Date.now();
+            }
+
+            startExplosion() {
+                this.explosionStart = Date.now();
+                this.isMarked = true;
             }
         }
 
@@ -315,7 +320,7 @@
                 let count = 1;
                 let startCol = 0;
                 for (let col = 1; col < GRID_SIZE_COLS; col++) {
-                    if (grid[row][col] && grid[row][col - 1] && grid[row][col].type === grid[row][col - 1].type && !grid[row][col].isBomb && !grid[row][col].isWatermelon) {
+                    if (grid[row][col] && grid[row][col - 1] && grid[row][col].type === grid[row][col - 1].type) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -341,7 +346,7 @@
                 let count = 1;
                 let startRow = 0;
                 for (let row = 1; row < GRID_SIZE_ROWS; row++) {
-                    if (grid[row][col] && grid[row - 1][col] && grid[row][col].type === grid[row - 1][col].type && !grid[row][col].isBomb && !grid[row][col].isWatermelon) {
+                    if (grid[row][col] && grid[row - 1][col] && grid[row][col].type === grid[row - 1][col].type) {
                         count++;
                     } else {
                         if (count >= 3) {
@@ -392,9 +397,8 @@
         function explodeBomb(row, col, radius) {
             for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
                 for (let c = Math.max(0, col - radius); c <= Math.min(GRID_SIZE_COLS - 1, col + radius); c++) {
-                    if (grid[r][c]) {
-                        grid[r][c].isMarked = true;
-                        grid[r][c].startFade();
+                    if (grid[r][c] && !grid[r][c].explosionStart) {
+                        grid[r][c].startExplosion();
                     }
                 }
             }
@@ -404,32 +408,66 @@
             const matches = findMatches();
             if (matches.length === 0) return;
             isAnimating = true;
+            let hasSpecial = false;
             matches.forEach(match => {
-                const centerRow = match[Math.floor(match.length / 2)][0];
-                const centerCol = match[Math.floor(match.length / 2)][1];
+                let bombs = [];
+                let watermelons = [];
                 match.forEach(([row, col]) => {
+                    if (grid[row][col].isBomb) bombs.push([row, col]);
+                    if (grid[row][col].isWatermelon) watermelons.push([row, col]);
                     grid[row][col].isMarked = true;
                     grid[row][col].startFade();
                 });
                 let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
                 score += points;
-                if (match.length === 4) {
+                const centerRow = match[Math.floor(match.length / 2)][0];
+                const centerCol = match[Math.floor(match.length / 2)][1];
+                if (match.length === 4 && bombs.length === 0 && watermelons.length === 0) {
                     setTimeout(() => {
                         grid[centerRow][centerCol] = new Fruit(centerRow, centerCol, grid[centerRow][centerCol].type, true);
                     }, ANIMATION_DURATION);
-                } else if (match.length >= 5) {
+                } else if (match.length >= 5 && bombs.length === 0 && watermelons.length === 0) {
                     setTimeout(() => {
                         grid[centerRow][centerCol] = new Fruit(centerRow, centerCol, grid[centerRow][centerCol].type, false, true);
                     }, ANIMATION_DURATION);
                 }
+                if (bombs.length > 0 || watermelons.length > 0) hasSpecial = true;
+                bombs.forEach(([r, c]) => {
+                    explodeBomb(r, c, 1);
+                    score += 15;
+                });
+                watermelons.forEach(([r, c]) => {
+                    const typeToRemove = grid[r][c].type;
+                    for (let i = 0; i < GRID_SIZE_ROWS; i++) {
+                        for (let j = 0; j < GRID_SIZE_COLS; j++) {
+                            if (grid[i][j] && grid[i][j].type === typeToRemove) {
+                                grid[i][j].isMarked = true;
+                                grid[i][j].startFade();
+                            }
+                        }
+                    }
+                    score += 50;
+                });
             });
-            scoreDisplay.textContent = `Puntaje: ${score}`;
+            scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
             scoreDisplay.classList.add('scoreAdd');
             setTimeout(() => scoreDisplay.classList.remove('scoreAdd'), 500);
             setTimeout(() => {
-                dropFruits();
-                isAnimating = false;
-            }, ANIMATION_DURATION);
+                if (hasSpecial) {
+                    setTimeout(() => {
+                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                            }
+                        }
+                        dropFruits();
+                        isAnimating = false;
+                    }, EXPLOSION_ANIMATION_DURATION);
+                } else {
+                    dropFruits();
+                    isAnimating = false;
+                }
+            }, hasSpecial ? EXPLOSION_ANIMATION_DURATION : ANIMATION_DURATION);
         }
 
         function dropFruits() {
@@ -462,6 +500,12 @@
         function swapFruits(row1, col1, row2, col2) {
             if (isAnimating || Math.abs(row1 - row2) + Math.abs(col1 - col2) !== 1 || !grid[row1][col1] || !grid[row2][col2]) return;
             isAnimating = true;
+            moves--;
+            movesDisplay.textContent = `Movimientos: ${moves}`;
+            if (moves <= 0) {
+                setTimeout(() => endGame(score >= SCORE_GOAL), ANIMATION_DURATION);
+                return;
+            }
             const fruit1 = grid[row1][col1];
             const fruit2 = grid[row2][col2];
             grid[row1][col1] = fruit2;
@@ -478,50 +522,51 @@
                     const bombMatches = findBombMatches(row2, col2);
                     if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
                         explodeBomb(row2, col2, 1);
-                        grid[row2][col2].startFade();
-                        bombMatches.forEach(match => match.forEach(([r, c]) => {
-                            grid[r][c].isMarked = true;
-                            grid[r][c].startFade();
-                        }));
+                        grid[row2][col2].startExplosion();
+                        bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
                         setTimeout(() => {
                             grid[row2][col2] = null;
                             bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
                             dropFruits();
                             isAnimating = false;
-                        }, ANIMATION_DURATION);
+                        }, EXPLOSION_ANIMATION_DURATION);
                         score += 15;
-                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                        scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                     } else if (fruit2.isBomb) {
                         explodeBomb(row1, col1, 2);
-                        grid[row1][col1].startFade();
-                        grid[row2][col2].startFade();
+                        grid[row1][col1].startExplosion();
+                        grid[row2][col2].startExplosion();
                         setTimeout(() => {
                             grid[row1][col1] = null;
                             grid[row2][col2] = null;
                             dropFruits();
                             isAnimating = false;
-                        }, ANIMATION_DURATION);
+                        }, EXPLOSION_ANIMATION_DURATION);
                         score += 30;
-                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                        scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                     } else if (fruit2.isWatermelon) {
                         const bombType = fruit1.type;
                         for (let r = 0; r < GRID_SIZE_ROWS; r++) {
                             for (let c = 0; c < GRID_SIZE_COLS; c++) {
                                 if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon) {
                                     grid[r][c] = new Fruit(r, c, bombType, true);
+                                    grid[r][c].startExplosion();
                                 }
                             }
                         }
-                        grid[row1][col1].startFade();
-                        grid[row2][col2].startFade();
+                        grid[row1][col1].startExplosion();
+                        grid[row2][col2].startExplosion();
                         setTimeout(() => {
-                            grid[row1][col1] = null;
-                            grid[row2][col2] = null;
+                            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                                for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                    if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                                }
+                            }
                             dropFruits();
                             isAnimating = false;
-                        }, ANIMATION_DURATION);
+                        }, EXPLOSION_ANIMATION_DURATION);
                         score += 40;
-                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                        scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                     } else {
                         grid[row1][col1] = fruit1;
                         grid[row2][col2] = fruit2;
@@ -533,38 +578,39 @@
                     const bombMatches = findBombMatches(row1, col1);
                     if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
                         explodeBomb(row1, col1, 1);
-                        grid[row1][col1].startFade();
-                        bombMatches.forEach(match => match.forEach(([r, c]) => {
-                            grid[r][c].isMarked = true;
-                            grid[r][c].startFade();
-                        }));
+                        grid[row1][col1].startExplosion();
+                        bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
                         setTimeout(() => {
                             grid[row1][col1] = null;
                             bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
                             dropFruits();
                             isAnimating = false;
-                        }, ANIMATION_DURATION);
+                        }, EXPLOSION_ANIMATION_DURATION);
                         score += 15;
-                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                        scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                     } else if (fruit1.isWatermelon) {
                         const bombType = fruit2.type;
                         for (let r = 0; r < GRID_SIZE_ROWS; r++) {
                             for (let c = 0; c < GRID_SIZE_COLS; c++) {
                                 if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon) {
                                     grid[r][c] = new Fruit(r, c, bombType, true);
+                                    grid[r][c].startExplosion();
                                 }
                             }
                         }
-                        grid[row1][col1].startFade();
-                        grid[row2][col2].startFade();
+                        grid[row1][col1].startExplosion();
+                        grid[row2][col2].startExplosion();
                         setTimeout(() => {
-                            grid[row1][col1] = null;
-                            grid[row2][col2] = null;
+                            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                                for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                    if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                                }
+                            }
                             dropFruits();
                             isAnimating = false;
-                        }, ANIMATION_DURATION);
+                        }, EXPLOSION_ANIMATION_DURATION);
                         score += 40;
-                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                        scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                     } else {
                         grid[row1][col1] = fruit1;
                         grid[row2][col2] = fruit2;
@@ -592,7 +638,7 @@
                         isAnimating = false;
                     }, ANIMATION_DURATION);
                     score += 50;
-                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                    scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                 } else if (fruit2.isWatermelon) {
                     const typeToRemove = fruit1.type;
                     for (let r = 0; r < GRID_SIZE_ROWS; r++) {
@@ -613,7 +659,7 @@
                         isAnimating = false;
                     }, ANIMATION_DURATION);
                     score += 50;
-                    scoreDisplay.textContent = `Puntaje: ${score}`;
+                    scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
                 } else {
                     grid[row1][col1] = fruit1;
                     grid[row2][col2] = fruit2;
@@ -630,19 +676,6 @@
                 hearts += i < lives ? '❤️' : '🖤';
             }
             livesDisplay.textContent = hearts;
-        }
-
-        function updateTimer() {
-            if (gameOver || !gameStarted) return;
-            const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
-            gameTime = GAME_DURATION - elapsed;
-            timerDisplay.textContent = `Tiempo: ${gameTime}s`;
-            if (gameTime <= 60) {
-                timerDisplay.classList.add('pulseGreen');
-            } else {
-                timerDisplay.classList.remove('pulseGreen');
-            }
-            if (gameTime <= 0) endGame(true);
         }
 
         function checkInactivity() {
@@ -663,19 +696,17 @@
             gameOverDisplay.style.display = 'block';
             if (won) {
                 gameResultDisplay.textContent = '¡Ganaste!';
-                finalScoreDisplay.textContent = lives * score;
+                finalScoreDisplay.textContent = score;
             } else {
                 gameResultDisplay.textContent = 'Perdiste';
-                finalScoreDisplay.textContent = 0;
+                finalScoreDisplay.textContent = score;
             }
         }
 
         function startGame() {
             gameStarted = true;
-            gameStartTime = Date.now();
             lastMoveTime = Date.now();
             startScreen.style.display = 'none';
-            setInterval(updateTimer, 1000);
             setInterval(checkInactivity, 1000);
         }
 
