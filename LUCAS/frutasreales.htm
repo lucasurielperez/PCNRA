@@ -27,6 +27,14 @@
             color: #333;
             font-size: 20px;
             font-weight: bold;
+            transition: color 0.5s ease-in-out;
+        }
+        #score.pulse {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); color: #FF0000; }
+            50% { transform: scale(1.2); color: #FF4444; }
         }
         #lives {
             position: absolute;
@@ -92,7 +100,7 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <div id="score">Puntaje: 50</div>
-    <div id="lives">❤️❤️❤️❤️🖤</div>
+    <div id="lives">❤️❤️❤️❤️❤️</div>
     <div id="timer">Tiempo: 180s</div>
     <div id="fruitOrder"></div>
     <div id="gameOver"><span id="gameResult">Fin!</span><br>Puntuación: <span id="finalScore">0</span></div>
@@ -100,11 +108,12 @@
         <h2>¡Bienvenido al Juego de Frutas!</h2>
         <p>Reglas:</p>
         <ul style="text-align: left; padding-left: 20px;">
-            <li>Tienes 4 vidas iniciales (máximo 5).</li>
-            <li>Cada segundo pierdes 1 punto. Si llegas a 0, pierdes una vida y el puntaje vuelve a 50.</li>
+            <li>Tienes 5 vidas iniciales (máximo 5).</li>
+            <li>Cada fruta que tires resta 1 punto.</li>
+            <li>Si no tiras frutas por 3 segundos, el puntaje late en rojo y pierdes 5 puntos por segundo.</li>
             <li>Fusiona frutas iguales para crear una mayor.</li>
             <li>Fusionar sandías te da una vida extra.</li>
-            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación = vidas restantes × puntos restantes.</li>
+            <li>Ganas si el temporizador de 3 minutos llega a 0. Puntuación: vidas restantes x 100.</li>
             <li>Pierdes si te quedas sin vidas, y tu puntuación será 0.</li>
         </ul>
         <button id="startButton">Comenzar</button>
@@ -136,9 +145,10 @@
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
         const INITIAL_SCORE = 50;
-        const INITIAL_LIVES = 4;
+        const INITIAL_LIVES = 5;
         const MAX_LIVES = 5;
         const GAME_DURATION = 180; // 3 minutos en segundos
+        const INACTIVITY_THRESHOLD = 3000; // 3 segundos en milisegundos
 
         let score = INITIAL_SCORE;
         let lives = INITIAL_LIVES;
@@ -407,21 +417,24 @@
             }
         }
 
-        class Confetti {
+        class LiquidDrop {
             constructor(x, y, color, size = 4) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
                 this.size = size;
-                this.vx = (Math.random() - 0.5) * 8;
-                this.vy = (Math.random() - 0.5) * 8;
-                this.life = 60;
+                this.vx = (Math.random() - 0.5) * 10; // Mayor velocidad inicial para "explosión"
+                this.vy = (Math.random() - 0.5) * 10;
+                this.life = 60; // Desaparece en 60 frames
+                this.initialSize = size;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.vy += 0.1;
+                this.vx *= 0.95; // Fricción para simular dispersión
+                this.vy *= 0.95;
+                this.size = this.initialSize * (this.life / 60); // Reduce tamaño con el tiempo
                 this.life--;
             }
 
@@ -434,7 +447,7 @@
         }
 
         let fruits = [];
-        let confetti = [];
+        let liquidDrops = [];
         let nextFruit = new Fruit(canvas.width / 2, 50, Math.floor(Math.random() * 3));
         let aimingX = canvas.width / 2;
         let isAiming = false;
@@ -490,6 +503,7 @@
             lastSpawnTime = Date.now();
             score--;
             scoreDisplay.textContent = `Puntaje: ${score}`;
+            scoreDisplay.classList.remove('pulse');
         }
 
         function drawDashedLine() {
@@ -502,20 +516,20 @@
             ctx.setLineDash([]);
         }
 
-        function triggerConfettiExplosion(x, y, amount = 20, fruitType) {
+        function triggerLiquidExplosion(x, y, amount = 20, fruitType) {
             const colorSets = [
-                ['#1E90FF', '#FFFFFF', '#000000'],
-                ['#90EE90', '#FFFFFF', '#000000'],
-                ['#FF4040', '#228B22', '#FFFFFF'],
-                ['#800080', '#654321', '#DDA0DD'],
+                ['#1E90FF', '#87CEEB', '#ADD8E6'],
+                ['#90EE90', '#98FB98', '#32CD32'],
+                ['#FF4040', '#FF6347', '#DC143C'],
+                ['#800080', '#9932CC', '#BA55D3'],
                 ['#FFA500', '#FFD700', '#FF8C00'],
-                ['#FF1493', '#32CD32', '#000000'],
-                ['#98FB98', '#006400', '#8B4513'],
-                ['#FF4500', '#006400', '#000000']
+                ['#FF1493', '#FF69B4', '#C71585'],
+                ['#98FB98', '#00FF7F', '#ADFF2F'],
+                ['#FF4500', '#FF6347', '#FF0000']
             ];
             const colors = colorSets[fruitType];
             for (let j = 0; j < amount; j++) {
-                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)]));
+                liquidDrops.push(new LiquidDrop(x, y, colors[Math.floor(Math.random() * colors.length)]));
             }
         }
 
@@ -557,9 +571,9 @@
                                             lives++;
                                             updateLivesDisplay();
                                         }
-                                        triggerConfettiExplosion(f1.x, f1.y, 40, 7);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
-                                        setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 400);
+                                        triggerLiquidExplosion(f1.x, f1.y, 40, 7);
+                                        setTimeout(() => triggerLiquidExplosion(f1.x, f1.y, 40, 7), 200);
+                                        setTimeout(() => triggerLiquidExplosion(f1.x, f1.y, 40, 7), 400);
                                     }
                                 }, 100);
                             } else {
@@ -576,7 +590,7 @@
                                         newFruit.growSpeed = 0.1;
                                         newFruit.angularVelocity = (Math.random() - 0.5) * 0.1;
                                         fruits.push(newFruit);
-                                        triggerConfettiExplosion(newX, newY, 20, f1.type);
+                                        triggerLiquidExplosion(newX, newY, 20, f1.type);
                                     }
                                 }, 100);
                             }
@@ -631,17 +645,21 @@
 
         function decreaseScore() {
             if (gameOver || !gameStarted) return;
-            score--;
+            const timeSinceLastSpawn = Date.now() - lastSpawnTime;
+            if (timeSinceLastSpawn >= INACTIVITY_THRESHOLD) {
+                score -= 5; // Penalización por inactividad
+                scoreDisplay.classList.add('pulse');
+            } else {
+                scoreDisplay.classList.remove('pulse');
+            }
             scoreDisplay.textContent = `Puntaje: ${score}`;
-            if (score <= 0) {
-                if (lives > 0) {
-                    lives--;
-                    updateLivesDisplay();
-                    score = INITIAL_SCORE;
-                    scoreDisplay.textContent = `Puntaje: ${score}`;
-                    if (lives === 0) {
-                        endGame(false);
-                    }
+            if (score <= 0 && lives > 0) {
+                lives--;
+                updateLivesDisplay();
+                score = INITIAL_SCORE;
+                scoreDisplay.textContent = `Puntaje: ${score}`;
+                if (lives === 0) {
+                    endGame(false);
                 }
             }
         }
@@ -651,10 +669,9 @@
             gameOverDisplay.style.display = 'block';
             if (won) {
                 gameResultDisplay.textContent = '¡Ganaste!';
-                const finalScore = lives * score;
-                finalScoreDisplay.textContent = finalScore;
+                finalScoreDisplay.textContent = lives * 100;
             } else {
-                gameResultDisplay.textContent = 'Fin del juego';
+                gameResultDisplay.textContent = 'Perdiste';
                 finalScoreDisplay.textContent = 0;
             }
         }
@@ -662,6 +679,7 @@
         function startGame() {
             gameStarted = true;
             gameStartTime = Date.now();
+            lastSpawnTime = Date.now(); // Inicializa para evitar penalización inmediata
             startScreen.style.display = 'none';
             setInterval(updateTimer, 1000);
             setInterval(decreaseScore, 1000);
@@ -675,10 +693,10 @@
                 if (fruit.scale > 0) fruit.draw();
             });
 
-            confetti.forEach((c, i) => {
-                c.update();
-                c.draw();
-                if (c.life <= 0) confetti.splice(i, 1);
+            liquidDrops.forEach((drop, i) => {
+                drop.update();
+                drop.draw();
+                if (drop.life <= 0) liquidDrops.splice(i, 1);
             });
 
             if (isAiming && !gameOver && gameStarted) drawDashedLine();
