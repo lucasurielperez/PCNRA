@@ -34,6 +34,14 @@
             left: 10px;
             font-size: 24px;
         }
+        #timer {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+        }
         #fruitOrder {
             position: absolute;
             top: 40px;
@@ -59,16 +67,19 @@
     <canvas id="gameCanvas"></canvas>
     <div id="score">Puntaje: 50</div>
     <div id="lives">❤️❤️❤️</div>
+    <div id="timer">Tiempo: 0s</div>
     <div id="fruitOrder"></div>
-    <div id="gameOver">Fin!<br>Hiciste <span id="finalScore">0</span> puntos.</div>
+    <div id="gameOver"><span id="gameResult">Fin!</span><br>Tiempo: <span id="finalTime">0</span>s</div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('score');
         const livesDisplay = document.getElementById('lives');
+        const timerDisplay = document.getElementById('timer');
         const fruitOrderDisplay = document.getElementById('fruitOrder');
         const gameOverDisplay = document.getElementById('gameOver');
-        const finalScoreDisplay = document.getElementById('finalScore');
+        const gameResultDisplay = document.getElementById('gameResult');
+        const finalTimeDisplay = document.getElementById('finalTime');
 
         canvas.width = Math.min(window.innerWidth * 0.9, 400);
         canvas.height = Math.min(window.innerHeight * 0.9, 600) - 50;
@@ -84,13 +95,17 @@
         const FREEZE_DELAY = 3000;
         const FREEZE_DURATION = 1000;
         const INITIAL_SCORE = 50;
+        const MAX_LIVES = 5;
+        const GAME_DURATION = 180; // 3 minutos en segundos
 
         let score = INITIAL_SCORE;
         let lives = 3;
-        let totalScore = 0;
+        let gameTime = 0;
         let lastSpawnTime = Date.now();
+        let lastScoreDecreaseTime = Date.now();
         let gameOver = false;
         let useImages = true;
+        let gameStartTime = Date.now();
 
         const fruitImages = {};
         const fruitTypes = 8;
@@ -331,9 +346,7 @@
                         lives--;
                         livesDisplay.textContent = '❤️'.repeat(lives);
                         if (lives === 0) {
-                            gameOver = true;
-                            gameOverDisplay.style.display = 'block';
-                            finalScoreDisplay.textContent = totalScore;
+                            endGame(false);
                         }
                     }
                 }
@@ -434,17 +447,8 @@
             nextFruit = new Fruit(aimingX, 50, Math.floor(Math.random() * 3));
             lastSpawnTime = Date.now();
             score--;
-            if (score <= 0 && lives > 0) {
-                lives--;
-                livesDisplay.textContent = '❤️'.repeat(lives);
-                score = INITIAL_SCORE;
-            }
+            if (score <= 0) resetScoreAndLife();
             scoreDisplay.textContent = `Puntaje: ${score}`;
-            if (lives === 0) {
-                gameOver = true;
-                gameOverDisplay.style.display = 'block';
-                finalScoreDisplay.textContent = totalScore;
-            }
         }
 
         function drawDashedLine() {
@@ -508,9 +512,10 @@
                                     if (index1 !== -1 && index2 !== -1) {
                                         fruits.splice(index1, 1);
                                         fruits.splice(index2 > index1 ? index2 - 1 : index2, 1);
-                                        score += 300;
-                                        totalScore += 300;
-                                        scoreDisplay.textContent = `Puntaje: ${score}`;
+                                        if (lives < MAX_LIVES) {
+                                            lives++;
+                                            livesDisplay.textContent = '❤️'.repeat(lives);
+                                        }
                                         triggerConfettiExplosion(f1.x, f1.y, 40, 7);
                                         setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 200);
                                         setTimeout(() => triggerConfettiExplosion(f1.x, f1.y, 40, 7), 400);
@@ -565,6 +570,45 @@
             }
         }
 
+        function updateTimer() {
+            if (gameOver) return;
+            gameTime = Math.floor((Date.now() - gameStartTime) / 1000);
+            timerDisplay.textContent = `Tiempo: ${gameTime}s`;
+            if (gameTime >= GAME_DURATION) {
+                endGame(true); // Ganas si llegas a 180 segundos con al menos 1 vida
+            }
+        }
+
+        function decreaseScoreIfNoSpawn() {
+            if (gameOver) return;
+            const currentTime = Date.now();
+            if (currentTime - lastSpawnTime >= 1000 && currentTime - lastScoreDecreaseTime >= 1000) {
+                score--;
+                lastScoreDecreaseTime = currentTime;
+                if (score <= 0) resetScoreAndLife();
+                scoreDisplay.textContent = `Puntaje: ${score}`;
+            }
+        }
+
+        function resetScoreAndLife() {
+            if (lives > 0) {
+                lives--;
+                livesDisplay.textContent = '❤️'.repeat(lives);
+                score = INITIAL_SCORE;
+                scoreDisplay.textContent = `Puntaje: ${score}`;
+                if (lives === 0) {
+                    endGame(false); // Pierdes si te quedas sin vidas
+                }
+            }
+        }
+
+        function endGame(won) {
+            gameOver = true;
+            gameOverDisplay.style.display = 'block';
+            gameResultDisplay.textContent = won ? '¡Ganaste!' : '¡Perdiste!';
+            finalTimeDisplay.textContent = gameTime;
+        }
+
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -586,6 +630,7 @@
             }
 
             checkCollisions();
+            decreaseScoreIfNoSpawn();
 
             requestAnimationFrame(gameLoop);
         }
@@ -632,6 +677,7 @@
             }
         });
 
+        setInterval(updateTimer, 1000);
         gameLoop();
 
         function toggleRenderMode() {
