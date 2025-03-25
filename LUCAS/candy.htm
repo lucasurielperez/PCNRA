@@ -126,6 +126,7 @@
         const ANIMATION_DURATION = 200;
         const EXPLOSION_ANIMATION_DURATION = 300;
         const BEE_ANIMATION_DURATION = 500;
+        const SPLASH_DURATION = 500;
 
         let score = 0;
         let moves = INITIAL_MOVES;
@@ -241,7 +242,7 @@
                     ctx.font = `${this.size / 2}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('🍉', 0, 0);
+                    ctx.fillText('🪄', 0, 0);
                 } else if (this.isBee) {
                     ctx.fillStyle = '#FFFFFF';
                     ctx.font = `${this.size / 2}px Arial`;
@@ -270,9 +271,55 @@
             }
         }
 
+        class Splash {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.particles = [];
+                for (let i = 0; i < 10; i++) {
+                    this.particles.push({
+                        x: 0,
+                        y: 0,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        size: Math.random() * 10 + 5,
+                        opacity: 1,
+                        startTime: Date.now()
+                    });
+                }
+            }
+
+            update() {
+                this.particles.forEach(p => {
+                    const elapsed = Date.now() - p.startTime;
+                    const progress = Math.min(elapsed / SPLASH_DURATION, 1);
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.opacity = 1 - progress;
+                    p.size *= 0.95;
+                });
+                this.particles = this.particles.filter(p => p.opacity > 0);
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                this.particles.forEach(p => {
+                    ctx.globalAlpha = p.opacity;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+        }
+
         let grid = [];
         let selectedFruit = null;
         let bees = [];
+        let splashes = [];
 
         function initializeGrid() {
             grid = [];
@@ -522,29 +569,31 @@
                 let bees = [];
                 let specialPos = null;
 
-                // Determinar la fruta que provocó la fusión si hay lastSwap
-                if (lastSwap) {
+                // Determinar la fruta que provocó la fusión si hay lastSwap (solo para 4 o más)
+                if (lastSwap && match.length >= 4) {
                     const [r1, c1] = [lastSwap.row1, lastSwap.col1];
                     const [r2, c2] = [lastSwap.row2, lastSwap.col2];
                     specialPos = match.some(([r, c]) => r === r1 && c === c1) ? [r1, c1] : [r2, c2];
-                } else {
-                    specialPos = match[Math.floor(match.length / 2)]; // Default si no hay swap
                 }
 
-                // Marcar todas menos la fruta especial
+                // Marcar frutas para eliminación y agregar efecto splash
                 match.forEach(([row, col]) => {
-                    if (row === specialPos[0] && col === specialPos[1]) return; // No marcar la fruta especial
+                    if (match.length >= 4 && row === specialPos?.[0] && col === specialPos?.[1]) return; // No marcar la fruta especial
                     if (grid[row][col].isBomb) bombs.push([row, col]);
-                    if (grid[row][col].isWatermelon) watermelons.push([row, col]);
-                    if (grid[row][col].isBee) bees.push([row, col]);
-                    grid[row][col].isMarked = true;
-                    grid[row][col].startFade();
+                    else if (grid[row][col].isWatermelon) watermelons.push([row, col]);
+                    else if (grid[row][col].isBee) bees.push([row, col]);
+                    else {
+                        grid[row][col].isMarked = true;
+                        grid[row][col].startFade();
+                        const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
+                        splashes.push(new Splash(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, colors[grid[row][col].type]));
+                    }
                 });
 
                 let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
                 score += points;
 
-                // Asignar habilidad especial a la fruta que permanece
+                // Asignar habilidad especial solo para matches de 4 o más
                 if (match.length === 4 && bombs.length === 0 && watermelons.length === 0 && bees.length === 0) {
                     setTimeout(() => {
                         grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
@@ -586,9 +635,11 @@
                 const specialPos = angleMatch === angleMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
                 if (angleMatch.length > 0 && !hasSpecial) {
                     angleMatch.forEach(([r, c]) => {
-                        if (r === specialPos[0] && c === specialPos[1]) return; // No marcar la fruta especial
+                        if (r === specialPos[0] && c === specialPos[1]) return;
                         grid[r][c].isMarked = true;
                         grid[r][c].startFade();
+                        const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
+                        splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
                     });
                     score += 50;
                     setTimeout(() => {
@@ -602,11 +653,12 @@
             squareMatches.forEach(match => {
                 let specialPos = lastSwap ? 
                     (match.some(([r, c]) => r === lastSwap.row1 && c === lastSwap.col1) ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2]) :
-                    match[0]; // Si no hay swap, usar la primera posición como default
+                    match[0];
                 match.forEach(([r, c]) => {
-                    if (r === specialPos[0] && c === specialPos[1]) return; // No marcar la fruta especial
                     grid[r][c].isMarked = true;
                     grid[r][c].startFade();
+                    const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
+                    splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
                 });
                 score += 20;
                 setTimeout(() => {
@@ -692,7 +744,9 @@
                 const matches = findMatches();
                 const angleMatch1 = findAngleMatches(row1, col1);
                 const angleMatch2 = findAngleMatches(row2, col2);
-                if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0) {
+                const squareMatch1 = findSquareMatches(row1, col1);
+                const squareMatch2 = findSquareMatches(row2, col2);
+                if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0 || squareMatch1.length > 0 || squareMatch2.length > 0) {
                     removeMatches();
                 } else if (fruit1.isBomb) {
                     const bombMatches = findBombMatches(row2, col2);
@@ -913,6 +967,12 @@
                 ctx.fillText('🐝', 0, 0);
                 ctx.restore();
             });
+
+            splashes.forEach(splash => {
+                splash.update();
+                splash.draw();
+            });
+            splashes = splashes.filter(s => s.particles.length > 0);
 
             if (selectedFruit && !isAnimating) {
                 const x = selectedFruit.col * CELL_SIZE;
