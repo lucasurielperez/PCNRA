@@ -501,30 +501,50 @@
             if (matches.length === 0 && !lastSwap) return;
             isAnimating = true;
             let hasSpecial = false;
-            let specialPos = null;
 
+            // Detectar todos los matches 2x2 en el tablero
+            let squareMatches = [];
+            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+                for (let col = 0; col < GRID_SIZE_COLS; col++) {
+                    if (grid[row][col]) {
+                        const squareMatch = findSquareMatches(row, col);
+                        if (squareMatch.length > 0 && !squareMatches.some(m => m.some(([r, c]) => r === row && c === col))) {
+                            squareMatches.push(squareMatch);
+                        }
+                    }
+                }
+            }
+
+            // Procesar matches lineales
             matches.forEach(match => {
                 let bombs = [];
                 let watermelons = [];
                 let bees = [];
+                let specialPos = null;
+
+                // Determinar la fruta que provocó la fusión si hay lastSwap
+                if (lastSwap) {
+                    const [r1, c1] = [lastSwap.row1, lastSwap.col1];
+                    const [r2, c2] = [lastSwap.row2, lastSwap.col2];
+                    specialPos = match.some(([r, c]) => r === r1 && c === c1) ? [r1, c1] : [r2, c2];
+                } else {
+                    specialPos = match[Math.floor(match.length / 2)]; // Default si no hay swap
+                }
+
+                // Marcar todas menos la fruta especial
                 match.forEach(([row, col]) => {
+                    if (row === specialPos[0] && col === specialPos[1]) return; // No marcar la fruta especial
                     if (grid[row][col].isBomb) bombs.push([row, col]);
                     if (grid[row][col].isWatermelon) watermelons.push([row, col]);
                     if (grid[row][col].isBee) bees.push([row, col]);
                     grid[row][col].isMarked = true;
                     grid[row][col].startFade();
                 });
+
                 let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
                 score += points;
 
-                if (lastSwap) {
-                    const [r1, c1] = [lastSwap.row1, lastSwap.col1];
-                    const [r2, c2] = [lastSwap.row2, lastSwap.col2];
-                    specialPos = match.some(([r, c]) => r === r1 && c === c1) ? [r1, c1] : [r2, c2];
-                } else {
-                    specialPos = match[Math.floor(match.length / 2)];
-                }
-
+                // Asignar habilidad especial a la fruta que permanece
                 if (match.length === 4 && bombs.length === 0 && watermelons.length === 0 && bees.length === 0) {
                     setTimeout(() => {
                         grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
@@ -534,6 +554,7 @@
                         grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, false, true);
                     }, ANIMATION_DURATION);
                 }
+
                 if (bombs.length > 0 || watermelons.length > 0 || bees.length > 0) hasSpecial = true;
                 bombs.forEach(([r, c]) => {
                     explodeBomb(r, c, 1);
@@ -557,13 +578,15 @@
                 });
             });
 
+            // Procesar matches en L
             if (lastSwap) {
                 const angleMatch1 = findAngleMatches(lastSwap.row1, lastSwap.col1);
                 const angleMatch2 = findAngleMatches(lastSwap.row2, lastSwap.col2);
                 const angleMatch = angleMatch1.length > 0 ? angleMatch1 : angleMatch2;
-                specialPos = angleMatch === angleMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
+                const specialPos = angleMatch === angleMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
                 if (angleMatch.length > 0 && !hasSpecial) {
                     angleMatch.forEach(([r, c]) => {
+                        if (r === specialPos[0] && c === specialPos[1]) return; // No marcar la fruta especial
                         grid[r][c].isMarked = true;
                         grid[r][c].startFade();
                     });
@@ -573,30 +596,32 @@
                         hasSpecial = true;
                     }, ANIMATION_DURATION);
                 }
-
-                const squareMatch1 = findSquareMatches(lastSwap.row1, lastSwap.col1);
-                const squareMatch2 = findSquareMatches(lastSwap.row2, lastSwap.col2);
-                const squareMatch = squareMatch1.length > 0 ? squareMatch1 : squareMatch2;
-                if (squareMatch.length > 0 && !hasSpecial) {
-                    squareMatch.forEach(([r, c]) => {
-                        grid[r][c].isMarked = true;
-                        grid[r][c].startFade();
-                    });
-                    score += 20;
-                    setTimeout(() => {
-                        animateBees(squareMatch, () => {
-                            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                                for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                    if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                                }
-                            }
-                            dropFruits();
-                            isAnimating = false;
-                        });
-                        hasSpecial = true;
-                    }, ANIMATION_DURATION);
-                }
             }
+
+            // Procesar matches 2x2
+            squareMatches.forEach(match => {
+                let specialPos = lastSwap ? 
+                    (match.some(([r, c]) => r === lastSwap.row1 && c === lastSwap.col1) ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2]) :
+                    match[0]; // Si no hay swap, usar la primera posición como default
+                match.forEach(([r, c]) => {
+                    if (r === specialPos[0] && c === specialPos[1]) return; // No marcar la fruta especial
+                    grid[r][c].isMarked = true;
+                    grid[r][c].startFade();
+                });
+                score += 20;
+                setTimeout(() => {
+                    animateBees(match, () => {
+                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                            }
+                        }
+                        dropFruits();
+                        isAnimating = false;
+                    });
+                    hasSpecial = true;
+                }, ANIMATION_DURATION);
+            });
 
             scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
             scoreDisplay.classList.add('scoreAdd');
@@ -667,9 +692,7 @@
                 const matches = findMatches();
                 const angleMatch1 = findAngleMatches(row1, col1);
                 const angleMatch2 = findAngleMatches(row2, col2);
-                const squareMatch1 = findSquareMatches(row1, col1);
-                const squareMatch2 = findSquareMatches(row2, col2);
-                if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0 || squareMatch1.length > 0 || squareMatch2.length > 0) {
+                if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0) {
                     removeMatches();
                 } else if (fruit1.isBomb) {
                     const bombMatches = findBombMatches(row2, col2);
