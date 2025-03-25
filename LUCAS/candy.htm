@@ -133,7 +133,7 @@
         let gameStarted = false;
         let useImages = true;
         let isAnimating = false;
-        let lastSwap = null; // Para rastrear la fruta movida
+        let lastSwap = null;
 
         const fruitImages = {};
         const fruitTypes = 6;
@@ -144,7 +144,7 @@
             for (let i = 0; i < fruitTypes; i++) {
                 fruitImages[i] = new Image();
                 fruitImages[i].src = `images/fruit${i}.png`;
-                fruitImages meridian[i].onload = () => {
+                fruitImages[i].onload = () => {
                     imagesLoaded++;
                     if (imagesLoaded === fruitTypes) allImagesLoaded = true;
                 };
@@ -272,9 +272,10 @@
 
         let grid = [];
         let selectedFruit = null;
-        let bees = []; // Para animar las abejitas
+        let bees = [];
 
         function initializeGrid() {
+            console.log("Inicializando tablero...");
             grid = [];
             for (let row = 0; row < GRID_SIZE_ROWS; row++) {
                 grid[row] = [];
@@ -283,6 +284,7 @@
                 }
             }
             removeInitialMatches();
+            console.log("Tablero inicializado:", grid);
         }
 
         function removeInitialMatches() {
@@ -438,7 +440,7 @@
         }
 
         function explodeBee(row, col) {
-            const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // Arriba, abajo, izquierda, derecha
+            const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
             for (let [dr, dc] of directions) {
                 let r = row + dr;
                 let c = col + dc;
@@ -472,7 +474,7 @@
                     if (!bee.landed) {
                         const elapsed = Date.now() - bee.startTime;
                         const progress = Math.min(elapsed / BEE_ANIMATION_DURATION, 1);
-                        bee.x += (bee.targetX - bee.x) * 0.1 + (Math.random() - 0.5) * 10; // Movimiento errático
+                        bee.x += (bee.targetX - bee.x) * 0.1 + (Math.random() - 0.5) * 10;
                         bee.y += (bee.targetY - bee.y) * 0.1 + (Math.random() - 0.5) * 10;
                         if (progress >= 1) {
                             bee.x = bee.targetX;
@@ -836,8 +838,11 @@
         }
 
         function startGame() {
+            console.log("Juego iniciado");
             gameStarted = true;
             startScreen.style.display = 'none';
+            initializeGrid(); // Aseguramos que el tablero se inicialice al empezar
+            requestAnimationFrame(gameLoop); // Iniciamos el bucle si no está corriendo
         }
 
         function gameLoop() {
@@ -958,6 +963,7 @@
 
         startButton.addEventListener('click', startGame);
 
+        // Inicializamos el juego al cargar la página
         initializeGrid();
         gameLoop();
     </script>
