@@ -493,12 +493,12 @@
                     requestAnimationFrame(updateBees);
                 }
             }
-            updateBees();
+            requestAnimationFrame(updateBees);
         }
 
         function removeMatches() {
             const matches = findMatches();
-            if (matches.length === 0) return;
+            if (matches.length === 0 && !lastSwap) return;
             isAnimating = true;
             let hasSpecial = false;
             let specialPos = null;
@@ -517,7 +517,6 @@
                 let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
                 score += points;
 
-                // Determinar la posición de la fruta que generó la fusión
                 if (lastSwap) {
                     const [r1, c1] = [lastSwap.row1, lastSwap.col1];
                     const [r2, c2] = [lastSwap.row2, lastSwap.col2];
@@ -571,14 +570,13 @@
                     score += 50;
                     setTimeout(() => {
                         grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
+                        hasSpecial = true;
                     }, ANIMATION_DURATION);
-                    hasSpecial = true;
                 }
 
                 const squareMatch1 = findSquareMatches(lastSwap.row1, lastSwap.col1);
                 const squareMatch2 = findSquareMatches(lastSwap.row2, lastSwap.col2);
                 const squareMatch = squareMatch1.length > 0 ? squareMatch1 : squareMatch2;
-                specialPos = squareMatch === squareMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
                 if (squareMatch.length > 0 && !hasSpecial) {
                     squareMatch.forEach(([r, c]) => {
                         grid[r][c].isMarked = true;
@@ -586,7 +584,6 @@
                     });
                     score += 20;
                     setTimeout(() => {
-                        grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, false, false, true);
                         animateBees(squareMatch, () => {
                             for (let r = 0; r < GRID_SIZE_ROWS; r++) {
                                 for (let c = 0; c < GRID_SIZE_COLS; c++) {
@@ -596,8 +593,8 @@
                             dropFruits();
                             isAnimating = false;
                         });
+                        hasSpecial = true;
                     }, ANIMATION_DURATION);
-                    hasSpecial = true;
                 }
             }
 
@@ -614,7 +611,7 @@
                         }
                         dropFruits();
                         isAnimating = false;
-                    }, Math.max(EXPLOSION_ANIMATION_DURATION, squareMatch.length > 0 ? BEE_ANIMATION_DURATION : 0));
+                    }, Math.max(EXPLOSION_ANIMATION_DURATION, bees.length > 0 ? BEE_ANIMATION_DURATION : 0));
                 } else {
                     dropFruits();
                     isAnimating = false;
