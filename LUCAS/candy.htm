@@ -21,29 +21,29 @@
             touch-action: none;
         }
         #levelGoal {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: #333;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        #progress {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: #333;
-            font-size: 20px;
-            font-weight: bold;
-        }
-        #moves {
-            position: absolute;
-            top: 40px;
-            right: 10px;
-            color: #333;
-            font-size: 20px;
-            font-weight: bold;
-        }
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #333;
+    font-size: 16px; /* Cambiado de 20px */
+    font-weight: bold;
+}
+#progress {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #333;
+    font-size: 16px; /* Cambiado de 20px */
+    font-weight: bold;
+}
+#moves {
+    position: absolute;
+    top: 40px;
+    right: 10px;
+    color: #333;
+    font-size: 16px; /* Cambiado de 20px */
+    font-weight: bold;
+}
         #gameOver {
             position: absolute;
             top: 50%;
@@ -508,9 +508,9 @@ function explodeBomb(row, col, radius) {
         for (let c = Math.max(0, col - radius); c <= Math.min(GRID_SIZE_COLS - 1, col + radius); c++) {
             if (grid[r][c] && !grid[r][c].explosionStart) {
                 grid[r][c].startExplosion();
-                if (grid[r][c].type === 0) cherriesRemoved++;
-                else if (grid[r][c].type === 1) orangesRemoved++;
-                else if (grid[r][c].type === 2) blueberriesRemoved++;
+                if (grid[r][c].type === 2) cherriesRemoved++; // Cambiado de 0 a 3 para cerezas
+                else if (grid[r][c].type === 4) orangesRemoved++;
+                else if (grid[r][c].type === 0) blueberriesRemoved++; // Arándanos en 0
             }
         }
     }
@@ -629,28 +629,33 @@ function removeMatches() {
         }
 
         match.forEach(([row, col]) => {
-            if (match.length >= 4 && row === specialPos?.[0] && col === specialPos?.[1]) return;
-            if (grid[row][col].isBomb) bombs.push([row, col]);
-            else if (grid[row][col].isHurricane) hurricanes.push([row, col]);
-            else if (grid[row][col].isBee) bees.push([row, col]);
-            else {
-                grid[row][col].isMarked = true;
-                grid[row][col].startFade();
-                const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
-                splashes.push(new Splash(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, colors[grid[row][col].type]));
-                if (grid[row][col].type === 0) cherriesRemoved++;
-                else if (grid[row][col].type === 1) orangesRemoved++;
-                else if (grid[row][col].type === 2) blueberriesRemoved++;
-            }
-        });
+        if (match.length >= 4 && row === specialPos?.[0] && col === specialPos?.[1]) return;
+        if (grid[row][col].isBomb) {
+            bombs.push([row, col]);
+        } else if (grid[row][col].isHurricane) hurricanes.push([row, col]);
+        else if (grid[row][col].isBee) bees.push([row, col]);
+        else {
+            grid[row][col].isMarked = true;
+            grid[row][col].startFade();
+            const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+            splashes.push(new Splash(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, colors[grid[row][col].type]));
+            if (grid[row][col].type === 2) cherriesRemoved++; // Cambiado de 0 a 3 para cerezas
+            else if (grid[row][col].type === 4) orangesRemoved++;
+            else if (grid[row][col].type === 0) blueberriesRemoved++; // Arándanos ahora en 0
+        }
+    });
 
-        bombs.forEach(([r, c]) => explodeBomb(r, c, 1));
+        bombs.forEach(([r, c]) => {
+            explodeBomb(r, c, 1); // Esto ya incrementa bombsExploded
+        });
         hurricanes.forEach(([r, c]) => activateHurricane(r, c));
         bees.forEach(([r, c]) => explodeBee(r, c));
 
+        // Crear bomba si hay 4 en línea
         if (match.length === 4 && bombs.length === 0 && hurricanes.length === 0 && bees.length === 0) {
             setTimeout(() => {
                 grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
+                bombsExploded++; // Contar la bomba creada automáticamente
             }, ANIMATION_DURATION);
         } else if (match.length >= 5 && bombs.length === 0 && hurricanes.length === 0 && bees.length === 0) {
             setTimeout(() => {
