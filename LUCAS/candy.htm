@@ -20,22 +20,21 @@
             background-color: #F5F5F5;
             touch-action: none;
         }
-        #score {
+        #levelGoal {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #progress {
             position: absolute;
             top: 10px;
             right: 10px;
             color: #333;
             font-size: 20px;
             font-weight: bold;
-            transition: color 0.5s ease-in-out;
-        }
-        #score.scoreAdd {
-            animation: scoreAdd 0.5s ease-out;
-        }
-        @keyframes scoreAdd {
-            0% { transform: scale(1); color: #333; }
-            50% { transform: scale(1.3); color: #00FF00; }
-            100% { transform: scale(1); color: #333; }
         }
         #moves {
             position: absolute;
@@ -70,7 +69,7 @@
             width: 80%;
             max-width: 600px;
         }
-        #startButton {
+        #startButton, #retryButton {
             margin-top: 10px;
             padding: 8px 16px;
             font-size: 16px;
@@ -80,294 +79,314 @@
             border: none;
             border-radius: 5px;
         }
-        #startButton:hover {
+        #startButton:hover, #retryButton:hover {
             background-color: #45a049;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <div id="score">Puntaje: 0 / 1000</div>
+    <div id="levelGoal">Nivel 1: Eliminar 50 cerezas</div>
+    <div id="progress">Cerezas: 0/50</div>
     <div id="moves">Movimientos: 50</div>
-    <div id="gameOver"><span id="gameResult">Fin!</span><br>Puntuación: <span id="finalScore">0</span></div>
+    <div id="gameOver"><span id="gameResult">Fin!</span><br><button id="retryButton">OK</button></div>
     <div id="startScreen">
         <h2>¡Bienvenido al Juego de Frutas Match-3!</h2>
-        <p>Reglas:</p>
+        <p>Completa los 5 niveles para ganar:</p>
         <ul style="text-align: left; padding-left: 20px;">
-            <li>Tienes 50 movimientos para alcanzar 1000 puntos.</li>
-            <li>3 frutas = 10 puntos; 4 en línea = 20 puntos (bomba); 5 en línea = 50 puntos (sandía).</li>
-            <li>5 en "L" = bomba; 4 en 2x2 = abejitas (explotan 4 frutas aleatorias).</li>
-            <li>Bomba explota en +1 con 2+ de su tipo; Bomba + Bomba = +2.</li>
-            <li>Sandía elimina un tipo; Bomba + Sandía = bombas + explosión.</li>
-            <li>Frutas especiales aparecen en la fruta que genera la fusión y se activan en grupos de 3+.</li>
-            <li>Ganas con 1000+ puntos antes de quedarte sin movimientos.</li>
+            <li>Nivel 1: Eliminar 50 cerezas en 50 movimientos.</li>
+            <li>Nivel 2: Explotar 30 bombas en 50 movimientos.</li>
+            <li>Nivel 3: Eliminar 100 naranjas en 50 movimientos.</li>
+            <li>Nivel 4: Generar abejitas 10 veces en 50 movimientos.</li>
+            <li>Nivel 5: Eliminar 20 arándanos en 10 movimientos.</li>
         </ul>
         <button id="startButton">Comenzar</button>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreDisplay = document.getElementById('score');
-        const movesDisplay = document.getElementById('moves');
-        const gameOverDisplay = document.getElementById('gameOver');
-        const gameResultDisplay = document.getElementById('gameResult');
-        const finalScoreDisplay = document.getElementById('finalScore');
-        const startScreen = document.getElementById('startScreen');
-        const startButton = document.getElementById('startButton');
+const ctx = canvas.getContext('2d');
+const levelGoalDisplay = document.getElementById('levelGoal');
+const progressDisplay = document.getElementById('progress');
+const movesDisplay = document.getElementById('moves');
+const gameOverDisplay = document.getElementById('gameOver');
+const gameResultDisplay = document.getElementById('gameResult');
+const retryButton = document.getElementById('retryButton');
+const startScreen = document.getElementById('startScreen');
+const startButton = document.getElementById('startButton');
 
-        canvas.width = Math.min(window.innerWidth * 0.9, 400);
-        canvas.height = 11 * (canvas.width / 8);
+canvas.width = Math.min(window.innerWidth * 0.9, 400);
+canvas.height = 11 * (canvas.width / 8);
 
-        const GRID_SIZE_ROWS = 11;
-        const GRID_SIZE_COLS = 8;
-        const CELL_SIZE = canvas.width / GRID_SIZE_COLS;
-        const INITIAL_MOVES = 50;
-        const SCORE_GOAL = 1000;
-        const ANIMATION_DURATION = 200;
-        const EXPLOSION_ANIMATION_DURATION = 300;
-        const BEE_ANIMATION_DURATION = 500;
-        const SPLASH_DURATION = 500;
+const GRID_SIZE_ROWS = 11;
+const GRID_SIZE_COLS = 8;
+const CELL_SIZE = canvas.width / GRID_SIZE_COLS;
+const ANIMATION_DURATION = 200;
+const EXPLOSION_ANIMATION_DURATION = 300;
+const BEE_ANIMATION_DURATION = 500;
+const SPLASH_DURATION = 500;
 
-        let score = 0;
-        let moves = INITIAL_MOVES;
-        let gameOver = false;
-        let gameStarted = false;
-        let useImages = true;
-        let isAnimating = false;
-        let lastSwap = null;
+let currentLevel = 1;
+const levelGoals = [
+    { goal: "Eliminar 50 cerezas", target: 50, fruitType: 0, moves: 50, progressLabel: "Cerezas" },
+    { goal: "Explotar 30 bombas", target: 30, moves: 50, progressLabel: "Bombas" },
+    { goal: "Eliminar 100 naranjas", target: 100, fruitType: 1, moves: 50, progressLabel: "Naranjas" },
+    { goal: "Generar abejitas 10 veces", target: 10, moves: 50, progressLabel: "Abejitas" },
+    { goal: "Eliminar 20 arándanos", target: 20, fruitType: 2, moves: 10, progressLabel: "Arándanos" }
+];
+let cherriesRemoved = 0;
+let bombsExploded = 0;
+let orangesRemoved = 0;
+let beesGenerated = 0;
+let blueberriesRemoved = 0;
+let moves = levelGoals[0].moves;
+let gameOver = false;
+let gameStarted = false;
+let useImages = true;
+let isAnimating = false;
+let lastSwap = null;
 
-        const fruitImages = {};
-        const fruitTypes = 6;
-        let imagesLoaded = 0;
-        let allImagesLoaded = false;
+const fruitImages = {};
+const fruitTypes = 6;
+let imagesLoaded = 0;
+let allImagesLoaded = false;
 
-        function loadFruitImages() {
-            for (let i = 0; i < fruitTypes; i++) {
-                fruitImages[i] = new Image();
-                fruitImages[i].src = `images/fruit${i}.png`;
-                fruitImages[i].onload = () => {
-                    imagesLoaded++;
-                    if (imagesLoaded === fruitTypes) allImagesLoaded = true;
-                };
-                fruitImages[i].onerror = () => {
-                    console.error(`Error al cargar fruit${i}.png`);
-                    useImages = false;
-                };
+function loadFruitImages() {
+    for (let i = 0; i < fruitTypes; i++) {
+        fruitImages[i] = new Image();
+        fruitImages[i].src = `images/fruit${i}.png`;
+        fruitImages[i].onload = () => {
+            imagesLoaded++;
+            if (imagesLoaded === fruitTypes) allImagesLoaded = true;
+        };
+        fruitImages[i].onerror = () => {
+            console.error(`Error al cargar fruit${i}.png`);
+            useImages = false;
+        };
+    }
+}
+loadFruitImages();
+
+let grid = [];
+let selectedFruit = null;
+let bees = [];
+let splashes = [];
+
+class Fruit {
+    constructor(row, col, type, isBomb = false, isHurricane = false, isBee = false) {
+        this.row = row;
+        this.col = col;
+        this.type = type;
+        this.size = CELL_SIZE * 0.8;
+        this.isMarked = false;
+        this.isBomb = isBomb;
+        this.isHurricane = isHurricane;
+        this.isBee = isBee;
+        this.x = col * CELL_SIZE + CELL_SIZE / 2;
+        this.y = row * CELL_SIZE + CELL_SIZE / 2;
+        this.targetX = this.x;
+        this.targetY = this.y;
+        this.opacity = 1;
+        this.animationStart = null;
+        this.blink = 0;
+        this.explosionStart = null;
+    }
+
+    update() {
+        if (this.animationStart !== null) {
+            const elapsed = Date.now() - this.animationStart;
+            const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+            if (this.isMarked && !this.explosionStart) {
+                this.opacity = 1 - progress;
+                if (progress >= 1) this.animationStart = null;
+            } else {
+                this.x = this.x + (this.targetX - this.x) * progress;
+                this.y = this.y + (this.targetY - this.y) * progress;
+                if (progress >= 1) {
+                    this.x = this.targetX;
+                    this.y = this.targetY;
+                    this.animationStart = null;
+                }
             }
         }
-        loadFruitImages();
-
-        class Fruit {
-            constructor(row, col, type, isBomb = false, isWatermelon = false, isBee = false) {
-                this.row = row;
-                this.col = col;
-                this.type = type;
-                this.size = CELL_SIZE * 0.8;
-                this.isMarked = false;
-                this.isBomb = isBomb;
-                this.isWatermelon = isWatermelon;
-                this.isBee = isBee;
-                this.x = col * CELL_SIZE + CELL_SIZE / 2;
-                this.y = row * CELL_SIZE + CELL_SIZE / 2;
-                this.targetX = this.x;
-                this.targetY = this.y;
-                this.opacity = 1;
-                this.animationStart = null;
-                this.blink = 0;
-                this.explosionStart = null;
-            }
-
-            update() {
-                if (this.animationStart !== null) {
-                    const elapsed = Date.now() - this.animationStart;
-                    const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-                    if (this.isMarked && !this.explosionStart) {
-                        this.opacity = 1 - progress;
-                        if (progress >= 1) this.animationStart = null;
-                    } else {
-                        this.x = this.x + (this.targetX - this.x) * progress;
-                        this.y = this.y + (this.targetY - this.y) * progress;
-                        if (progress >= 1) {
-                            this.x = this.targetX;
-                            this.y = this.targetY;
-                            this.animationStart = null;
-                        }
-                    }
-                }
-                if (this.explosionStart !== null) {
-                    const elapsed = Date.now() - this.explosionStart;
-                    const progress = Math.min(elapsed / EXPLOSION_ANIMATION_DURATION, 1);
-                    this.opacity = 1 - progress;
-                    if (progress >= 1) this.explosionStart = null;
-                }
-                if (this.isBomb || this.isWatermelon || this.isBee) {
-                    this.blink = (this.blink + 0.1) % (2 * Math.PI);
-                }
-            }
-
-            draw() {
-                if (this.opacity <= 0) return;
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.globalAlpha = this.opacity;
-                let scale = 1;
-                if (this.isBomb || this.isWatermelon || this.isBee) {
-                    scale = 1 + Math.sin(this.blink) * 0.1;
-                }
-                if (this.explosionStart !== null) {
-                    scale *= 1 + Math.sin(Date.now() * 0.02) * 0.2;
-                    ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.size / 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.scale(scale, scale);
-                if (useImages && allImagesLoaded) {
-                    ctx.drawImage(fruitImages[this.type], -this.size / 2, -this.size / 2, this.size, this.size);
-                } else {
-                    const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
-                    ctx.fillStyle = colors[this.type];
-                    ctx.beginPath();
-                    ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                if (this.isBomb) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.font = `${this.size / 2}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('💣', 0, 0);
-                } else if (this.isWatermelon) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.font = `${this.size / 2}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🪄', 0, 0);
-                } else if (this.isBee) {
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.font = `${this.size / 2}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🐝', 0, 0);
-                }
-                ctx.restore();
-            }
-
-            startAnimation(targetRow, targetCol) {
-                this.targetX = targetCol * CELL_SIZE + CELL_SIZE / 2;
-                this.targetY = targetRow * CELL_SIZE + CELL_SIZE / 2;
-                this.animationStart = Date.now();
-                this.row = targetRow;
-                this.col = targetCol;
-            }
-
-            startFade() {
-                this.animationStart = Date.now();
-            }
-
-            startExplosion() {
-                this.explosionStart = Date.now();
-                this.isMarked = true;
-            }
+        if (this.explosionStart !== null) {
+            const elapsed = Date.now() - this.explosionStart;
+            const progress = Math.min(elapsed / EXPLOSION_ANIMATION_DURATION, 1);
+            this.opacity = 1 - progress;
+            if (progress >= 1) this.explosionStart = null;
         }
-
-        class Splash {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.particles = [];
-                for (let i = 0; i < 10; i++) {
-                    this.particles.push({
-                        x: 0,
-                        y: 0,
-                        vx: (Math.random() - 0.5) * 8,
-                        vy: (Math.random() - 0.5) * 8,
-                        size: Math.random() * 10 + 5,
-                        opacity: 1,
-                        startTime: Date.now()
-                    });
-                }
-            }
-
-            update() {
-                this.particles.forEach(p => {
-                    const elapsed = Date.now() - p.startTime;
-                    const progress = Math.min(elapsed / SPLASH_DURATION, 1);
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.opacity = 1 - progress;
-                    p.size *= 0.95;
-                });
-                this.particles = this.particles.filter(p => p.opacity > 0);
-            }
-
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                this.particles.forEach(p => {
-                    ctx.globalAlpha = p.opacity;
-                    ctx.fillStyle = this.color;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-                ctx.restore();
-            }
+        if (this.isBomb || this.isHurricane || this.isBee) {
+            this.blink = (this.blink + 0.1) % (2 * Math.PI);
         }
+    }
 
-        let grid = [];
-        let selectedFruit = null;
-        let bees = [];
-        let splashes = [];
+    draw() {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.globalAlpha = this.opacity;
+        let scale = 1;
+        if (this.isBomb || this.isHurricane || this.isBee) {
+            scale = 1 + Math.sin(this.blink) * 0.1;
+        }
+        if (this.explosionStart !== null) {
+            scale *= 1 + Math.sin(Date.now() * 0.02) * 0.2;
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.scale(scale, scale);
+        if (useImages && allImagesLoaded) {
+            ctx.drawImage(fruitImages[this.type], -this.size / 2, -this.size / 2, this.size, this.size);
+        } else {
+            const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+            ctx.fillStyle = colors[this.type];
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (this.isBomb) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `${this.size / 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💣', 0, 0);
+        } else if (this.isHurricane) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `${this.size / 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🌪️', 0, 0);
+        } else if (this.isBee) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `${this.size / 2}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🐝', 0, 0);
+        }
+        ctx.restore();
+    }
 
-        function initializeGrid() {
-            grid = [];
-            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
-                grid[row] = [];
-                for (let col = 0; col < GRID_SIZE_COLS; col++) {
+    startAnimation(targetRow, targetCol) {
+        this.targetX = targetCol * CELL_SIZE + CELL_SIZE / 2;
+        this.targetY = targetRow * CELL_SIZE + CELL_SIZE / 2;
+        this.animationStart = Date.now();
+        this.row = targetRow;
+        this.col = targetCol;
+    }
+
+    startFade() {
+        this.animationStart = Date.now();
+    }
+
+    startExplosion() {
+        this.explosionStart = Date.now();
+        this.isMarked = true;
+    }
+}
+class Splash {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.particles = [];
+        for (let i = 0; i < 10; i++) {
+            this.particles.push({
+                x: 0,
+                y: 0,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                size: Math.random() * 10 + 5,
+                opacity: 1,
+                startTime: Date.now()
+            });
+        }
+    }
+
+    update() {
+        this.particles.forEach(p => {
+            const elapsed = Date.now() - p.startTime;
+            const progress = Math.min(elapsed / SPLASH_DURATION, 1);
+            p.x += p.vx;
+            p.y += p.vy;
+            p.opacity = 1 - progress;
+            p.size *= 0.95;
+        });
+        this.particles = this.particles.filter(p => p.opacity > 0);
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+    }
+}
+
+function initializeGrid() {
+    grid = [];
+    for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+        grid[row] = [];
+        for (let col = 0; col < GRID_SIZE_COLS; col++) {
+            grid[row][col] = new Fruit(row, col, Math.floor(Math.random() * fruitTypes));
+        }
+    }
+    removeInitialMatches();
+    moves = levelGoals[currentLevel - 1].moves;
+    movesDisplay.textContent = `Movimientos: ${moves}`;
+    levelGoalDisplay.textContent = `Nivel ${currentLevel}: ${levelGoals[currentLevel - 1].goal}`;
+    cherriesRemoved = 0;
+    bombsExploded = 0;
+    orangesRemoved = 0;
+    beesGenerated = 0;
+    blueberriesRemoved = 0;
+    isAnimating = false; // Reiniciar animaciones para evitar congelamiento
+    updateProgressDisplay();
+}
+
+function removeInitialMatches() {
+    let hasMatches = true;
+    while (hasMatches) {
+        hasMatches = false;
+        const matches = findMatches();
+        if (matches.length > 0) {
+            hasMatches = true;
+            matches.forEach(match => {
+                match.forEach(([row, col]) => {
                     grid[row][col] = new Fruit(row, col, Math.floor(Math.random() * fruitTypes));
-                }
-            }
-            removeInitialMatches();
+                });
+            });
         }
+    }
+}
 
-        function removeInitialMatches() {
-            let hasMatches = true;
-            while (hasMatches) {
-                hasMatches = false;
-                const matches = findMatches();
-                if (matches.length > 0) {
-                    hasMatches = true;
-                    matches.forEach(match => {
-                        match.forEach(([row, col]) => {
-                            grid[row][col] = new Fruit(row, col, Math.floor(Math.random() * fruitTypes));
-                        });
-                    });
-                }
-            }
-        }
-
-        function findMatches() {
-            let matches = [];
-            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
-                let count = 1;
-                let startCol = 0;
-                for (let col = 1; col < GRID_SIZE_COLS; col++) {
-                    if (grid[row][col] && grid[row][col - 1] && grid[row][col].type === grid[row][col - 1].type) {
-                        count++;
-                    } else {
-                        if (count >= 3) {
-                            let match = [];
-                            for (let i = startCol; i < startCol + count; i++) {
-                                match.push([row, i]);
-                            }
-                            matches.push(match);
-                        }
-                        count = 1;
-                        startCol = col;
-                    }
-                }
+function updateProgressDisplay() {
+    const level = levelGoals[currentLevel - 1];
+    let progressValue;
+    switch (currentLevel) {
+        case 1: progressValue = cherriesRemoved; break;
+        case 2: progressValue = bombsExploded; break;
+        case 3: progressValue = orangesRemoved; break;
+        case 4: progressValue = beesGenerated; break;
+        case 5: progressValue = blueberriesRemoved; break;
+    }
+    progressDisplay.textContent = `${level.progressLabel}: ${progressValue}/${level.target}`;
+}
+function findMatches() {
+    let matches = [];
+    for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+        let count = 1;
+        let startCol = 0;
+        for (let col = 1; col < GRID_SIZE_COLS; col++) {
+            if (grid[row][col] && grid[row][col - 1] && grid[row][col].type === grid[row][col - 1].type) {
+                count++;
+            } else {
                 if (count >= 3) {
                     let match = [];
                     for (let i = startCol; i < startCol + count; i++) {
@@ -375,25 +394,25 @@
                     }
                     matches.push(match);
                 }
+                count = 1;
+                startCol = col;
             }
-            for (let col = 0; col < GRID_SIZE_COLS; col++) {
-                let count = 1;
-                let startRow = 0;
-                for (let row = 1; row < GRID_SIZE_ROWS; row++) {
-                    if (grid[row][col] && grid[row - 1][col] && grid[row][col].type === grid[row - 1][col].type) {
-                        count++;
-                    } else {
-                        if (count >= 3) {
-                            let match = [];
-                            for (let i = startRow; i < startRow + count; i++) {
-                                match.push([i, col]);
-                            }
-                            matches.push(match);
-                        }
-                        count = 1;
-                        startRow = row;
-                    }
-                }
+        }
+        if (count >= 3) {
+            let match = [];
+            for (let i = startCol; i < startCol + count; i++) {
+                match.push([row, i]);
+            }
+            matches.push(match);
+        }
+    }
+    for (let col = 0; col < GRID_SIZE_COLS; col++) {
+        let count = 1;
+        let startRow = 0;
+        for (let row = 1; row < GRID_SIZE_ROWS; row++) {
+            if (grid[row][col] && grid[row - 1][col] && grid[row][col].type === grid[row - 1][col].type) {
+                count++;
+            } else {
                 if (count >= 3) {
                     let match = [];
                     for (let i = startRow; i < startRow + count; i++) {
@@ -401,660 +420,670 @@
                     }
                     matches.push(match);
                 }
-            }
-            return matches;
-        }
-
-        function findAngleMatches(row, col) {
-            const type = grid[row][col].type;
-            const patterns = [
-                [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]], // L hacia abajo-derecha
-                [[0, 0], [1, 0], [2, 0], [0, -1], [0, -2]], // L hacia abajo-izquierda
-                [[0, 0], [-1, 0], [-2, 0], [0, 1], [0, 2]], // L hacia arriba-derecha
-                [[0, 0], [-1, 0], [-2, 0], [0, -1], [0, -2]] // L hacia arriba-izquierda
-            ];
-            for (let pattern of patterns) {
-                let valid = true;
-                for (let [dr, dc] of pattern) {
-                    let r = row + dr;
-                    let c = col + dc;
-                    if (r < 0 || r >= GRID_SIZE_ROWS || c < 0 || c >= GRID_SIZE_COLS || !grid[r][c] || grid[r][c].type !== type) {
-                        valid = false;
-                        break;
-                    }
-                }
-                if (valid) return pattern.map(([dr, dc]) => [row + dr, col + dc]);
-            }
-            return [];
-        }
-
-        function findSquareMatches(row, col) {
-            const type = grid[row][col].type;
-            const patterns = [
-                [[0, 0], [0, 1], [1, 0], [1, 1]], // 2x2 desde esquina superior izquierda
-                [[0, 0], [0, -1], [1, 0], [1, -1]], // 2x2 desde esquina superior derecha
-                [[0, 0], [0, 1], [-1, 0], [-1, 1]], // 2x2 desde esquina inferior izquierda
-                [[0, 0], [0, -1], [-1, 0], [-1, -1]] // 2x2 desde esquina inferior derecha
-            ];
-            for (let pattern of patterns) {
-                let valid = true;
-                for (let [dr, dc] of pattern) {
-                    let r = row + dr;
-                    let c = col + dc;
-                    if (r < 0 || r >= GRID_SIZE_ROWS || c < 0 || c >= GRID_SIZE_COLS || !grid[r][c] || grid[r][c].type !== type) {
-                        valid = false;
-                        break;
-                    }
-                }
-                if (valid) return pattern.map(([dr, dc]) => [row + dr, col + dc]);
-            }
-            return [];
-        }
-
-        function findBombMatches(bombRow, bombCol) {
-            const bomb = grid[bombRow][bombCol];
-            if (!bomb || !bomb.isBomb) return [];
-            let matches = [];
-            const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
-            directions.forEach(([dr, dc]) => {
-                let row = bombRow + dr;
-                let col = bombCol + dc;
-                let count = 0;
-                let match = [];
-                while (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] && grid[row][col].type === bomb.type && !grid[row][col].isBomb && !grid[row][col].isWatermelon && !grid[row][col].isBee) {
-                    match.push([row, col]);
-                    count++;
-                    row += dr;
-                    col += dc;
-                }
-                if (count >= 2) {
-                    matches.push(match);
-                }
-            });
-            return matches;
-        }
-
-        function explodeBomb(row, col, radius) {
-            for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
-                for (let c = Math.max(0, col - radius); c <= Math.min(GRID_SIZE_COLS - 1, col + radius); c++) {
-                    if (grid[r][c] && !grid[r][c].explosionStart) {
-                        grid[r][c].startExplosion();
-                    }
-                }
+                count = 1;
+                startRow = row;
             }
         }
+        if (count >= 3) {
+            let match = [];
+            for (let i = startRow; i < startRow + count; i++) {
+                match.push([i, col]);
+            }
+            matches.push(match);
+        }
+    }
+    return matches;
+}
 
-        function explodeBee(row, col) {
-            const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-            for (let [dr, dc] of directions) {
-                let r = row + dr;
-                let c = col + dc;
-                if (r >= 0 && r < GRID_SIZE_ROWS && c >= 0 && c < GRID_SIZE_COLS && grid[r][c] && !grid[r][c].explosionStart) {
-                    grid[r][c].startExplosion();
-                }
+function findAngleMatches(row, col) {
+    const type = grid[row][col].type;
+    const patterns = [
+        [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]], // L hacia abajo-derecha
+        [[0, 0], [1, 0], [2, 0], [0, -1], [0, -2]], // L hacia abajo-izquierda
+        [[0, 0], [-1, 0], [-2, 0], [0, 1], [0, 2]], // L hacia arriba-derecha
+        [[0, 0], [-1, 0], [-2, 0], [0, -1], [0, -2]] // L hacia arriba-izquierda
+    ];
+    for (let pattern of patterns) {
+        let valid = true;
+        for (let [dr, dc] of pattern) {
+            let r = row + dr;
+            let c = col + dc;
+            if (r < 0 || r >= GRID_SIZE_ROWS || c < 0 || c >= GRID_SIZE_COLS || !grid[r][c] || grid[r][c].type !== type) {
+                valid = false;
+                break;
             }
         }
+        if (valid) return pattern.map(([dr, dc]) => [row + dr, col + dc]);
+    }
+    return [];
+}
 
-        function animateBees(match, callback) {
-            bees = match.map(([r, c]) => ({
-                x: c * CELL_SIZE + CELL_SIZE / 2,
-                y: r * CELL_SIZE + CELL_SIZE / 2,
-                targetX: null,
-                targetY: null,
-                startTime: Date.now(),
-                landed: false
-            }));
-            bees.forEach(bee => {
-                let targetRow, targetCol;
-                do {
-                    targetRow = Math.floor(Math.random() * GRID_SIZE_ROWS);
-                    targetCol = Math.floor(Math.random() * GRID_SIZE_COLS);
-                } while (!grid[targetRow][targetCol] || grid[targetRow][targetCol].isMarked);
-                bee.targetX = targetCol * CELL_SIZE + CELL_SIZE / 2;
-                bee.targetY = targetRow * CELL_SIZE + CELL_SIZE / 2;
-            });
+function findSquareMatches(row, col) {
+    const type = grid[row][col].type;
+    const patterns = [
+        [[0, 0], [0, 1], [1, 0], [1, 1]], // 2x2 desde esquina superior izquierda
+        [[0, 0], [0, -1], [1, 0], [1, -1]], // 2x2 desde esquina superior derecha
+        [[0, 0], [0, 1], [-1, 0], [-1, 1]], // 2x2 desde esquina inferior izquierda
+        [[0, 0], [0, -1], [-1, 0], [-1, -1]] // 2x2 desde esquina inferior derecha
+    ];
+    for (let pattern of patterns) {
+        let valid = true;
+        for (let [dr, dc] of pattern) {
+            let r = row + dr;
+            let c = col + dc;
+            if (r < 0 || r >= GRID_SIZE_ROWS || c < 0 || c >= GRID_SIZE_COLS || !grid[r][c] || grid[r][c].type !== type) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) return pattern.map(([dr, dc]) => [row + dr, col + dc]);
+    }
+    return [];
+}
 
-            function updateBees() {
-                bees.forEach(bee => {
-                    if (!bee.landed) {
-                        const elapsed = Date.now() - bee.startTime;
-                        const progress = Math.min(elapsed / BEE_ANIMATION_DURATION, 1);
-                        bee.x += (bee.targetX - bee.x) * 0.1 + (Math.random() - 0.5) * 10;
-                        bee.y += (bee.targetY - bee.y) * 0.1 + (Math.random() - 0.5) * 10;
-                        if (progress >= 1) {
-                            bee.x = bee.targetX;
-                            bee.y = bee.targetY;
-                            bee.landed = true;
-                            const row = Math.floor(bee.y / CELL_SIZE);
-                            const col = Math.floor(bee.x / CELL_SIZE);
-                            explodeBee(row, col);
-                            score += 10;
-                            scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
-                        }
-                    }
-                });
-                if (bees.every(bee => bee.landed)) {
-                    bees = [];
-                    callback();
-                } else {
-                    requestAnimationFrame(updateBees);
+function findBombMatches(bombRow, bombCol) {
+    const bomb = grid[bombRow][bombCol];
+    if (!bomb || !bomb.isBomb) return [];
+    let matches = [];
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    directions.forEach(([dr, dc]) => {
+        let row = bombRow + dr;
+        let col = bombCol + dc;
+        let count = 0;
+        let match = [];
+        while (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] && 
+               grid[row][col].type === bomb.type && !grid[row][col].isBomb && !grid[row][col].isHurricane && !grid[row][col].isBee) {
+            match.push([row, col]);
+            count++;
+            row += dr;
+            col += dc;
+        }
+        if (count >= 2) matches.push(match);
+    });
+    return matches;
+}
+function explodeBomb(row, col, radius) {
+    bombsExploded++;
+    for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
+        for (let c = Math.max(0, col - radius); c <= Math.min(GRID_SIZE_COLS - 1, col + radius); c++) {
+            if (grid[r][c] && !grid[r][c].explosionStart) {
+                grid[r][c].startExplosion();
+                if (grid[r][c].type === 0) cherriesRemoved++;
+                else if (grid[r][c].type === 1) orangesRemoved++;
+                else if (grid[r][c].type === 2) blueberriesRemoved++;
+            }
+        }
+    }
+    updateProgressDisplay();
+    if (checkLevelGoal()) setTimeout(() => endGame(true), EXPLOSION_ANIMATION_DURATION);
+}
+
+function activateHurricane(row, col) {
+    const typeToRemove = grid[row][col].type;
+    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+            if (grid[r][c] && grid[r][c].type === typeToRemove && !grid[r][c].explosionStart) {
+                grid[r][c].startExplosion();
+                if (typeToRemove === 0) cherriesRemoved++;
+                else if (typeToRemove === 1) orangesRemoved++;
+                else if (typeToRemove === 2) blueberriesRemoved++;
+            }
+        }
+    }
+    updateProgressDisplay();
+    if (checkLevelGoal()) setTimeout(() => endGame(true), EXPLOSION_ANIMATION_DURATION);
+}
+
+function explodeBee(row, col) {
+    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (let [dr, dc] of directions) {
+        let r = row + dr;
+        let c = col + dc;
+        if (r >= 0 && r < GRID_SIZE_ROWS && c >= 0 && c < GRID_SIZE_COLS && grid[r][c] && !grid[r][c].explosionStart) {
+            grid[r][c].startExplosion();
+            if (grid[r][c].type === 0) cherriesRemoved++;
+            else if (grid[r][c].type === 1) orangesRemoved++;
+            else if (grid[r][c].type === 2) blueberriesRemoved++;
+        }
+    }
+    updateProgressDisplay();
+    if (checkLevelGoal()) setTimeout(() => endGame(true), EXPLOSION_ANIMATION_DURATION);
+}
+
+function animateBees(match, callback) {
+    beesGenerated++;
+    bees = match.map(([r, c]) => ({
+        x: c * CELL_SIZE + CELL_SIZE / 2,
+        y: r * CELL_SIZE + CELL_SIZE / 2,
+        targetX: null,
+        targetY: null,
+        startTime: Date.now(),
+        landed: false
+    }));
+    bees.forEach(bee => {
+        let targetRow, targetCol;
+        do {
+            targetRow = Math.floor(Math.random() * GRID_SIZE_ROWS);
+            targetCol = Math.floor(Math.random() * GRID_SIZE_COLS);
+        } while (!grid[targetRow][targetCol] || grid[targetRow][targetCol].isMarked);
+        bee.targetX = targetCol * CELL_SIZE + CELL_SIZE / 2;
+        bee.targetY = targetRow * CELL_SIZE + CELL_SIZE / 2;
+    });
+
+    function updateBees() {
+        bees.forEach(bee => {
+            if (!bee.landed) {
+                const elapsed = Date.now() - bee.startTime;
+                const progress = Math.min(elapsed / BEE_ANIMATION_DURATION, 1);
+                bee.x += (bee.targetX - bee.x) * 0.1 + (Math.random() - 0.5) * 10;
+                bee.y += (bee.targetY - bee.y) * 0.1 + (Math.random() - 0.5) * 10;
+                if (progress >= 1) {
+                    bee.x = bee.targetX;
+                    bee.y = bee.targetY;
+                    bee.landed = true;
+                    const row = Math.floor(bee.y / CELL_SIZE);
+                    const col = Math.floor(bee.x / CELL_SIZE);
+                    explodeBee(row, col);
                 }
             }
+        });
+        updateProgressDisplay();
+        if (bees.every(bee => bee.landed)) {
+            bees = [];
+            callback();
+            if (checkLevelGoal()) setTimeout(() => endGame(true), EXPLOSION_ANIMATION_DURATION);
+        } else {
             requestAnimationFrame(updateBees);
         }
+    }
+    requestAnimationFrame(updateBees);
+}
+function removeMatches() {
+    const matches = findMatches();
+    if (matches.length === 0 && !lastSwap) return;
+    isAnimating = true;
+    let hasSpecial = false;
 
-        function removeMatches() {
-            const matches = findMatches();
-            if (matches.length === 0 && !lastSwap) return;
-            isAnimating = true;
-            let hasSpecial = false;
-
-            // Detectar todos los matches 2x2 en el tablero
-            let squareMatches = [];
-            for (let row = 0; row < GRID_SIZE_ROWS; row++) {
-                for (let col = 0; col < GRID_SIZE_COLS; col++) {
-                    if (grid[row][col]) {
-                        const squareMatch = findSquareMatches(row, col);
-                        if (squareMatch.length > 0 && !squareMatches.some(m => m.some(([r, c]) => r === row && c === col))) {
-                            squareMatches.push(squareMatch);
-                        }
-                    }
+    let squareMatches = [];
+    for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+        for (let col = 0; col < GRID_SIZE_COLS; col++) {
+            if (grid[row][col]) {
+                const squareMatch = findSquareMatches(row, col);
+                if (squareMatch.length > 0 && !squareMatches.some(m => m.some(([r, c]) => r === row && c === col))) {
+                    squareMatches.push(squareMatch);
                 }
             }
+        }
+    }
 
-            // Procesar matches lineales
-            matches.forEach(match => {
-                let bombs = [];
-                let watermelons = [];
-                let bees = [];
-                let specialPos = null;
+    matches.forEach(match => {
+        let bombs = [];
+        let hurricanes = [];
+        let bees = [];
+        let specialPos = null;
 
-                // Determinar la fruta que provocó la fusión si hay lastSwap (solo para 4 o más)
-                if (lastSwap && match.length >= 4) {
-                    const [r1, c1] = [lastSwap.row1, lastSwap.col1];
-                    const [r2, c2] = [lastSwap.row2, lastSwap.col2];
-                    specialPos = match.some(([r, c]) => r === r1 && c === c1) ? [r1, c1] : [r2, c2];
-                }
+        if (lastSwap && match.length >= 4) {
+            const [r1, c1] = [lastSwap.row1, lastSwap.col1];
+            const [r2, c2] = [lastSwap.row2, lastSwap.col2];
+            specialPos = match.some(([r, c]) => r === r1 && c === c1) ? [r1, c1] : [r2, c2];
+        }
 
-                // Marcar frutas para eliminación y agregar efecto splash
-                match.forEach(([row, col]) => {
-                    if (match.length >= 4 && row === specialPos?.[0] && col === specialPos?.[1]) return; // No marcar la fruta especial
-                    if (grid[row][col].isBomb) bombs.push([row, col]);
-                    else if (grid[row][col].isWatermelon) watermelons.push([row, col]);
-                    else if (grid[row][col].isBee) bees.push([row, col]);
-                    else {
-                        grid[row][col].isMarked = true;
-                        grid[row][col].startFade();
-                        const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
-                        splashes.push(new Splash(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, colors[grid[row][col].type]));
-                    }
-                });
-
-                let points = match.length === 3 ? 10 : match.length === 4 ? 20 : 50;
-                score += points;
-
-                // Asignar habilidad especial solo para matches de 4 o más
-                if (match.length === 4 && bombs.length === 0 && watermelons.length === 0 && bees.length === 0) {
-                    setTimeout(() => {
-                        grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
-                    }, ANIMATION_DURATION);
-                } else if (match.length >= 5 && bombs.length === 0 && watermelons.length === 0 && bees.length === 0) {
-                    setTimeout(() => {
-                        grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, false, true);
-                    }, ANIMATION_DURATION);
-                }
-
-                if (bombs.length > 0 || watermelons.length > 0 || bees.length > 0) hasSpecial = true;
-                bombs.forEach(([r, c]) => {
-                    explodeBomb(r, c, 1);
-                    score += 15;
-                });
-                watermelons.forEach(([r, c]) => {
-                    const typeToRemove = grid[r][c].type;
-                    for (let i = 0; i < GRID_SIZE_ROWS; i++) {
-                        for (let j = 0; j < GRID_SIZE_COLS; j++) {
-                            if (grid[i][j] && grid[i][j].type === typeToRemove) {
-                                grid[i][j].isMarked = true;
-                                grid[i][j].startFade();
-                            }
-                        }
-                    }
-                    score += 50;
-                });
-                bees.forEach(([r, c]) => {
-                    explodeBee(r, c);
-                    score += 10;
-                });
-            });
-
-            // Procesar matches en L
-            if (lastSwap) {
-                const angleMatch1 = findAngleMatches(lastSwap.row1, lastSwap.col1);
-                const angleMatch2 = findAngleMatches(lastSwap.row2, lastSwap.col2);
-                const angleMatch = angleMatch1.length > 0 ? angleMatch1 : angleMatch2;
-                const specialPos = angleMatch === angleMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
-                if (angleMatch.length > 0 && !hasSpecial) {
-                    angleMatch.forEach(([r, c]) => {
-                        if (r === specialPos[0] && c === specialPos[1]) return;
-                        grid[r][c].isMarked = true;
-                        grid[r][c].startFade();
-                        const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
-                        splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
-                    });
-                    score += 50;
-                    setTimeout(() => {
-                        grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
-                        hasSpecial = true;
-                    }, ANIMATION_DURATION);
-                }
+        match.forEach(([row, col]) => {
+            if (match.length >= 4 && row === specialPos?.[0] && col === specialPos?.[1]) return;
+            if (grid[row][col].isBomb) bombs.push([row, col]);
+            else if (grid[row][col].isHurricane) hurricanes.push([row, col]);
+            else if (grid[row][col].isBee) bees.push([row, col]);
+            else {
+                grid[row][col].isMarked = true;
+                grid[row][col].startFade();
+                const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+                splashes.push(new Splash(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2, colors[grid[row][col].type]));
+                if (grid[row][col].type === 0) cherriesRemoved++;
+                else if (grid[row][col].type === 1) orangesRemoved++;
+                else if (grid[row][col].type === 2) blueberriesRemoved++;
             }
+        });
 
-            // Procesar matches 2x2
-            squareMatches.forEach(match => {
-                let specialPos = lastSwap ? 
-                    (match.some(([r, c]) => r === lastSwap.row1 && c === lastSwap.col1) ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2]) :
-                    match[0];
-                match.forEach(([r, c]) => {
-                    grid[r][c].isMarked = true;
-                    grid[r][c].startFade();
-                    const colors = ['#1E90FF', '#90EE90', '#FF4040', '#800080', '#FFA500', '#FF1493'];
-                    splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
-                });
-                score += 20;
-                setTimeout(() => {
-                    animateBees(match, () => {
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                            }
-                        }
-                        dropFruits();
-                        isAnimating = false;
-                    });
-                    hasSpecial = true;
-                }, ANIMATION_DURATION);
-            });
+        bombs.forEach(([r, c]) => explodeBomb(r, c, 1));
+        hurricanes.forEach(([r, c]) => activateHurricane(r, c));
+        bees.forEach(([r, c]) => explodeBee(r, c));
 
-            scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
-            scoreDisplay.classList.add('scoreAdd');
-            setTimeout(() => scoreDisplay.classList.remove('scoreAdd'), 500);
+        if (match.length === 4 && bombs.length === 0 && hurricanes.length === 0 && bees.length === 0) {
             setTimeout(() => {
-                if (hasSpecial) {
-                    setTimeout(() => {
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                            }
+                grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
+            }, ANIMATION_DURATION);
+        } else if (match.length >= 5 && bombs.length === 0 && hurricanes.length === 0 && bees.length === 0) {
+            setTimeout(() => {
+                grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, false, true);
+            }, ANIMATION_DURATION);
+        }
+
+        if (bombs.length > 0 || hurricanes.length > 0 || bees.length > 0) hasSpecial = true;
+    });
+
+    if (lastSwap) {
+        const angleMatch1 = findAngleMatches(lastSwap.row1, lastSwap.col1);
+        const angleMatch2 = findAngleMatches(lastSwap.row2, lastSwap.col2);
+        const angleMatch = angleMatch1.length > 0 ? angleMatch1 : angleMatch2;
+        const specialPos = angleMatch === angleMatch1 ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2];
+        if (angleMatch.length > 0 && !hasSpecial) {
+            angleMatch.forEach(([r, c]) => {
+                if (r === specialPos[0] && c === specialPos[1]) return;
+                grid[r][c].isMarked = true;
+                grid[r][c].startFade();
+                const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+                splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
+                if (grid[r][c].type === 0) cherriesRemoved++;
+                else if (grid[r][c].type === 1) orangesRemoved++;
+                else if (grid[r][c].type === 2) blueberriesRemoved++;
+            });
+            setTimeout(() => {
+                grid[specialPos[0]][specialPos[1]] = new Fruit(specialPos[0], specialPos[1], grid[specialPos[0]][specialPos[1]].type, true);
+                hasSpecial = true;
+            }, ANIMATION_DURATION);
+        }
+    }
+
+    squareMatches.forEach(match => {
+        let specialPos = lastSwap ? 
+            (match.some(([r, c]) => r === lastSwap.row1 && c === lastSwap.col1) ? [lastSwap.row1, lastSwap.col1] : [lastSwap.row2, lastSwap.col2]) :
+            match[0];
+        match.forEach(([r, c]) => {
+            grid[r][c].isMarked = true;
+            grid[r][c].startFade();
+            const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+            splashes.push(new Splash(c * CELL_SIZE + CELL_SIZE / 2, r * CELL_SIZE + CELL_SIZE / 2, colors[grid[r][c].type]));
+            if (grid[r][c].type === 0) cherriesRemoved++;
+            else if (grid[r][c].type === 1) orangesRemoved++;
+            else if (grid[r][c].type === 2) blueberriesRemoved++;
+        });
+        setTimeout(() => {
+            animateBees(match, () => {
+                for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                    for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                        if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                    }
+                }
+                dropFruits();
+                isAnimating = false;
+            });
+            hasSpecial = true;
+        }, ANIMATION_DURATION);
+    });
+
+    updateProgressDisplay();
+    if (checkLevelGoal()) {
+        setTimeout(() => endGame(true), hasSpecial ? EXPLOSION_ANIMATION_DURATION : ANIMATION_DURATION);
+    } else {
+        setTimeout(() => {
+            if (hasSpecial) {
+                setTimeout(() => {
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
                         }
-                        dropFruits();
-                        isAnimating = false;
-                    }, Math.max(EXPLOSION_ANIMATION_DURATION, bees.length > 0 ? BEE_ANIMATION_DURATION : 0));
-                } else {
+                    }
                     dropFruits();
                     isAnimating = false;
-                }
-            }, hasSpecial ? EXPLOSION_ANIMATION_DURATION : ANIMATION_DURATION);
-        }
-
-        function dropFruits() {
-            isAnimating = true;
-            for (let col = 0; col < GRID_SIZE_COLS; col++) {
-                let emptySpaces = 0;
-                for (let row = GRID_SIZE_ROWS - 1; row >= 0; row--) {
-                    if (!grid[row][col] || grid[row][col].isMarked) {
-                        emptySpaces++;
-                        grid[row][col] = null;
-                    } else if (emptySpaces > 0) {
-                        grid[row + emptySpaces][col] = grid[row][col];
-                        grid[row + emptySpaces][col].startAnimation(row + emptySpaces, col);
-                        grid[row][col] = null;
-                    }
-                }
-                for (let i = 0; i < emptySpaces; i++) {
-                    grid[i][col] = new Fruit(i, col, Math.floor(Math.random() * fruitTypes));
-                    grid[i][col].y = -CELL_SIZE / 2;
-                    grid[i][col].startAnimation(i, col);
-                }
-            }
-            setTimeout(() => {
-                const newMatches = findMatches();
-                if (newMatches.length > 0) removeMatches();
-                else isAnimating = false;
-            }, ANIMATION_DURATION);
-        }
-
-        function swapFruits(row1, col1, row2, col2) {
-            if (isAnimating || Math.abs(row1 - row2) + Math.abs(col1 - col2) !== 1 || !grid[row1][col1] || !grid[row2][col2]) return;
-            isAnimating = true;
-            moves--;
-            movesDisplay.textContent = `Movimientos: ${moves}`;
-            if (moves <= 0) {
-                setTimeout(() => endGame(score >= SCORE_GOAL), ANIMATION_DURATION);
-                return;
-            }
-            const fruit1 = grid[row1][col1];
-            const fruit2 = grid[row2][col2];
-            grid[row1][col1] = fruit2;
-            grid[row2][col2] = fruit1;
-            fruit1.startAnimation(row2, col2);
-            fruit2.startAnimation(row1, col1);
-            lastSwap = { row1, col1, row2, col2 };
-
-            setTimeout(() => {
-                const matches = findMatches();
-                const angleMatch1 = findAngleMatches(row1, col1);
-                const angleMatch2 = findAngleMatches(row2, col2);
-                const squareMatch1 = findSquareMatches(row1, col1);
-                const squareMatch2 = findSquareMatches(row2, col2);
-                if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0 || squareMatch1.length > 0 || squareMatch2.length > 0) {
-                    removeMatches();
-                } else if (fruit1.isBomb) {
-                    const bombMatches = findBombMatches(row2, col2);
-                    if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
-                        explodeBomb(row2, col2, 1);
-                        grid[row2][col2].startExplosion();
-                        bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
-                        setTimeout(() => {
-                            grid[row2][col2] = null;
-                            bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
-                            dropFruits();
-                            isAnimating = false;
-                        }, EXPLOSION_ANIMATION_DURATION);
-                        score += 15;
-                    } else if (fruit2.isBomb) {
-                        explodeBomb(row1, col1, 2);
-                        grid[row1][col1].startExplosion();
-                        grid[row2][col2].startExplosion();
-                        setTimeout(() => {
-                            grid[row1][col1] = null;
-                            grid[row2][col2] = null;
-                            dropFruits();
-                            isAnimating = false;
-                        }, EXPLOSION_ANIMATION_DURATION);
-                        score += 30;
-                    } else if (fruit2.isWatermelon) {
-                        const bombType = fruit1.type;
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon && !grid[r][c].isBee) {
-                                    grid[r][c] = new Fruit(r, c, bombType, true);
-                                    grid[r][c].startExplosion();
-                                }
-                            }
-                        }
-                        grid[row1][col1].startExplosion();
-                        grid[row2][col2].startExplosion();
-                        setTimeout(() => {
-                            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                                for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                    if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                                }
-                            }
-                            dropFruits();
-                            isAnimating = false;
-                        }, EXPLOSION_ANIMATION_DURATION);
-                        score += 40;
-                    } else {
-                        grid[row1][col1] = fruit1;
-                        grid[row2][col2] = fruit2;
-                        fruit1.startAnimation(row1, col1);
-                        fruit2.startAnimation(row2, col2);
-                        setTimeout(() => isAnimating = false, ANIMATION_DURATION);
-                    }
-                } else if (fruit2.isBomb) {
-                    const bombMatches = findBombMatches(row1, col1);
-                    if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
-                        explodeBomb(row1, col1, 1);
-                        grid[row1][col1].startExplosion();
-                        bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
-                        setTimeout(() => {
-                            grid[row1][col1] = null;
-                            bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
-                            dropFruits();
-                            isAnimating = false;
-                        }, EXPLOSION_ANIMATION_DURATION);
-                        score += 15;
-                    } else if (fruit1.isWatermelon) {
-                        const bombType = fruit2.type;
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isWatermelon && !grid[r][c].isBee) {
-                                    grid[r][c] = new Fruit(r, c, bombType, true);
-                                    grid[r][c].startExplosion();
-                                }
-                            }
-                        }
-                        grid[row1][col1].startExplosion();
-                        grid[row2][col2].startExplosion();
-                        setTimeout(() => {
-                            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                                for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                    if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                                }
-                            }
-                            dropFruits();
-                            isAnimating = false;
-                        }, EXPLOSION_ANIMATION_DURATION);
-                        score += 40;
-                    } else {
-                        grid[row1][col1] = fruit1;
-                        grid[row2][col2] = fruit2;
-                        fruit1.startAnimation(row1, col1);
-                        fruit2.startAnimation(row2, col2);
-                        setTimeout(() => isAnimating = false, ANIMATION_DURATION);
-                    }
-                } else if (fruit1.isWatermelon) {
-                    const typeToRemove = fruit2.type;
-                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                            if (grid[r][c] && grid[r][c].type === typeToRemove) {
-                                grid[r][c].isMarked = true;
-                                grid[r][c].startFade();
-                            }
-                        }
-                    }
-                    setTimeout(() => {
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                            }
-                        }
-                        dropFruits();
-                        isAnimating = false;
-                    }, ANIMATION_DURATION);
-                    score += 50;
-                } else if (fruit2.isWatermelon) {
-                    const typeToRemove = fruit1.type;
-                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                            if (grid[r][c] && grid[r][c].type === typeToRemove) {
-                                grid[r][c].isMarked = true;
-                                grid[r][c].startFade();
-                            }
-                        }
-                    }
-                    setTimeout(() => {
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                            }
-                        }
-                        dropFruits();
-                        isAnimating = false;
-                    }, ANIMATION_DURATION);
-                    score += 50;
-                } else if (fruit1.isBee) {
-                    explodeBee(row2, col2);
-                    grid[row2][col2].startExplosion();
-                    setTimeout(() => {
-                        grid[row2][col2] = null;
-                        dropFruits();
-                        isAnimating = false;
-                    }, EXPLOSION_ANIMATION_DURATION);
-                    score += 10;
-                } else if (fruit2.isBee) {
-                    explodeBee(row1, col1);
-                    grid[row1][col1].startExplosion();
-                    setTimeout(() => {
-                        grid[row1][col1] = null;
-                        dropFruits();
-                        isAnimating = false;
-                    }, EXPLOSION_ANIMATION_DURATION);
-                    score += 10;
-                } else {
-                    grid[row1][col1] = fruit1;
-                    grid[row2][col2] = fruit2;
-                    fruit1.startAnimation(row1, col1);
-                    fruit2.startAnimation(row2, col2);
-                    setTimeout(() => isAnimating = false, ANIMATION_DURATION);
-                }
-                scoreDisplay.textContent = `Puntaje: ${score} / ${SCORE_GOAL}`;
-            }, ANIMATION_DURATION);
-        }
-
-        function endGame(won) {
-            gameOver = true;
-            gameOverDisplay.style.display = 'block';
-            if (won) {
-                gameResultDisplay.textContent = '¡Ganaste!';
-                finalScoreDisplay.textContent = score;
+                }, Math.max(EXPLOSION_ANIMATION_DURATION, bees.length > 0 ? BEE_ANIMATION_DURATION : 0));
             } else {
-                gameResultDisplay.textContent = 'Perdiste';
-                finalScoreDisplay.textContent = score;
+                dropFruits();
+                isAnimating = false;
+            }
+        }, hasSpecial ? EXPLOSION_ANIMATION_DURATION : ANIMATION_DURATION);
+    }
+}
+function dropFruits() {
+    isAnimating = true;
+    for (let col = 0; col < GRID_SIZE_COLS; col++) {
+        let emptySpaces = 0;
+        for (let row = GRID_SIZE_ROWS - 1; row >= 0; row--) {
+            if (!grid[row][col] || grid[row][col].isMarked) {
+                emptySpaces++;
+                grid[row][col] = null;
+            } else if (emptySpaces > 0) {
+                grid[row + emptySpaces][col] = grid[row][col];
+                grid[row + emptySpaces][col].startAnimation(row + emptySpaces, col);
+                grid[row][col] = null;
             }
         }
-
-        function startGame() {
-            gameStarted = true;
-            startScreen.style.display = 'none';
+        for (let i = 0; i < emptySpaces; i++) {
+            grid[i][col] = new Fruit(i, col, Math.floor(Math.random() * fruitTypes));
+            grid[i][col].y = -CELL_SIZE / 2;
+            grid[i][col].startAnimation(i, col);
         }
+    }
+    setTimeout(() => {
+        const newMatches = findMatches();
+        if (newMatches.length > 0) removeMatches();
+        else isAnimating = false;
+    }, ANIMATION_DURATION);
+}
 
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+function swapFruits(row1, col1, row2, col2) {
+    if (isAnimating || Math.abs(row1 - row2) + Math.abs(col1 - col2) !== 1 || !grid[row1][col1] || !grid[row2][col2]) return;
+    isAnimating = true;
+    moves--;
+    movesDisplay.textContent = `Movimientos: ${moves}`;
+    if (moves <= 0) {
+        setTimeout(() => endGame(checkLevelGoal()), ANIMATION_DURATION);
+        return;
+    }
+    const fruit1 = grid[row1][col1];
+    const fruit2 = grid[row2][col2];
+    grid[row1][col1] = fruit2;
+    grid[row2][col2] = fruit1;
+    fruit1.startAnimation(row2, col2);
+    fruit2.startAnimation(row1, col1);
+    lastSwap = { row1, col1, row2, col2 };
 
-            ctx.strokeStyle = '#333';
-            for (let row = 0; row <= GRID_SIZE_ROWS; row++) {
-                ctx.beginPath();
-                ctx.moveTo(0, row * CELL_SIZE);
-                ctx.lineTo(canvas.width, row * CELL_SIZE);
-                ctx.stroke();
-            }
-            for (let col = 0; col <= GRID_SIZE_COLS; col++) {
-                ctx.beginPath();
-                ctx.moveTo(col * CELL_SIZE, 0);
-                ctx.lineTo(col * CELL_SIZE, canvas.height);
-                ctx.stroke();
-            }
-
-            if (grid.length > 0) {
-                for (let row = 0; row < GRID_SIZE_ROWS; row++) {
-                    for (let col = 0; col < GRID_SIZE_COLS; col++) {
-                        if (grid[row][col]) {
-                            grid[row][col].update();
-                            grid[row][col].draw();
+    setTimeout(() => {
+        const matches = findMatches();
+        const angleMatch1 = findAngleMatches(row1, col1);
+        const angleMatch2 = findAngleMatches(row2, col2);
+        const squareMatch1 = findSquareMatches(row1, col1);
+        const squareMatch2 = findSquareMatches(row2, col2);
+        if (matches.length > 0 || angleMatch1.length > 0 || angleMatch2.length > 0 || squareMatch1.length > 0 || squareMatch2.length > 0) {
+            removeMatches();
+        } else if (fruit1.isBomb) {
+            const bombMatches = findBombMatches(row2, col2);
+            if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
+                explodeBomb(row2, col2, 1);
+                grid[row2][col2].startExplosion();
+                bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
+                setTimeout(() => {
+                    grid[row2][col2] = null;
+                    bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
+                    dropFruits();
+                    isAnimating = false;
+                }, EXPLOSION_ANIMATION_DURATION);
+            } else if (fruit2.isBomb) {
+                explodeBomb(row1, col1, 2);
+                grid[row1][col1].startExplosion();
+                grid[row2][col2].startExplosion();
+                setTimeout(() => {
+                    grid[row1][col1] = null;
+                    grid[row2][col2] = null;
+                    dropFruits();
+                    isAnimating = false;
+                }, EXPLOSION_ANIMATION_DURATION);
+            } else if (fruit2.isHurricane) {
+                const bombType = fruit1.type;
+                for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                    for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                        if (grid[r][c] && grid[r][c].type === bombType && !grid[r][c].isBomb && !grid[r][c].isHurricane && !grid[r][c].isBee) {
+                            grid[r][c] = new Fruit(r, c, bombType, true);
+                            grid[r][c].startExplosion();
                         }
                     }
                 }
+                grid[row1][col1].startExplosion();
+                grid[row2][col2].startExplosion();
+                setTimeout(() => {
+                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                            if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                        }
+                    }
+                    dropFruits();
+                    isAnimating = false;
+                }, EXPLOSION_ANIMATION_DURATION);
+            } else {
+                grid[row1][col1] = fruit1;
+                grid[row2][col2] = fruit2;
+                fruit1.startAnimation(row1, col1);
+                fruit2.startAnimation(row2, col2);
+                setTimeout(() => isAnimating = false, ANIMATION_DURATION);
             }
-
-            bees.forEach(bee => {
-                ctx.save();
-                ctx.translate(bee.x, bee.y);
-                ctx.fillStyle = '#FFFF00';
-                ctx.font = `${CELL_SIZE / 2}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🐝', 0, 0);
-                ctx.restore();
-            });
-
-            splashes.forEach(splash => {
-                splash.update();
-                splash.draw();
-            });
-            splashes = splashes.filter(s => s.particles.length > 0);
-
-            if (selectedFruit && !isAnimating) {
-                const x = selectedFruit.col * CELL_SIZE;
-                const y = selectedFruit.row * CELL_SIZE;
-                ctx.strokeStyle = '#FF0000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+        } else if (fruit2.isBomb) {
+            const bombMatches = findBombMatches(row1, col1);
+            if (bombMatches.length > 0 && bombMatches.some(match => match.length >= 2)) {
+                explodeBomb(row1, col1, 1);
+                grid[row1][col1].startExplosion();
+                bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c].startExplosion()));
+                setTimeout(() => {
+                    grid[row1][col1] = null;
+                    bombMatches.forEach(match => match.forEach(([r, c]) => grid[r][c] = null));
+                    dropFruits();
+                    isAnimating = false;
+                }, EXPLOSION_ANIMATION_DURATION);
+            } else {
+                grid[row1][col1] = fruit1;
+                grid[row2][col2] = fruit2;
+                fruit1.startAnimation(row1, col1);
+                fruit2.startAnimation(row2, col2);
+                setTimeout(() => isAnimating = false, ANIMATION_DURATION);
             }
-
-            requestAnimationFrame(gameLoop);
+        } else if (fruit1.isHurricane || fruit2.isHurricane) {
+            const typeToRemove = fruit1.isHurricane ? fruit2.type : fruit1.type;
+            for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                    if (grid[r][c] && grid[r][c].type === typeToRemove) {
+                        grid[r][c].isMarked = true;
+                        grid[r][c].startFade();
+                        if (typeToRemove === 0) cherriesRemoved++;
+                        else if (typeToRemove === 1) orangesRemoved++;
+                        else if (typeToRemove === 2) blueberriesRemoved++;
+                    }
+                }
+            }
+            setTimeout(() => {
+                for (let r = 0; r < GRID_SIZE_ROWS; r++) {
+                    for (let c = 0; c < GRID_SIZE_COLS; c++) {
+                        if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
+                    }
+                }
+                dropFruits();
+                isAnimating = false;
+            }, ANIMATION_DURATION);
+            updateProgressDisplay();
+            if (checkLevelGoal()) setTimeout(() => endGame(true), ANIMATION_DURATION);
+        } else if (fruit1.isBee || fruit2.isBee) {
+            const beeRow = fruit1.isBee ? row2 : row1;
+            const beeCol = fruit1.isBee ? col2 : col1;
+            explodeBee(beeRow, beeCol);
+            grid[beeRow][beeCol].startExplosion();
+            setTimeout(() => {
+                grid[beeRow][beeCol] = null;
+                dropFruits();
+                isAnimating = false;
+            }, EXPLOSION_ANIMATION_DURATION);
+        } else {
+            grid[row1][col1] = fruit1;
+            grid[row2][col2] = fruit2;
+            fruit1.startAnimation(row1, col1);
+            fruit2.startAnimation(row2, col2);
+            setTimeout(() => isAnimating = false, ANIMATION_DURATION);
         }
+    }, ANIMATION_DURATION);
+}
+function checkLevelGoal() {
+    const level = levelGoals[currentLevel - 1];
+    switch (currentLevel) {
+        case 1: return cherriesRemoved >= level.target;
+        case 2: return bombsExploded >= level.target;
+        case 3: return orangesRemoved >= level.target;
+        case 4: return beesGenerated >= level.target;
+        case 5: return blueberriesRemoved >= level.target;
+    }
+    return false;
+}
 
-        canvas.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            if (!gameOver && gameStarted && !isAnimating) {
-                const x = e.clientX - canvas.offsetLeft;
-                const y = e.clientY - canvas.offsetTop;
-                const col = Math.floor(x / CELL_SIZE);
-                const row = Math.floor(y / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col]) {
-                    selectedFruit = { row, col };
+function endGame(won) {
+    gameOver = true;
+    gameOverDisplay.style.display = 'block';
+    if (won) {
+        gameResultDisplay.textContent = '¡Ganaste!';
+        if (currentLevel < 5) {
+            currentLevel++;
+            setTimeout(() => {
+                gameOverDisplay.style.display = 'none';
+                gameOver = false;
+                isAnimating = false; // Reiniciar animaciones para evitar congelamiento
+                bees = []; // Limpiar abejas pendientes
+                splashes = []; // Limpiar efectos visuales
+                initializeGrid();
+            }, 1000);
+        } else {
+            gameResultDisplay.textContent = '¡Completaste todos los niveles!';
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const colors = ['#FF4040', '#FFA500', '#800080', '#1E90FF', '#90EE90', '#FF1493'];
+                splashes.push(new Splash(x, y, colors[Math.floor(Math.random() * colors.length)]));
+            }
+            retryButton.textContent = 'Volver a empezar';
+        }
+    } else {
+        gameResultDisplay.textContent = '¡Perdiste! ¿Volver a intentar?';
+    }
+}
+
+function startGame() {
+    gameStarted = true;
+    startScreen.style.display = 'none';
+    currentLevel = 1; // Reiniciar al primer nivel al comenzar
+    initializeGrid();
+}
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#333';
+    for (let row = 0; row <= GRID_SIZE_ROWS; row++) {
+        ctx.beginPath();
+        ctx.moveTo(0, row * CELL_SIZE);
+        ctx.lineTo(canvas.width, row * CELL_SIZE);
+        ctx.stroke();
+    }
+    for (let col = 0; col <= GRID_SIZE_COLS; col++) {
+        ctx.beginPath();
+        ctx.moveTo(col * CELL_SIZE, 0);
+        ctx.lineTo(col * CELL_SIZE, canvas.height);
+        ctx.stroke();
+    }
+
+    if (grid.length > 0) {
+        for (let row = 0; row < GRID_SIZE_ROWS; row++) {
+            for (let col = 0; col < GRID_SIZE_COLS; col++) {
+                if (grid[row][col]) {
+                    grid[row][col].update();
+                    grid[row][col].draw();
                 }
             }
-        });
+        }
+    }
 
-        canvas.addEventListener('mousemove', (e) => {
-            e.preventDefault();
-            if (!gameOver && gameStarted && selectedFruit && !isAnimating) {
-                const x = e.clientX - canvas.offsetLeft;
-                const y = e.clientY - canvas.offsetTop;
-                const col = Math.floor(x / CELL_SIZE);
-                const row = Math.floor(y / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] &&
-                    (row !== selectedFruit.row || col !== selectedFruit.col)) {
-                    swapFruits(selectedFruit.row, selectedFruit.col, row, col);
-                    selectedFruit = null;
-                }
-            }
-        });
+    bees.forEach(bee => {
+        ctx.save();
+        ctx.translate(bee.x, bee.y);
+        ctx.fillStyle = '#FFFF00';
+        ctx.font = `${CELL_SIZE / 2}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🐝', 0, 0);
+        ctx.restore();
+    });
 
-        canvas.addEventListener('mouseup', (e) => {
-            e.preventDefault();
+    splashes.forEach(splash => {
+        splash.update();
+        splash.draw();
+    });
+    splashes = splashes.filter(s => s.particles.length > 0);
+
+    if (selectedFruit && !isAnimating) {
+        const x = selectedFruit.col * CELL_SIZE;
+        const y = selectedFruit.row * CELL_SIZE;
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+    }
+
+    if (!gameOver && gameStarted && !isAnimating) {
+        const matches = findMatches();
+        if (matches.length > 0) removeMatches();
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+canvas.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    if (!gameOver && gameStarted && !isAnimating) {
+        const x = e.clientX - canvas.offsetLeft;
+        const y = e.clientY - canvas.offsetTop;
+        const col = Math.floor(x / CELL_SIZE);
+        const row = Math.floor(y / CELL_SIZE);
+        if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col]) {
+            selectedFruit = { row, col };
+        }
+    }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    e.preventDefault();
+    if (!gameOver && gameStarted && selectedFruit && !isAnimating) {
+        const x = e.clientX - canvas.offsetLeft;
+        const y = e.clientY - canvas.offsetTop;
+        const col = Math.floor(x / CELL_SIZE);
+        const row = Math.floor(y / CELL_SIZE);
+        if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] &&
+            (row !== selectedFruit.row || col !== selectedFruit.col)) {
+            swapFruits(selectedFruit.row, selectedFruit.col, row, col);
             selectedFruit = null;
-        });
+        }
+    }
+});
 
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameOver && gameStarted && !isAnimating) {
-                const touchX = e.touches[0].clientX - canvas.offsetLeft;
-                const touchY = e.touches[0].clientY - canvas.offsetTop;
-                const col = Math.floor(touchX / CELL_SIZE);
-                const row = Math.floor(touchY / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col]) {
-                    selectedFruit = { row, col };
-                }
-            }
-        });
+canvas.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    selectedFruit = null;
+});
 
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!gameOver && gameStarted && selectedFruit && !isAnimating) {
-                const touchX = e.touches[0].clientX - canvas.offsetLeft;
-                const touchY = e.touches[0].clientY - canvas.offsetTop;
-                const col = Math.floor(touchX / CELL_SIZE);
-                const row = Math.floor(touchY / CELL_SIZE);
-                if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] &&
-                    (row !== selectedFruit.row || col !== selectedFruit.col)) {
-                    swapFruits(selectedFruit.row, selectedFruit.col, row, col);
-                    selectedFruit = null;
-                }
-            }
-        });
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!gameOver && gameStarted && !isAnimating) {
+        const touchX = e.touches[0].clientX - canvas.offsetLeft;
+        const touchY = e.touches[0].clientY - canvas.offsetTop;
+        const col = Math.floor(touchX / CELL_SIZE);
+        const row = Math.floor(touchY / CELL_SIZE);
+        if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col]) {
+            selectedFruit = { row, col };
+        }
+    }
+});
 
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!gameOver && gameStarted && selectedFruit && !isAnimating) {
+        const touchX = e.touches[0].clientX - canvas.offsetLeft;
+        const touchY = e.touches[0].clientY - canvas.offsetTop;
+        const col = Math.floor(touchX / CELL_SIZE);
+        const row = Math.floor(touchY / CELL_SIZE);
+        if (row >= 0 && row < GRID_SIZE_ROWS && col >= 0 && col < GRID_SIZE_COLS && grid[row][col] &&
+            (row !== selectedFruit.row || col !== selectedFruit.col)) {
+            swapFruits(selectedFruit.row, selectedFruit.col, row, col);
             selectedFruit = null;
-        });
+        }
+    }
+});
 
-        startButton.addEventListener('click', startGame);
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    selectedFruit = null;
+});
 
-        initializeGrid();
-        gameLoop();
+startButton.addEventListener('click', startGame);
+
+retryButton.addEventListener('click', () => {
+    gameOverDisplay.style.display = 'none';
+    gameOver = false;
+    if (currentLevel > 5) currentLevel = 1; // Reiniciar al nivel 1 si se completaron todos los niveles
+    initializeGrid();
+});
+
+// Iniciar el juego
+initializeGrid();
+gameLoop();
     </script>
 </body>
 </html>
