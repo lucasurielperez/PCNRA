@@ -506,6 +506,7 @@
         return matches;
     }
 
+    <script>
     function explodeBomb(row, col, radius) {
         bombsExploded++;
         for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
@@ -613,7 +614,6 @@
         }
         requestAnimationFrame(updateBees);
     }
-
     function removeMatches() {
         const matches = findMatches();
         if (matches.length === 0 && !lastSwap) return;
@@ -695,12 +695,7 @@
             });
             setTimeout(() => {
                 animateBees(match, () => {
-                    for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                        for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                            if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                        }
-                    }
-                    dropFruits();
+                    dropFruits(); // Llamar a dropFruits directamente después de abejas
                     isAnimating = false;
                 });
                 hasSpecial = true;
@@ -714,12 +709,7 @@
             setTimeout(() => {
                 if (hasSpecial) {
                     setTimeout(() => {
-                        for (let r = 0; r < GRID_SIZE_ROWS; r++) {
-                            for (let c = 0; c < GRID_SIZE_COLS; c++) {
-                                if (grid[r][c] && grid[r][c].isMarked) grid[r][c] = null;
-                            }
-                        }
-                        dropFruits();
+                        dropFruits(); // Simplificar: llamar a dropFruits sin limpieza redundante
                         isAnimating = false;
                     }, Math.max(EXPLOSION_ANIMATION_DURATION, bees.length > 0 ? BEE_ANIMATION_DURATION : 0));
                 } else {
@@ -755,6 +745,41 @@
             if (newMatches.length > 0) removeMatches();
             else isAnimating = false;
         }, ANIMATION_DURATION);
+    }
+
+    <script>
+    function dropFruits() {
+        isAnimating = true;
+        for (let col = 0; col < GRID_SIZE_COLS; col++) {
+            let emptySpaces = 0;
+            // Contar y limpiar espacios vacíos desde abajo hacia arriba
+            for (let row = GRID_SIZE_ROWS - 1; row >= 0; row--) {
+                if (!grid[row][col] || grid[row][col].isMarked) {
+                    emptySpaces++;
+                    grid[row][col] = null; // Asegurar que las celdas marcadas se limpien
+                } else if (emptySpaces > 0) {
+                    // Mover frutas hacia abajo
+                    grid[row + emptySpaces][col] = grid[row][col];
+                    grid[row + emptySpaces][col].startAnimation(row + emptySpaces, col);
+                    grid[row][col] = null;
+                }
+            }
+            // Generar nuevas frutas en la parte superior
+            for (let i = 0; i < emptySpaces; i++) {
+                grid[i][col] = new Fruit(i, col, Math.floor(Math.random() * fruitTypes));
+                grid[i][col].y = -CELL_SIZE * (emptySpaces - i); // Aparecen desde arriba
+                grid[i][col].startAnimation(i, col);
+            }
+        }
+        // Esperar a que las animaciones terminen antes de verificar nuevos matches
+        setTimeout(() => {
+            const newMatches = findMatches();
+            if (newMatches.length > 0) {
+                removeMatches();
+            } else {
+                isAnimating = false; // Liberar animación solo si no hay más coincidencias
+            }
+        }, ANIMATION_DURATION + 50); // Pequeño buffer para asegurar que las animaciones terminen
     }
 
     function swapFruits(row1, col1, row2, col2) {
@@ -863,6 +888,7 @@
             }
         }, ANIMATION_DURATION);
     }
+
 
     function checkLevelGoal() {
         const level = levelGoals[currentLevel - 1];
