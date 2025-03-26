@@ -21,37 +21,27 @@
             position: absolute;
             width: 50px;
             height: 50px;
-            transition: all 0.1s;
+            z-index: 100;
         }
         .road {
             position: absolute;
             width: 100%;
             height: 50px;
         }
-        #controls {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 20px;
+        .obstacle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #FF4500;
             z-index: 10;
         }
-        .control-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            user-select: none;
-            touch-action: manipulation;
-            transition: background 0.2s; /* Transición suave */
+        @keyframes jump {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0); }
         }
-        .control-btn:active {
-            background: rgba(200, 200, 200, 0.9); /* Cambio al tocar */
+        .jumping {
+            animation: jump 0.3s ease-in-out;
         }
     </style>
 </head>
@@ -59,18 +49,13 @@
     <div id="gameContainer">
         <img id="player" src="images/player.png">
     </div>
-    <div id="controls">
-        <div class="control-btn" data-direction="up">↑</div>
-        <div class="control-btn" data-direction="left">←</div>
-        <div class="control-btn" data-direction="right">→</div>
-        <div class="control-btn" data-direction="down">↓</div>
-    </div>
 
     <script>
         const gameContainer = document.getElementById('gameContainer');
-        let player = document.getElementById('player'); // No lo eliminamos aún
+        let player = document.getElementById('player');
         const containerWidth = window.innerWidth;
         const containerHeight = window.innerHeight;
+        const halfHeight = containerHeight / 2;
 
         // Manejo del jugador con fallback
         function setupPlayer() {
@@ -93,7 +78,7 @@
                 gameContainer.appendChild(canvasPlayer);
                 const oldPlayer = document.getElementById('player');
                 if (oldPlayer) oldPlayer.remove();
-                player = canvasPlayer; // Actualizamos la referencia
+                player = canvasPlayer;
                 updatePlayerPosition();
             };
         }
@@ -104,8 +89,9 @@
             y: containerHeight - 100
         };
 
-        // Generar carreteras
+        // Carreteras y obstáculos
         const roads = [];
+        const obstacles = [];
         const roadHeight = 50;
         const totalRoads = Math.ceil(containerHeight / roadHeight) + 1;
 
@@ -136,9 +122,20 @@
             roads.push({ element: road, y: y, type: type });
         }
 
+        function createObstacle(y) {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.style.top = `${y}px`;
+            obstacle.style.left = `${Math.random() * (containerWidth - 50)}px`;
+            let speed = (Math.random() > 0.5 ? 3 : -3);
+            gameContainer.appendChild(obstacle);
+            obstacles.push({ element: obstacle, x: parseFloat(obstacle.style.left), y: y, speed });
+        }
+
         for (let i = 0; i < totalRoads; i++) {
             const type = Math.floor(Math.random() * 2);
             createRoad(i * roadHeight, type);
+            if (type === 0 && Math.random() > 0.7) createObstacle(i * roadHeight);
         }
 
         // Actualizar posición del jugador
@@ -149,9 +146,12 @@
             }
         }
 
-        // Movimiento del jugador
+        // Movimiento del jugador con salto
         function movePlayer(direction) {
             const step = 50;
+            player.classList.add('jumping');
+            setTimeout(() => player.classList.remove('jumping'), 300);
+
             switch(direction) {
                 case 'up':
                     if (playerPos.y > 0) playerPos.y -= step;
@@ -179,42 +179,91 @@
             }
         });
 
-        // Controles táctiles (móvil)
-        const buttons = document.querySelectorAll('.control-btn');
-        buttons.forEach(button => {
-            button.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const direction = button.getAttribute('data-direction');
-                movePlayer(direction);
-            });
-            button.addEventListener('touchend', (e) => e.preventDefault());
-            button.addEventListener('touchmove', (e) => e.preventDefault());
+        // Controles táctiles con gestos
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        gameContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            movePlayer('up'); // Tocar avanza hacia arriba
         });
 
-        // Scroll del terreno
-        function updateRoads() {
-            roads.forEach(road => {
-                road.y += 2;
-                road.element.style.top = `${road.y}px`;
-                
-                if (road.y > containerHeight) {
-                    road.y -= totalRoads * roadHeight;
-                    road.type = Math.floor(Math.random() * 2);
-                    if (road.element.tagName === 'CANVAS') {
-                        const ctx = road.element.getContext('2d');
-                        ctx.fillStyle = road.type === 0 ? '#808080' : '#90EE90';
-                        ctx.fillRect(0, 0, containerWidth, 50);
-                    } else {
-                        road.element.src = `images/road${road.type}.png`;
+        gameContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+
+            // Detectar deslizamiento (umbral de 30px para evitar movimientos accidentales)
+            if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Deslizamiento horizontal
+                    if (dx > 0) movePlayer('right');
+                    else movePlayer('left');
+                } else {
+                    // Deslizamiento vertical
+                    if (dy > 0) movePlayer('down');
+                }
+                // Reiniciar posición inicial para evitar múltiples movimientos
+                touchStartX = touchEndX;
+                touchStartY = touchEndY;
+            }
+        });
+
+        gameContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+        });
+
+        // Scroll del terreno y obstáculos
+        function updateGame() {
+            if (playerPos.y < halfHeight) {
+                roads.forEach(road => {
+                    road.y += 2;
+                    road.element.style.top = `${road.y}px`;
+                    if (road.y > containerHeight) {
+                        road.y -= totalRoads * roadHeight;
+                        road.type = Math.floor(Math.random() * 2);
+                        if (road.element.tagName === 'CANVAS') {
+                            const ctx = road.element.getContext('2d');
+                            ctx.fillStyle = road.type === 0 ? '#808080' : '#90EE90';
+                            ctx.fillRect(0, 0, containerWidth, 50);
+                        } else {
+                            road.element.src = `images/road${road.type}.png`;
+                        }
+                        if (road.type === 0 && Math.random() > 0.7) createObstacle(road.y);
                     }
+                });
+
+                obstacles.forEach(obstacle => {
+                    obstacle.y += 2;
+                    obstacle.element.style.top = `${obstacle.y}px`;
+                });
+            }
+
+            obstacles.forEach((obstacle, index) => {
+                obstacle.x += obstacle.speed;
+                obstacle.element.style.left = `${obstacle.x}px`;
+                if (obstacle.x < -50 || obstacle.x > containerWidth) {
+                    obstacle.element.remove();
+                    obstacles.splice(index, 1);
+                }
+
+                if (playerPos.x < obstacle.x + 50 && playerPos.x + 50 > obstacle.x &&
+                    playerPos.y < obstacle.y + 50 && playerPos.y + 50 > obstacle.y) {
+                    alert('¡Perdiste!');
+                    location.reload();
                 }
             });
-            requestAnimationFrame(updateRoads);
+
+            requestAnimationFrame(updateGame);
         }
 
         // Iniciar el juego
         setupPlayer();
-        requestAnimationFrame(updateRoads);
+        requestAnimationFrame(updateGame);
     </script>
 </body>
 </html>
