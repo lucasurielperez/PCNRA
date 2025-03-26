@@ -8,7 +8,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            touch-action: none; /* Evita gestos predeterminados */
+            touch-action: none;
         }
         #gameContainer {
             position: relative;
@@ -35,7 +35,7 @@
             transform: translateX(-50%);
             display: flex;
             gap: 20px;
-            z-index: 10; /* Asegura que estén sobre el juego */
+            z-index: 10;
         }
         .control-btn {
             width: 60px;
@@ -47,7 +47,11 @@
             justify-content: center;
             font-size: 24px;
             user-select: none;
-            touch-action: manipulation; /* Mejora la respuesta táctil */
+            touch-action: manipulation;
+            transition: background 0.2s; /* Transición suave */
+        }
+        .control-btn:active {
+            background: rgba(200, 200, 200, 0.9); /* Cambio al tocar */
         }
     </style>
 </head>
@@ -64,21 +68,34 @@
 
     <script>
         const gameContainer = document.getElementById('gameContainer');
-        const player = document.getElementById('player');
+        let player = document.getElementById('player'); // No lo eliminamos aún
         const containerWidth = window.innerWidth;
         const containerHeight = window.innerHeight;
 
-        // Fallback del jugador si no carga la imagen
-        if (!player.complete || player.naturalWidth === 0) {
-            const canvasPlayer = document.createElement('canvas');
-            canvasPlayer.id = 'player';
-            canvasPlayer.width = 50;
-            canvasPlayer.height = 50;
-            const ctx = canvasPlayer.getContext('2d');
-            ctx.fillStyle = '#FF0000';
-            ctx.fillRect(10, 10, 30, 30);
-            gameContainer.appendChild(canvasPlayer);
-            player.remove();
+        // Manejo del jugador con fallback
+        function setupPlayer() {
+            const img = new Image();
+            img.src = 'images/player.png';
+            
+            img.onload = function() {
+                player = document.getElementById('player');
+                updatePlayerPosition();
+            };
+            
+            img.onerror = function() {
+                const canvasPlayer = document.createElement('canvas');
+                canvasPlayer.id = 'player';
+                canvasPlayer.width = 50;
+                canvasPlayer.height = 50;
+                const ctx = canvasPlayer.getContext('2d');
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(10, 10, 30, 30);
+                gameContainer.appendChild(canvasPlayer);
+                const oldPlayer = document.getElementById('player');
+                if (oldPlayer) oldPlayer.remove();
+                player = canvasPlayer; // Actualizamos la referencia
+                updatePlayerPosition();
+            };
         }
 
         // Configuración inicial del jugador
@@ -126,9 +143,10 @@
 
         // Actualizar posición del jugador
         function updatePlayerPosition() {
-            const playerElement = document.getElementById('player');
-            playerElement.style.left = `${playerPos.x}px`;
-            playerElement.style.top = `${playerPos.y}px`;
+            if (player) {
+                player.style.left = `${playerPos.x}px`;
+                player.style.top = `${playerPos.y}px`;
+            }
         }
 
         // Movimiento del jugador
@@ -165,12 +183,10 @@
         const buttons = document.querySelectorAll('.control-btn');
         buttons.forEach(button => {
             button.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // Evita comportamientos no deseados
+                e.preventDefault();
                 const direction = button.getAttribute('data-direction');
                 movePlayer(direction);
             });
-
-            // Opcional: Evitar que el navegador interprete toques prolongados
             button.addEventListener('touchend', (e) => e.preventDefault());
             button.addEventListener('touchmove', (e) => e.preventDefault());
         });
@@ -197,7 +213,7 @@
         }
 
         // Iniciar el juego
-        updatePlayerPosition();
+        setupPlayer();
         requestAnimationFrame(updateRoads);
     </script>
 </body>
