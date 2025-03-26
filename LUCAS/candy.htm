@@ -506,7 +506,7 @@
         return matches;
     }
 
-    <script>
+
     function explodeBomb(row, col, radius) {
         bombsExploded++;
         for (let r = Math.max(0, row - radius); r <= Math.min(GRID_SIZE_ROWS - 1, row + radius); r++) {
@@ -747,7 +747,7 @@
         }, ANIMATION_DURATION);
     }
 
-    <script>
+    
     function dropFruits() {
         isAnimating = true;
         for (let col = 0; col < GRID_SIZE_COLS; col++) {
