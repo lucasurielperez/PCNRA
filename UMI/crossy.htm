@@ -2,14 +2,20 @@
 <html>
 <head>
     <title>Crossy Road Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
         #gameContainer {
             position: relative;
-            width: 600px;
-            height: 800px;
+            width: 100vw;
+            height: 100vh;
             background: #70c5ce;
             overflow: hidden;
-            margin: 0 auto;
+            touch-action: none; /* Evita el scroll en móviles */
         }
         #player {
             position: absolute;
@@ -22,27 +28,68 @@
             width: 100%;
             height: 50px;
         }
+        #controls {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            user-select: none;
+            touch-action: manipulation;
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <img id="player" src="images/player.png">
     </div>
+    <div id="controls">
+        <div class="control-btn" ontouchstart="movePlayer('up')" ontouchend="e.preventDefault()">↑</div>
+        <div class="control-btn" ontouchstart="movePlayer('left')" ontouchend="e.preventDefault()">←</div>
+        <div class="control-btn" ontouchstart="movePlayer('right')" ontouchend="e.preventDefault()">→</div>
+        <div class="control-btn" ontouchstart="movePlayer('down')" ontouchend="e.preventDefault()">↓</div>
+    </div>
 
     <script>
         const gameContainer = document.getElementById('gameContainer');
         const player = document.getElementById('player');
-        
+        const containerWidth = window.innerWidth;
+        const containerHeight = window.innerHeight;
+
+        // Ajustar el fallback del jugador si no carga la imagen
+        if (!player.complete || player.naturalWidth === 0) {
+            const canvasPlayer = document.createElement('canvas');
+            canvasPlayer.id = 'player';
+            canvasPlayer.width = 50;
+            canvasPlayer.height = 50;
+            const ctx = canvasPlayer.getContext('2d');
+            ctx.fillStyle = '#FF0000'; // Jugador rojo simple
+            ctx.fillRect(10, 10, 30, 30);
+            gameContainer.appendChild(canvasPlayer);
+            player.remove();
+        }
+
         // Configuración inicial del jugador
         let playerPos = {
-            x: 275, // Centro horizontal
-            y: 700  // Cerca del fondo
+            x: containerWidth / 2 - 25, // Centro horizontal
+            y: containerHeight - 100    // Cerca del fondo
         };
-        
+
         // Generar carreteras
         const roads = [];
         const roadHeight = 50;
-        const totalRoads = 16; // Cubrir la pantalla
+        const totalRoads = Math.ceil(containerHeight / roadHeight) + 1;
 
         function createRoad(y, type) {
             let road;
@@ -50,71 +97,84 @@
             img.src = `images/road${type}.png`;
             
             img.onerror = function() {
-                // Si la imagen no carga, usar Canvas
+                // Fallback a Canvas si la imagen no carga
                 road = document.createElement('canvas');
-                road.width = 600;
+                road.width = containerWidth;
                 road.height = 50;
                 const ctx = road.getContext('2d');
                 ctx.fillStyle = type === 0 ? '#808080' : '#90EE90';
-                ctx.fillRect(0, 0, 600, 50);
+                ctx.fillRect(0, 0, containerWidth, 50);
+                road.className = 'road';
+                road.style.top = `${y}px`;
+                gameContainer.appendChild(road);
             };
             
             img.onload = function() {
                 road = img;
+                road.className = 'road';
+                road.style.top = `${y}px`;
+                gameContainer.appendChild(road);
             };
             
-            road.className = 'road';
-            road.style.top = `${y}px`;
-            gameContainer.appendChild(road);
             roads.push({ element: road, y: y, type: type });
         }
 
         // Crear el terreno inicial
         for (let i = 0; i < totalRoads; i++) {
-            const type = Math.floor(Math.random() * 2); // 0 para carretera, 1 para césped
+            const type = Math.floor(Math.random() * 2);
             createRoad(i * roadHeight, type);
         }
 
-        // Movimiento del jugador
+        // Actualizar posición del jugador
         function updatePlayerPosition() {
-            player.style.left = `${playerPos.x}px`;
-            player.style.top = `${playerPos.y}px`;
+            const playerElement = document.getElementById('player');
+            playerElement.style.left = `${playerPos.x}px`;
+            playerElement.style.top = `${playerPos.y}px`;
         }
 
-        // Controles
-        document.addEventListener('keydown', (e) => {
+        // Movimiento del jugador
+        function movePlayer(direction) {
             const step = 50;
-            switch(e.key) {
-                case 'ArrowUp':
+            switch(direction) {
+                case 'up':
                     if (playerPos.y > 0) playerPos.y -= step;
                     break;
-                case 'ArrowDown':
-                    if (playerPos.y < 750) playerPos.y += step;
+                case 'down':
+                    if (playerPos.y < containerHeight - 50) playerPos.y += step;
                     break;
-                case 'ArrowLeft':
+                case 'left':
                     if (playerPos.x > 0) playerPos.x -= step;
                     break;
-                case 'ArrowRight':
-                    if (playerPos.x < 550) playerPos.x += step;
+                case 'right':
+                    if (playerPos.x < containerWidth - 50) playerPos.x += step;
                     break;
             }
             updatePlayerPosition();
+        }
+
+        // Controles para teclado (PC)
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp': movePlayer('up'); break;
+                case 'ArrowDown': movePlayer('down'); break;
+                case 'ArrowLeft': movePlayer('left'); break;
+                case 'ArrowRight': movePlayer('right'); break;
+            }
         });
 
         // Scroll del terreno
         function updateRoads() {
             roads.forEach(road => {
-                road.y += 2; // Velocidad del scroll
+                road.y += 2;
                 road.element.style.top = `${road.y}px`;
                 
-                // Reposicionar carreteras que salen de la pantalla
-                if (road.y > 800) {
-                    road.y -= 800;
+                if (road.y > containerHeight) {
+                    road.y -= totalRoads * roadHeight;
                     road.type = Math.floor(Math.random() * 2);
                     if (road.element.tagName === 'CANVAS') {
                         const ctx = road.element.getContext('2d');
                         ctx.fillStyle = road.type === 0 ? '#808080' : '#90EE90';
-                        ctx.fillRect(0, 0, 600, 50);
+                        ctx.fillRect(0, 0, containerWidth, 50);
                     } else {
                         road.element.src = `images/road${road.type}.png`;
                     }
