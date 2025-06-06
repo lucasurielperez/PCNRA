@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Botón Iridiscente con Color Tracking</title>
+    <title>Botón Iridiscente Sutil</title>
     <style>
         body {
             display: flex;
@@ -11,34 +11,32 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: #f5f5f5;
         }
 
         #iridescentButton {
-            padding: 20px 40px;
-            font-size: 18px;
-            font-weight: bold;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
             border: none;
-            border-radius: 50px;
+            border-radius: 25px;
             cursor: pointer;
-            color: white;
+            color: #333;
             text-transform: uppercase;
             background: linear-gradient(
                 45deg,
-                #ff6ec4,
-                #7873f5,
-                #00c6ff,
-                #f0f,
-                #00ffcc,
-                #ff0
+                #e0e7ff,
+                #e6e6fa,
+                #e0f7fa,
+                #f0e4ff
             );
-            background-size: 600%;
-            transition: background 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background-size: 400%;
+            transition: background 0.5s ease, transform 0.2s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         #iridescentButton:hover {
-            transform: scale(1.05);
+            transform: scale(1.03);
         }
     </style>
 </head>
@@ -54,20 +52,21 @@
 
         // Manejar el evento de movimiento del dispositivo
         window.addEventListener('deviceorientation', (event) => {
-            // Obtener valores de inclinación (beta y gamma)
-            let beta = normalize(event.beta, -90, 90); // Inclinación frente-atrás
-            let gamma = normalize(event.gamma, -90, 90); // Inclinación izquierda-derecha
+            // Obtener valores de inclinación (beta y gamma) y suavizarlos
+            let beta = normalize(event.beta, -30, 30); // Reducir rango para suavidad
+            let gamma = normalize(event.gamma, -30, 30); // Reducir rango para suavidad
 
-            // Mapear los valores de inclinación a porcentajes para el degradado
-            let hue1 = Math.round((beta + 90) * 2); // Mapear de -90 a 90 a 0-360
-            let hue2 = Math.round((gamma + 90) * 2); // Mapear de -90 a 90 a 0-360
+            // Mapear inclinación a valores HSL sutiles
+            let hue = 200 + (beta + gamma) * 0.5; // Rango de tonos azules/pastel (200-240)
+            let saturation = 20; // Baja saturación para colores suaves
+            let lightness = 90; // Alta luminosidad para efecto claro
 
-            // Actualizar el fondo del botón con un degradado dinámico
+            // Actualizar el fondo del botón con un degradado suave
             button.style.background = `linear-gradient(
                 45deg,
-                hsl(${hue1}, 100%, 50%),
-                hsl(${hue2}, 100%, 50%),
-                hsl(${(hue1 + hue2) / 2}, 100%, 50%)
+                hsl(${hue}, ${saturation}%, ${lightness}%),
+                hsl(${hue + 20}, ${saturation}%, ${lightness}%),
+                hsl(${hue + 40}, ${saturation}%, ${lightness}%)
             )`;
         });
 
@@ -77,7 +76,7 @@
                 DeviceOrientationEvent.requestPermission()
                     .then(permissionState => {
                         if (permissionState === 'granted') {
-                            alert('¡Permiso concedido! Mueve tu dispositivo.');
+                            alert('¡Permiso concedido! Mueve tu dispositivo suavemente.');
                         } else {
                             alert('Permiso denegado. El efecto no funcionará.');
                         }
