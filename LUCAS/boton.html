@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botón Iridiscente con Color Tracking</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        #iridescentButton {
+            padding: 20px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            color: white;
+            text-transform: uppercase;
+            background: linear-gradient(
+                45deg,
+                #ff6ec4,
+                #7873f5,
+                #00c6ff,
+                #f0f,
+                #00ffcc,
+                #ff0
+            );
+            background-size: 600%;
+            transition: background 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #iridescentButton:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <button id="iridescentButton">¡Toca y mueve!</button>
+    <script>
+        const button = document.getElementById('iridescentButton');
+
+        // Función para normalizar valores del acelerómetro
+        function normalize(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        // Manejar el evento de movimiento del dispositivo
+        window.addEventListener('deviceorientation', (event) => {
+            // Obtener valores de inclinación (beta y gamma)
+            let beta = normalize(event.beta, -90, 90); // Inclinación frente-atrás
+            let gamma = normalize(event.gamma, -90, 90); // Inclinación izquierda-derecha
+
+            // Mapear los valores de inclinación a porcentajes para el degradado
+            let hue1 = Math.round((beta + 90) * 2); // Mapear de -90 a 90 a 0-360
+            let hue2 = Math.round((gamma + 90) * 2); // Mapear de -90 a 90 a 0-360
+
+            // Actualizar el fondo del botón con un degradado dinámico
+            button.style.background = `linear-gradient(
+                45deg,
+                hsl(${hue1}, 100%, 50%),
+                hsl(${hue2}, 100%, 50%),
+                hsl(${(hue1 + hue2) / 2}, 100%, 50%)
+            )`;
+        });
+
+        // Solicitar permiso para usar el acelerómetro en iOS
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            button.addEventListener('click', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            alert('¡Permiso concedido! Mueve tu dispositivo.');
+                        } else {
+                            alert('Permiso denegado. El efecto no funcionará.');
+                        }
+                    })
+                    .catch(console.error);
+            });
+        }
+    </script>
+</body>
+</html>
