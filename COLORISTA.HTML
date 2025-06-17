@@ -30,7 +30,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover; /* Asegura que el video cubra el área sin distorsión */
-            transform: scaleX(-1); /* Voltear horizontalmente para que sea como un espejo si es la cámara frontal */
+            /* Eliminamos transform: scaleX(-1); para evitar el espejo */
         }
         #overlayCanvas {
             position: absolute;
@@ -48,7 +48,14 @@
             padding: 20px;
             box-sizing: border-box;
         }
-        #captureButton {
+        .action-buttons {
+            display: flex;
+            gap: 20px; /* Espacio entre los botones */
+            margin-bottom: 20px;
+            position: relative;
+            top: -35px; /* Superpone los botones un poco en el video */
+        }
+        .control-button {
             background-color: #007bff;
             color: white;
             border: none;
@@ -61,14 +68,11 @@
             align-items: center;
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
-            position: relative;
-            top: -35px; /* Superpone el botón un poco en el video */
         }
-        #captureButton:active {
+        .control-button:active {
             background-color: #0056b3;
         }
-        .icon-camera {
+        .icon {
             font-family: 'Material Icons'; /* Necesitarás enlazar Material Icons o usar un SVG/imagen */
             font-size: 30px;
         }
@@ -80,9 +84,8 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        #results div {
-            margin-bottom: 10px;
-            font-size: 1.1em;
+        #results h3 {
+            margin-top: 0;
         }
         #colorPreview {
             width: 100px;
@@ -90,6 +93,19 @@
             border: 1px solid #ccc;
             margin: 10px auto;
             border-radius: 5px;
+        }
+        #colorFormats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+        }
+        #colorFormats div {
+            font-size: 1.1em;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            margin: 5px; /* Pequeño margen para separación */
         }
     </style>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -101,15 +117,22 @@
     </div>
 
     <div id="controls">
-        <button id="captureButton">
-            <i class="material-icons icon-camera">camera_alt</i>
-        </button>
+        <div class="action-buttons">
+            <button id="toggleFlashButton" class="control-button">
+                <i class="material-icons icon">flash_on</i>
+            </button>
+            <button id="captureButton" class="control-button">
+                <i class="material-icons icon">camera_alt</i>
+            </button>
+        </div>
         <div id="results">
             <h3>Color Detectado:</h3>
             <div id="colorPreview"></div>
-            <div id="rgbResult">RGB: ---</div>
-            <div id="cmykResult">CMYK: ---</div>
-            <div id="loadingMessage" style="display:none; color: gray;">Cargando cámara...</div>
+            <div id="colorFormats">
+                <div id="rgbResult">RGB: ---</div>
+                <div id="cmykResult">CMYK: ---</div>
+            </div>
+            <div id="loadingMessage" style="display:none; color: gray; margin-top: 10px;">Cargando cámara...</div>
         </div>
     </div>
 
@@ -118,27 +141,47 @@
         const overlayCanvas = document.getElementById('overlayCanvas');
         const overlayCtx = overlayCanvas.getContext('2d', { willReadFrequently: true });
         const captureButton = document.getElementById('captureButton');
+        const toggleFlashButton = document.getElementById('toggleFlashButton');
         const colorPreview = document.getElementById('colorPreview');
         const rgbResult = document.getElementById('rgbResult');
         const cmykResult = document.getElementById('cmykResult');
         const loadingMessage = document.getElementById('loadingMessage');
+        const flashIcon = toggleFlashButton.querySelector('.icon');
 
         let stream;
         let videoWidth, videoHeight;
         let circleRadius;
         let circleX, circleY;
+        let track; // Para el control de la linterna
+        let flashEnabled = false;
 
         // Función para solicitar acceso a la cámara
         async function startCamera() {
             loadingMessage.style.display = 'block';
             try {
-                // Preferir la cámara trasera si está disponible
+                // Preferir la cámara trasera (environment) y solicitar acceso al flash
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: { exact: "environment" } // Preferir cámara trasera
+                        facingMode: { exact: "environment" },
+                        // Propiedades avanzadas para el control de la linterna
+                        // Nota: La disponibilidad puede variar entre dispositivos y navegadores.
+                        advanced: [{ torch: true }]
                     }
                 });
                 video.srcObject = stream;
+
+                // Obtener el MediaStreamTrack para controlar la linterna
+                track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+
+                // Habilitar o deshabilitar el botón de la linterna si el dispositivo la soporta
+                if (capabilities.torch) {
+                    toggleFlashButton.style.display = 'flex'; // Mostrar el botón si soporta linterna
+                } else {
+                    toggleFlashButton.style.display = 'none'; // Ocultar si no soporta
+                    console.warn("La linterna no es soportada en este dispositivo/navegador.");
+                }
+
 
                 video.onloadedmetadata = () => {
                     video.play();
@@ -177,6 +220,7 @@
                 console.error("Error al acceder a la cámara: ", err);
                 alert("No se pudo acceder a la cámara. Asegúrate de haber otorgado los permisos. Error: " + err.message);
                 loadingMessage.innerText = 'Error al cargar la cámara.';
+                toggleFlashButton.style.display = 'none'; // Asegurarse de ocultar el botón de flash si la cámara falla
             }
         }
 
@@ -288,6 +332,25 @@
                 colorPreview.style.backgroundColor = `#ccc`;
             }
         });
+
+        // Event listener para el botón de la linterna
+        toggleFlashButton.addEventListener('click', async () => {
+            if (track) {
+                try {
+                    flashEnabled = !flashEnabled;
+                    await track.applyConstraints({
+                        advanced: [{ torch: flashEnabled }]
+                    });
+                    flashIcon.innerText = flashEnabled ? 'flash_off' : 'flash_on'; // Cambiar icono
+                } catch (err) {
+                    console.error("Error al controlar la linterna: ", err);
+                    alert("No se pudo controlar la linterna.");
+                }
+            } else {
+                alert("La cámara no está activa o no soporta linterna.");
+            }
+        });
+
 
         // Iniciar la cámara cuando la página se carga
         window.onload = startCamera;
