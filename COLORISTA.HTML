@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detector de Colores</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 50vh; /* Ocupa la mitad superior de la pantalla */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black; /* Fondo negro mientras carga la cámara */
+        }
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Asegura que el video cubra el área sin distorsión */
+            transform: scaleX(-1); /* Voltear horizontalmente para que sea como un espejo si es la cámara frontal */
+        }
+        #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Permite hacer clic a través del canvas */
+        }
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #captureButton {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            font-size: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+            position: relative;
+            top: -35px; /* Superpone el botón un poco en el video */
+        }
+        #captureButton:active {
+            background-color: #0056b3;
+        }
+        .icon-camera {
+            font-family: 'Material Icons'; /* Necesitarás enlazar Material Icons o usar un SVG/imagen */
+            font-size: 30px;
+        }
+        #results {
+            width: 90%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        #results div {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        #colorPreview {
+            width: 100px;
+            height: 50px;
+            border: 1px solid #ccc;
+            margin: 10px auto;
+            border-radius: 5px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div id="video-container">
+        <video id="videoElement" autoplay playsinline></video>
+        <canvas id="overlayCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <button id="captureButton">
+            <i class="material-icons icon-camera">camera_alt</i>
+        </button>
+        <div id="results">
+            <h3>Color Detectado:</h3>
+            <div id="colorPreview"></div>
+            <div id="rgbResult">RGB: ---</div>
+            <div id="cmykResult">CMYK: ---</div>
+            <div id="loadingMessage" style="display:none; color: gray;">Cargando cámara...</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const overlayCtx = overlayCanvas.getContext('2d', { willReadFrequently: true });
+        const captureButton = document.getElementById('captureButton');
+        const colorPreview = document.getElementById('colorPreview');
+        const rgbResult = document.getElementById('rgbResult');
+        const cmykResult = document.getElementById('cmykResult');
+        const loadingMessage = document.getElementById('loadingMessage');
+
+        let stream;
+        let videoWidth, videoHeight;
+        let circleRadius;
+        let circleX, circleY;
+
+        // Función para solicitar acceso a la cámara
+        async function startCamera() {
+            loadingMessage.style.display = 'block';
+            try {
+                // Preferir la cámara trasera si está disponible
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { exact: "environment" } // Preferir cámara trasera
+                    }
+                });
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    videoWidth = video.videoWidth;
+                    videoHeight = video.videoHeight;
+
+                    // Ajustar el tamaño del videoElement para que coincida con la resolución de la cámara
+                    // y mantener el aspect ratio en el contenedor.
+                    const aspectRatio = videoWidth / videoHeight;
+                    const containerWidth = video.parentElement.offsetWidth;
+                    const containerHeight = video.parentElement.offsetHeight;
+
+                    let newVideoWidth = containerWidth;
+                    let newVideoHeight = containerWidth / aspectRatio;
+
+                    if (newVideoHeight > containerHeight) {
+                        newVideoHeight = containerHeight;
+                        newVideoWidth = containerHeight * aspectRatio;
+                    }
+
+                    video.style.width = `${newVideoWidth}px`;
+                    video.style.height = `${newVideoHeight}px`;
+
+                    overlayCanvas.width = newVideoWidth;
+                    overlayCanvas.height = newVideoHeight;
+
+                    // Calcular el radio del círculo como el 10% del ancho del video
+                    circleRadius = overlayCanvas.width * 0.05; // 10% del ancho total
+                    circleX = overlayCanvas.width / 2;
+                    circleY = overlayCanvas.height / 2;
+
+                    drawOverlay();
+                    loadingMessage.style.display = 'none';
+                };
+            } catch (err) {
+                console.error("Error al acceder a la cámara: ", err);
+                alert("No se pudo acceder a la cámara. Asegúrate de haber otorgado los permisos. Error: " + err.message);
+                loadingMessage.innerText = 'Error al cargar la cámara.';
+            }
+        }
+
+        // Función para dibujar el círculo rojo en el canvas de superposición
+        function drawOverlay() {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            overlayCtx.beginPath();
+            overlayCtx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
+            overlayCtx.strokeStyle = 'red';
+            overlayCtx.lineWidth = 5;
+            overlayCtx.stroke();
+        }
+
+        // Función para convertir RGB a CMYK
+        function rgbToCmyk(r, g, b) {
+            let c = 1 - (r / 255);
+            let m = 1 - (g / 255);
+            let y = 1 - (b / 255);
+            let k = Math.min(c, Math.min(m, y));
+
+            if (k === 1) { // Si es negro puro, CMY son 0
+                return { c: 0, m: 0, y: 0, k: 100 };
+            }
+
+            c = (c - k) / (1 - k);
+            m = (m - k) / (1 - k);
+            y = (y - k) / (1 - k);
+
+            return {
+                c: Math.round(c * 100),
+                m: Math.round(m * 100),
+                y: Math.round(y * 100),
+                k: Math.round(k * 100)
+            };
+        }
+
+        // Event listener para el botón de captura
+        captureButton.addEventListener('click', () => {
+            if (!stream) {
+                alert("La cámara no está activa.");
+                return;
+            }
+
+            // Crear un canvas temporal para capturar la imagen del video
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+            // Dibujar el fotograma actual del video en el canvas temporal
+            tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+            // Calcular las coordenadas del círculo en el canvas original del video
+            // Necesitamos escalar las coordenadas del overlay al tamaño real del video
+            const scaleX = tempCanvas.width / overlayCanvas.width;
+            const scaleY = tempCanvas.height / overlayCanvas.height;
+
+            const captureCircleX = circleX * scaleX;
+            const captureCircleY = circleY * scaleY;
+            const captureCircleRadius = circleRadius * Math.min(scaleX, scaleY);
+
+            // Obtener los datos de los píxeles dentro del círculo
+            let rSum = 0, gSum = 0, bSum = 0, pixelCount = 0;
+
+            // Recorrer los píxeles dentro del cuadrado delimitador del círculo
+            const startX = Math.max(0, captureCircleX - captureCircleRadius);
+            const endX = Math.min(tempCanvas.width, captureCircleX + captureCircleRadius);
+            const startY = Math.max(0, captureCircleY - captureCircleRadius);
+            const endY = Math.min(tempCanvas.height, captureCircleY + captureCircleRadius);
+
+            const imageData = tempCtx.getImageData(startX, startY, endX - startX, endY - startY);
+            const pixels = imageData.data; // Array [R, G, B, A, R, G, B, A, ...]
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const x = (i / 4) % imageData.width;
+                const y = Math.floor((i / 4) / imageData.width);
+
+                // Convertir las coordenadas relativas al imageData a coordenadas absolutas del canvas
+                const absX = startX + x;
+                const absY = startY + y;
+
+                // Verificar si el pixel está dentro del círculo
+                const distance = Math.sqrt(Math.pow(absX - captureCircleX, 2) + Math.pow(absY - captureCircleY, 2));
+                if (distance <= captureCircleRadius) {
+                    rSum += pixels[i];     // Red
+                    gSum += pixels[i + 1]; // Green
+                    bSum += pixels[i + 2]; // Blue
+                    pixelCount++;
+                }
+            }
+
+            if (pixelCount > 0) {
+                const avgR = Math.round(rSum / pixelCount);
+                const avgG = Math.round(gSum / pixelCount);
+                const avgB = Math.round(bSum / pixelCount);
+
+                // Mostrar el color en el cuadro de vista previa
+                colorPreview.style.backgroundColor = `rgb(${avgR}, ${avgG}, ${avgB})`;
+
+                // Mostrar resultados RGB
+                rgbResult.innerText = `RGB: (${avgR}, ${avgG}, ${avgB})`;
+
+                // Convertir y mostrar resultados CMYK
+                const cmyk = rgbToCmyk(avgR, avgG, avgB);
+                cmykResult.innerText = `CMYK: (${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`;
+            } else {
+                rgbResult.innerText = `RGB: No se detectaron píxeles`;
+                cmykResult.innerText = `CMYK: No se detectaron píxeles`;
+                colorPreview.style.backgroundColor = `#ccc`;
+            }
+        });
+
+        // Iniciar la cámara cuando la página se carga
+        window.onload = startCamera;
+        // También redibujar el overlay si la ventana cambia de tamaño (orientación del iPhone)
+        window.addEventListener('resize', () => {
+            if (video.srcObject) { // Si la cámara ya está activa
+                 videoWidth = video.videoWidth;
+                 videoHeight = video.videoHeight;
+
+                 const aspectRatio = videoWidth / videoHeight;
+                 const containerWidth = video.parentElement.offsetWidth;
+                 const containerHeight = video.parentElement.offsetHeight;
+
+                 let newVideoWidth = containerWidth;
+                 let newVideoHeight = containerWidth / aspectRatio;
+
+                 if (newVideoHeight > containerHeight) {
+                     newVideoHeight = containerHeight;
+                     newVideoWidth = containerHeight * aspectRatio;
+                 }
+
+                 video.style.width = `${newVideoWidth}px`;
+                 video.style.height = `${newVideoHeight}px`;
+
+                 overlayCanvas.width = newVideoWidth;
+                 overlayCanvas.height = newVideoHeight;
+
+                 circleRadius = overlayCanvas.width * 0.05;
+                 circleX = overlayCanvas.width / 2;
+                 circleY = overlayCanvas.height / 2;
+                 drawOverlay();
+            }
+        });
+    </script>
+</body>
+</html>
