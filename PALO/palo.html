@@ -524,7 +524,339 @@
     </div>
   </div>
 
-  <!-- PARTE 2/3: pegá el <script> acá abajo -->
+   // =========================
+// PARTE 2/3 — Lógica principal + UI + Modal + Pistas Canvas
+// =========================
+
+// Config del juego
+const GAME = {
+  red:   { code: "1234", hint: "((8+2)*(9+1))*(7+5)+(6+4)+(3*8)" },
+  green: { code: "8607", hint: "Año que nació Lucas + año que nació Dana + la altura de San Pedro" },
+  blue:  { code: "7654", hint:
+    "Preguntá el número a Umi, Juli, Dana y Lucas.\n" +
+    "Los números están ordenados de mayor a menor,\n" +
+    "pero las personas a las que tenés que preguntar es\n" +
+    "del menor al mayor edad."
+  },
+  winMessage:
+    "Feliz cumple Paloooo te queremos mucho 🩵 todos los éxitos del mundo para este nuevo año!! " +
+    "Los tíos Lucas y Dana y Umi aaaa pásanos el alias o cbu 🤣🩵"
+};
+
+// Estado
+const state = {
+  red:false,
+  green:false,
+  blue:false
+};
+
+// Helpers DOM
+const $ = (id) => document.getElementById(id);
+
+function toast(icon, msg, ms=1600){
+  const el = $("toast");
+  $("toastIcon").textContent = icon;
+  $("toastMsg").textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=> el.classList.remove("show"), ms);
+}
+
+function vibrate(pattern=[18]){
+  try{ if (navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+}
+
+function setupNumericInput(input){
+  input.addEventListener("input", ()=>{
+    input.value = (input.value || "").replace(/\D/g,"").slice(0,4);
+  });
+  input.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") input.blur();
+  });
+}
+
+function updateProgress(){
+  const done = [state.red, state.green, state.blue].filter(Boolean).length;
+  $("badge").textContent = `${done}/3`;
+  $("dot1").classList.toggle("done", state.red);
+  $("dot2").classList.toggle("done", state.green);
+  $("dot3").classList.toggle("done", state.blue);
+}
+
+// Cambia icono/estado del candado y anima
+function setDone(color, done){
+  const status = $("status-"+color);
+  const lock = $("lock-"+color);
+  const card = $("card-"+color);
+
+  if(done){
+    status.textContent = "Desbloqueado";
+    lock.innerHTML = `
+      <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M6 10h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2Z" stroke="rgba(255,255,255,.85)" stroke-width="2" />
+      <path d="M9.5 16.2l1.7 1.9 3.4-4.3" stroke="rgba(34,197,94,.95)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    `;
+    card.classList.remove("shake");
+    card.classList.add("pop","pulse");
+    setTimeout(()=> card.classList.remove("pop","pulse"), 950);
+  } else {
+    status.textContent = "Bloqueado";
+  }
+}
+
+// Mini util redondear rectángulos en canvas
+function roundRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+
+// Render de pista como sticker (anti-copy)
+function drawSticker(canvas, title, text, accent){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  // Fondo
+  ctx.clearRect(0,0,W,H);
+  const g = ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0, "rgba(255,255,255,0.10)");
+  g.addColorStop(1, "rgba(0,0,0,0.18)");
+  ctx.fillStyle = g;
+  roundRect(ctx, 14, 14, W-28, H-28, 26);
+  ctx.fill();
+
+  // Borde
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  roundRect(ctx, 14, 14, W-28, H-28, 26);
+  ctx.stroke();
+
+  // Cinta arriba
+  ctx.save();
+  ctx.globalAlpha = 0.95;
+  const tapeW = W*0.56, tapeH = 46;
+  const tx = (W - tapeW)/2, ty = 12;
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  roundRect(ctx, tx, ty, tapeW, tapeH, 18);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 2;
+  roundRect(ctx, tx, ty, tapeW, tapeH, 18);
+  ctx.stroke();
+  ctx.restore();
+
+  // Título
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "900 34px ui-sans-serif, system-ui, -apple-system";
+  ctx.textAlign = "center";
+  ctx.fillText(title, W/2, 62);
+  ctx.restore();
+
+  // Subrayado
+  ctx.save();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(W*0.22, 76);
+  ctx.lineTo(W*0.78, 76);
+  ctx.stroke();
+  ctx.restore();
+
+  // Texto con wrap
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,0.90)";
+  ctx.font = "800 28px ui-sans-serif, system-ui, -apple-system";
+  ctx.textAlign = "left";
+
+  const paddingX = 52;
+  const startY = 130;
+  const lineH = 38;
+  const maxW = W - paddingX*2;
+
+  const lines = wrapText(ctx, text, maxW);
+  let y = startY;
+  for(const ln of lines.slice(0, 4)){ // 4 líneas, entra perfecto en 140px en el DOM
+    ctx.fillText(ln, paddingX, y);
+    y += lineH;
+  }
+
+  // Brillitos
+  ctx.globalAlpha = 0.6;
+  for(let i=0;i<10;i++){
+    const x = 50 + Math.random()*(W-100);
+    const yy = 100 + Math.random()*(H-140);
+    ctx.fillStyle = "rgba(255,255,255,0.20)";
+    ctx.beginPath();
+    ctx.arc(x, yy, 2 + Math.random()*2, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function wrapText(ctx, text, maxWidth){
+  const raw = (text || "").split("\n");
+  const out = [];
+  for(const block of raw){
+    const words = block.split(/\s+/).filter(Boolean);
+    let line = "";
+    for(const w of words){
+      const test = line ? line + " " + w : w;
+      if(ctx.measureText(test).width <= maxWidth){
+        line = test;
+      } else {
+        if(line) out.push(line);
+        line = w;
+      }
+    }
+    if(line) out.push(line);
+  }
+  return out;
+}
+
+// Modal confirmación de pista
+const modal = {
+  open: false,
+  onOk: null
+};
+
+function showModal({title, text, onOk}){
+  modal.open = true;
+  modal.onOk = onOk;
+  $("modalTitle").textContent = title || "¿Seguro, Paloma?";
+  $("modalText").textContent = text || "Si pedís la pista, te da ventaja 😏";
+  $("modal").classList.add("show");
+  $("modal").setAttribute("aria-hidden", "false");
+}
+
+function closeModal(){
+  modal.open = false;
+  modal.onOk = null;
+  $("modal").classList.remove("show");
+  $("modal").setAttribute("aria-hidden", "true");
+}
+
+$("modalCancel").addEventListener("click", ()=>{
+  toast("🫣","Listo, sin pista. Valiente.");
+  closeModal();
+});
+$("modalOk").addEventListener("click", ()=>{
+  const fn = modal.onOk;
+  closeModal();
+  if(typeof fn === "function") fn();
+});
+
+// Abrir pista (con confirmación)
+function requestHint(color){
+  const hintBox = $("hintbox-"+color);
+  const canvas = $("canvas-"+color);
+
+  // ya abierta
+  if(hintBox.style.display === "block"){
+    toast("👀","Esa pista ya está abierta.");
+    return;
+  }
+
+  showModal({
+    title: "¿Posta querés la pista, Paloma?",
+    text: "Te va a dar ventaja… después no digas que no te avisé 😏",
+    onOk: ()=>{
+      hintBox.style.display = "block";
+      const accent = (color==="red") ? "rgba(239,68,68,.95)" :
+                     (color==="green") ? "rgba(34,197,94,.95)" :
+                     "rgba(59,130,246,.95)";
+      const title = (color==="red") ? "PISTA ROJA" :
+                    (color==="green") ? "PISTA VERDE" : "PISTA AZUL";
+      drawSticker(canvas, title, GAME[color].hint, accent);
+      toast("🧩","Ahí va la pista… usala con responsabilidad 😇");
+      vibrate([12, 40, 12]);
+    }
+  });
+}
+
+// Chequear código
+function checkCode(color){
+  const input = $("input-"+color);
+  const card = $("card-"+color);
+  const val = (input.value || "").replace(/\D/g,"").slice(0,4);
+
+  if(state[color]){
+    toast("✅","Ese ya está desbloqueado, Paloma.");
+    return;
+  }
+
+  if(val.length < 4){
+    toast("🧠","Son 4 dígitos, che 😉");
+    card.classList.remove("shake");
+    void card.offsetWidth;
+    card.classList.add("shake");
+    vibrate([20]);
+    return;
+  }
+
+  if(val === GAME[color].code){
+    state[color] = true;
+    setDone(color, true);
+    updateProgress();
+
+    const name = (color==="red") ? "ROJO" : (color==="green") ? "VERDE" : "AZUL";
+    toast("🎉", `Bien ahí, Paloma 😎 Código ${name} desbloqueado.`, 1900);
+    vibrate([30, 40, 30]);
+
+    // bloquear input/botón para que no rompa
+    input.blur();
+    input.disabled = true;
+    $("btn-"+color).disabled = true;
+
+    // si ya están los 3, victoria en parte 3 (confetti + overlay)
+    if(state.red && state.green && state.blue){
+      // se ejecuta en Parte 3 (winSequence)
+      if(typeof winSequence === "function") winSequence();
+    }
+  } else {
+    toast("❌","Mmm… ese no. Probá de nuevo 😏");
+    card.classList.remove("shake");
+    void card.offsetWidth;
+    card.classList.add("shake");
+    vibrate([35]);
+    input.select?.(); // en iOS a veces no hace nada, pero ok
+  }
+}
+
+// Setup inputs y botones
+setupNumericInput($("input-red"));
+setupNumericInput($("input-green"));
+setupNumericInput($("input-blue"));
+
+$("btn-red").addEventListener("click", ()=>checkCode("red"));
+$("btn-green").addEventListener("click", ()=>checkCode("green"));
+$("btn-blue").addEventListener("click", ()=>checkCode("blue"));
+
+$("hint1-red").addEventListener("click", ()=>requestHint("red"));
+$("hint1-green").addEventListener("click", ()=>requestHint("green"));
+$("hint1-blue").addEventListener("click", ()=>requestHint("blue"));
+
+// Pequeña ayuda: si completó 4 dígitos, auto-verifica al tocar Enter o al perder foco
+["red","green","blue"].forEach(color=>{
+  const inp = $("input-"+color);
+  inp.addEventListener("blur", ()=>{
+    const val = (inp.value||"").replace(/\D/g,"");
+    if(val.length === 4 && !state[color]){
+      // no lo hacemos agresivo: sólo si el usuario ya puso 4
+      checkCode(color);
+    }
+  });
+});
+
+// Inicial
+updateProgress();
+toast("🩵","Dale Paloma, arrancá con el primero 😉", 1800);
   <script>
     // PARTE 2/3 VA ACÁ (la siguiente respuesta)
   </script>
