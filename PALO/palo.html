@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f19" />
+  <title>Paloma — Códigos RGB</title>
+  <style>
+    :root{
+      --bg1:#0b0f19;
+      --bg2:#101a2d;
+      --card:#0f172a;
+      --text:#e7eefc;
+      --muted:#9fb0d2;
+      --line:rgba(255,255,255,.10);
+      --shadow: 0 16px 40px rgba(0,0,0,.45);
+      --radius: 18px;
+      --tap: 54px;
+      --ok:#22c55e;
+      --bad:#ef4444;
+      --gold:#fbbf24;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1100px 700px at 20% 5%, rgba(99,102,241,.24), transparent 60%),
+        radial-gradient(900px 700px at 80% 20%, rgba(34,197,94,.18), transparent 65%),
+        radial-gradient(900px 700px at 50% 95%, rgba(239,68,68,.18), transparent 65%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+      overflow-x:hidden;
+    }
+    .wrap{max-width:520px;margin:0 auto; padding-bottom: 24px;}
+    header{
+      padding:14px 4px 10px;
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    }
+    .title{
+      display:flex; flex-direction:column; gap:4px;
+    }
+    h1{
+      margin:0;
+      font-size:22px;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      margin:0;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .progress{
+      min-width:92px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      border-radius: 999px;
+      padding:8px 10px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow: 0 8px 22px rgba(0,0,0,.20);
+    }
+    .dots{display:flex; gap:6px; align-items:center;}
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .dot.done{background: var(--ok); border-color: rgba(34,197,94,.4)}
+    .badge{
+      font-weight:700;
+      font-size:12px;
+      color: rgba(255,255,255,.92);
+    }
+
+    .cards{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:10px;
+    }
+    .card{
+      background: rgba(15,23,42,.74);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+      backdrop-filter: blur(10px);
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(500px 160px at 10% 0%, rgba(255,255,255,.08), transparent 60%),
+        radial-gradient(420px 220px at 80% 10%, rgba(255,255,255,.06), transparent 65%);
+      pointer-events:none;
+      opacity:.8;
+    }
+    .card-inner{position:relative; padding:14px;}
+    .row{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .label{
+      display:flex; align-items:center; gap:10px;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .pill{
+      width:14px; height:14px; border-radius:999px;
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06), 0 10px 20px rgba(0,0,0,.35);
+    }
+    .state{
+      display:flex; align-items:center; gap:8px;
+      color: var(--muted);
+      font-size:12px;
+      font-weight:700;
+    }
+    .lock{
+      width:20px; height:20px;
+      opacity:.9;
+      transform: translateZ(0);
+    }
+    .inputRow{
+      display:flex; gap:10px; margin-top:12px;
+    }
+    input[type="password"], input[type="text"]{
+      flex:1;
+      height: var(--tap);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      font-size:18px;
+      padding: 0 14px;
+      outline:none;
+      letter-spacing: 6px;
+      text-align:center;
+      font-weight:900;
+    }
+    input:focus{
+      border-color: rgba(255,255,255,.35);
+      box-shadow: 0 0 0 4px rgba(99,102,241,.18);
+    }
+    .btn{
+      height: var(--tap);
+      padding: 0 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      font-weight:900;
+      font-size:14px;
+      letter-spacing:.2px;
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      border-color: rgba(255,255,255,.18);
+      background: rgba(99,102,241,.18);
+    }
+    .btn.small{
+      height: 44px;
+      padding:0 12px;
+      font-size:13px;
+      border-radius: 12px;
+      font-weight:800;
+    }
+    .btn.ghost{
+      background: transparent;
+      border-color: rgba(255,255,255,.14);
+    }
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .hintRow{
+      display:flex; gap:10px; margin-top:10px;
+    }
+    .hintBox{
+      margin-top:12px;
+      display:none;
+      border-top:1px dashed rgba(255,255,255,.14);
+      padding-top:12px;
+    }
+    .hintCanvas{
+      width:100%;
+      height:140px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.18);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 10px 24px rgba(0,0,0,.28);
+    }
+    .hintHelp{
+      margin:8px 2px 0;
+      color: var(--muted);
+      font-size:12px;
+      font-weight:700;
+      line-height:1.35;
+    }
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom: calc(env(safe-area-inset-bottom) + 18px);
+      transform: translateX(-50%) translateY(16px);
+      background: rgba(0,0,0,.62);
+      color: var(--text);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.55);
+      opacity:0;
+      pointer-events:none;
+      max-width: min(520px, calc(100vw - 26px));
+      display:flex; align-items:center; gap:10px;
+      backdrop-filter: blur(10px);
+      transition: opacity .22s ease, transform .22s ease;
+      z-index: 50;
+    }
+    .toast.show{
+      opacity:1;
+      transform: translateX(-50%) translateY(0px);
+    }
+    .toast .icon{font-size:18px}
+    .toast .msg{
+      font-size:13px;
+      line-height:1.25;
+      font-weight:800;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translateX(-1px); }
+      20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-3px); }
+      40%, 60% { transform: translateX(3px); }
+    }
+    .shake{animation: shake .35s cubic-bezier(.36,.07,.19,.97) both;}
+    @keyframes pop {
+      0%{transform: scale(.96); filter:brightness(.95)}
+      40%{transform: scale(1.03); filter:brightness(1.08)}
+      100%{transform: scale(1); filter:brightness(1)}
+    }
+    .pop{animation: pop .35s ease both;}
+    @keyframes pulseRing {
+      0%{box-shadow: 0 0 0 0 rgba(34,197,94,.0)}
+      30%{box-shadow: 0 0 0 10px rgba(34,197,94,.18)}
+      100%{box-shadow: 0 0 0 18px rgba(34,197,94,.0)}
+    }
+    .pulse{animation: pulseRing .9s ease-out both;}
+
+    .win{
+      position:fixed; inset:0;
+      background: radial-gradient(900px 600px at 50% 20%, rgba(251,191,36,.22), transparent 60%),
+                  radial-gradient(900px 700px at 50% 80%, rgba(99,102,241,.24), transparent 65%),
+                  rgba(5,8,14,.82);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 60;
+      padding: env(safe-area-inset-top) 18px env(safe-area-inset-bottom) 18px;
+      backdrop-filter: blur(12px);
+    }
+    .win.show{display:flex;}
+    .winCard{
+      max-width:520px;
+      width:100%;
+      border-radius: 22px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(15,23,42,.82);
+      box-shadow: 0 22px 80px rgba(0,0,0,.7);
+      overflow:hidden;
+      position:relative;
+    }
+    .winCard::before{
+      content:"";
+      position:absolute; inset:-40px;
+      background:
+        radial-gradient(380px 180px at 20% 10%, rgba(251,191,36,.24), transparent 60%),
+        radial-gradient(360px 200px at 80% 20%, rgba(34,197,94,.18), transparent 65%),
+        radial-gradient(520px 260px at 50% 100%, rgba(239,68,68,.12), transparent 70%);
+      pointer-events:none;
+    }
+    .winInner{position:relative; padding:18px;}
+    .winTitle{
+      margin: 2px 0 8px;
+      font-size: 22px;
+      font-weight: 1000;
+      letter-spacing:.2px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .crown{
+      width:30px; height:30px;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+    }
+    .winMsg{
+      margin:0;
+      color: rgba(255,255,255,.92);
+      font-size:15px;
+      line-height:1.45;
+      font-weight:800;
+      white-space:pre-wrap;
+    }
+    .winActions{
+      display:flex; gap:10px; margin-top:14px;
+    }
+    .note{
+      margin:10px 0 0;
+      color: var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      font-weight:700;
+    }
+
+    #confetti{
+      position:fixed; inset:0;
+      pointer-events:none;
+      z-index: 55;
+      display:none;
+    }
+    #confetti.show{display:block;}
+
+    .modal{
+      position:fixed; inset:0;
+      display:none;
+      align-items:center; justify-content:center;
+      background: rgba(0,0,0,.55);
+      padding: env(safe-area-inset-top) 18px env(safe-area-inset-bottom) 18px;
+      z-index: 70;
+      backdrop-filter: blur(8px);
+    }
+    .modal.show{display:flex;}
+    .modalCard{
+      width:100%;
+      max-width:520px;
+      border-radius: 20px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(15,23,42,.92);
+      box-shadow: 0 22px 90px rgba(0,0,0,.7);
+      padding: 16px;
+    }
+    .modalTitle{
+      margin:0 0 6px;
+      font-size:16px;
+      font-weight:1000;
+    }
+    .modalText{
+      margin:0;
+      color: var(--muted);
+      font-size:13px;
+      line-height:1.35;
+      font-weight:700;
+    }
+    .modalActions{
+      margin-top:14px;
+      display:flex; gap:10px;
+      justify-content:flex-end;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .shake, .pop, .pulse { animation: none !important; }
+      .toast{transition:none}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Hola, Paloma 🩵</h1>
+        <p class="subtitle">Meté los 3 códigos (🔴🟢🔵). Cada uno desbloquea una parte. Cuando estén los 3… se arma la fiesta 🎉</p>
+      </div>
+      <div class="progress" aria-label="Progreso">
+        <div class="dots" id="dots">
+          <span class="dot" id="dot1"></span>
+          <span class="dot" id="dot2"></span>
+          <span class="dot" id="dot3"></span>
+        </div>
+        <span class="badge" id="badge">0/3</span>
+      </div>
+    </header>
+
+    <section class="cards" id="cards">
+      <!-- ROJO -->
+      <div class="card" id="card-red">
+        <div class="card-inner">
+          <div class="row">
+            <div class="label"><span class="pill" style="background:#ef4444"></span>ROJO</div>
+            <div class="state">
+              <svg class="lock" id="lock-red" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 10h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2Z" stroke="rgba(255,255,255,.85)" stroke-width="2" />
+                <path d="M12 14v4" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span id="status-red">Bloqueado</span>
+            </div>
+          </div>
+
+          <div class="inputRow">
+            <input id="input-red" type="password" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="4" placeholder="••••" aria-label="Código rojo (4 dígitos)" />
+            <button class="btn primary" id="btn-red" aria-label="Verificar código rojo">Verificar</button>
+          </div>
+
+          <div class="hintRow">
+            <button class="btn small ghost" id="hint1-red">Pista</button>
+          </div>
+
+          <div class="hintBox" id="hintbox-red">
+            <canvas class="hintCanvas" id="canvas-red" width="900" height="320" aria-label="Pista rojo"></canvas>
+            <div class="hintHelp">Tip: está como “sticker” para que no sea un copy/paste fácil 😏</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VERDE -->
+      <div class="card" id="card-green">
+        <div class="card-inner">
+          <div class="row">
+            <div class="label"><span class="pill" style="background:#22c55e"></span>VERDE</div>
+            <div class="state">
+              <svg class="lock" id="lock-green" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 10h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2Z" stroke="rgba(255,255,255,.85)" stroke-width="2" />
+                <path d="M12 14v4" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span id="status-green">Bloqueado</span>
+            </div>
+          </div>
+
+          <div class="inputRow">
+            <input id="input-green" type="password" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="4" placeholder="••••" aria-label="Código verde (4 dígitos)" />
+            <button class="btn primary" id="btn-green" aria-label="Verificar código verde">Verificar</button>
+          </div>
+
+          <div class="hintRow">
+            <button class="btn small ghost" id="hint1-green">Pista</button>
+          </div>
+
+          <div class="hintBox" id="hintbox-green">
+            <canvas class="hintCanvas" id="canvas-green" width="900" height="320" aria-label="Pista verde"></canvas>
+            <div class="hintHelp">No copies… pensá 😉 (y sí, está hecho a propósito).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AZUL -->
+      <div class="card" id="card-blue">
+        <div class="card-inner">
+          <div class="row">
+            <div class="label"><span class="pill" style="background:#3b82f6"></span>AZUL</div>
+            <div class="state">
+              <svg class="lock" id="lock-blue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M6 10h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2Z" stroke="rgba(255,255,255,.85)" stroke-width="2" />
+                <path d="M12 14v4" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span id="status-blue">Bloqueado</span>
+            </div>
+          </div>
+
+          <div class="inputRow">
+            <input id="input-blue" type="password" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="4" placeholder="••••" aria-label="Código azul (4 dígitos)" />
+            <button class="btn primary" id="btn-blue" aria-label="Verificar código azul">Verificar</button>
+          </div>
+
+          <div class="hintRow">
+            <button class="btn small ghost" id="hint1-blue">Pista</button>
+          </div>
+
+          <div class="hintBox" id="hintbox-blue">
+            <canvas class="hintCanvas" id="canvas-blue" width="900" height="320" aria-label="Pista azul"></canvas>
+            <div class="hintHelp">Regla del juego: preguntás en un orden… pero el código sale con otro orden 😉</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <div class="icon" id="toastIcon">✨</div>
+    <div class="msg" id="toastMsg">Hola</div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+      <div class="modalTitle" id="modalTitle">¿Seguro, Paloma?</div>
+      <p class="modalText" id="modalText">Si pedís la pista, te da ventaja 😏</p>
+      <div class="modalActions">
+        <button class="btn ghost" id="modalCancel">Mejor no</button>
+        <button class="btn primary" id="modalOk">Sí, dame la pista</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Victory -->
+  <div class="win" id="win" aria-hidden="true">
+    <div class="winCard">
+      <div class="winInner">
+        <div class="winTitle">
+          <svg class="crown" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path d="M10 24l10 10 12-18 12 18 10-10 6 30H4l6-30Z" fill="rgba(251,191,36,.92)"/>
+            <path d="M12 54h40" stroke="rgba(255,255,255,.78)" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          ¡Ganaste!
+        </div>
+        <p class="winMsg" id="winMsg"></p>
+        <div class="winActions">
+          <button class="btn primary" id="again">Volver a ver</button>
+          <button class="btn ghost" id="closeWin">Cerrar</button>
+        </div>
+        <p class="note">Si llegaste hasta acá, oficialmente sos peligrosa 😎🩵</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PARTE 2/3: pegá el <script> acá abajo -->
+  <script>
+    // PARTE 2/3 VA ACÁ (la siguiente respuesta)
+  </script>
+</body>
+</html>
