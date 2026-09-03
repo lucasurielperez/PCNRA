@@ -23,7 +23,7 @@
       ['🚪', 'ropero'], ['🚗', 'auto'], ['🚲', 'bicicleta'], ['🎁', 'regalo'], ['🎸', 'guitarra'],
       ['🍎', 'manzana'], ['🌻', 'flor'], ['🚀', 'cohete'], ['☂️', 'paraguas'], ['🐘', 'elefante']
     ];
-    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, peekRatio = .035, peekPhase = -1;
+    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, peekRatio = .18, peekPhase = -1, foundUntil = 0;
 
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
     function randomBetween(min, max) { return min + Math.random() * (max - min); }
@@ -58,10 +58,12 @@
       kid.x = hidingObject.x;
       roundStartedAt = performance.now();
       peekPhase = -1;
+      foundUntil = 0;
     }
 
-    function drawKid(x, y, size) {
+    function drawKid(x, y, size, dancing = false, now = 0) {
       ctx.save(); ctx.translate(x, y);
+      if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
       ctx.fillStyle = '#ffd3b1'; ctx.beginPath(); ctx.arc(0, -size * .27, size * .2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#2a1a12'; ctx.fillRect(-size * .14, -size * .42, size * .28, size * .08);
       ctx.fillStyle = '#ff5b45'; ctx.fillRect(-size * .18, -size * .06, size * .36, size * .39);
@@ -71,11 +73,12 @@
     }
 
     function drawPeek(now) {
-      // 0-3 s oculto; 3-6 s asoma solo entre 2% y 5%; el ciclo se repite.
+      // 0-3 s oculto; 3-6 s asoma una parte pequeña y reconocible; el ciclo se repite.
       const phase = Math.floor((now - roundStartedAt) / 3000);
       if (phase % 2 === 0) return;
-      if (phase !== peekPhase) { peekPhase = phase; peekRatio = randomBetween(.02, .05); }
-      const visible = kidSize * peekRatio;
+      if (phase !== peekPhase) { peekPhase = phase; peekRatio = randomBetween(.15, .23); }
+      // Un mínimo de 10 px evita que el asomo sea imperceptible en celulares.
+      const visible = Math.max(10, kidSize * peekRatio);
       const top = hidingObject.y - hidingObject.h / 2;
       // La parte restante del personaje queda dentro del área del objeto.
       kid.y = top + kidSize * .47 - visible;
@@ -98,8 +101,9 @@
     function drawScene(now) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#dff4ff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (hidingObject) drawPeek(now);
+      if (hidingObject && !hidingObject.hidden && now >= foundUntil) drawPeek(now);
       objects.forEach(drawObject);
+      if (now < foundUntil) drawKid(hidingObject.x, hidingObject.y, kidSize * 1.15, true, now);
       drawConfetti();
       if (hidingObject && !hidingObject.hidden) {
         const label = `Pista: buscá donde está escondido`; const boxW = Math.min(310, canvas.width - 32);
@@ -114,7 +118,11 @@
       const hit = objects.find(obj => !obj.hidden && x > obj.x - obj.w / 2 && x < obj.x + obj.w / 2 && y > obj.y - obj.h / 2 && y < obj.y + obj.h / 2);
       if (!hit) return;
       hit.hidden = true;
-      if (hit === hidingObject) { addConfetti(hit.x, hit.y); setTimeout(newRound, 1800); }
+      if (hit === hidingObject) {
+        addConfetti(hit.x, hit.y);
+        foundUntil = performance.now() + 1800;
+        setTimeout(newRound, 1800);
+      }
     });
     function animate(now) { if (gameStarted) drawScene(now); requestAnimationFrame(animate); }
     window.addEventListener('resize', resizeCanvas); startButton.addEventListener('click', startGame); animate();
