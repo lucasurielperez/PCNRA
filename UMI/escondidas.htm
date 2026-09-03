@@ -23,7 +23,8 @@
       ['🚪', 'ropero', ['#a0522d', '#deb887']], ['🚗', 'auto', ['#e53935', '#263238']], ['🚲', 'bicicleta', ['#e53935', '#222222']], ['🎁', 'regalo', ['#e91e63', '#ffd54f']], ['🎸', 'guitarra', ['#d2691e', '#5d4037']],
       ['🍎', 'manzana', ['#e53935', '#43a047']], ['🌻', 'flor', ['#fdd835', '#6d4c41']], ['🚀', 'cohete', ['#eeeeee', '#e53935', '#1565c0']], ['☂️', 'paraguas', ['#1976d2', '#333333']], ['🐘', 'elefante', ['#9e9e9e', '#616161']]
     ];
-    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, foundUntil = 0;
+    const characters = ['🧒', '👧', '👨', '👩', '👴', '👵', '👨‍👩‍👧‍👦'];
+    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, icon: '🧒' }, foundUntil = 0;
 
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
     function randomBetween(min, max) { return min + Math.random() * (max - min); }
@@ -57,6 +58,7 @@
       // Es deliberadamente más pequeño que la parte que lo cubre (rueda, tronco, puerta, etc.).
       kidSize = hidingObject.fontSize * randomBetween(.30, .38);
       kid.x = hidingObject.x;
+      kid.icon = characters[Math.floor(Math.random() * characters.length)];
       roundStartedAt = performance.now();
       foundUntil = 0;
     }
@@ -67,7 +69,7 @@
       ctx.globalAlpha = alpha;
       ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(dancing ? '🕺' : '🧒', 0, 0);
+      ctx.fillText(kid.icon, 0, 0);
       ctx.restore();
     }
 
