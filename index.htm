@@ -1,38 +1,33 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR con marcador Hiro</title>
-    <!-- Importar A-Frame -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <!-- Importar AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/ar.js/aframe/build/aframe-ar.js"></script>
-</head>
-<body style="margin: 0; overflow: hidden;">
-    <!-- Escena de A-Frame con AR.js -->
-    <a-scene embedded arjs>
-    <!-- Marcador 1 -->
-    <a-marker preset="hiro">
-        <a-image src="imagen1.jpg" scale="4 3 1" rotation="-90 0 0"></a-image>
-    </a-marker>
-
-    <!-- Marcador 2 -->
-    <a-marker preset="custom" type="pattern" url="marcador2.patt">
-        <a-image src="imagen2.jpg" scale="4 3 1" rotation="-90 0 0"></a-image>
-    </a-marker>
-
-    <!-- Marcador 3 -->
-    <a-marker preset="custom" type="pattern" url="marcador3.patt">
-        <a-image src="imagen3.jpg" scale="4 3 1" rotation="-90 0 0"></a-image>
-    </a-marker>
-
-        <!-- Marcador 5 -->
-    <a-marker preset="custom" type="pattern" url="marcador5.patt">
-        <a-image src="imagen3.jpg" scale="4 3 1" rotation="-90 0 0"></a-image>
-    </a-marker>
-        <!-- Cámara AR -->
-        <a-entity camera></a-entity>
-    </a-scene>
-</body>
-</html>
+<html lang="es"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Colección de juegos y experiencias interactivas PCNRA."><title>PCNRA | Juegos y experiencias</title>
+<style>
+:root{--ink:#17233a;--paper:#f7f4ed;--blue:#176b87;--coral:#e8604c;--yellow:#f6bf4f}*{box-sizing:border-box}body{margin:0;color:var(--ink);font-family:Arial,sans-serif;background:linear-gradient(135deg,#edf8f5 0%,var(--paper) 55%,#fff0dd 100%)}header,main{max-width:1120px;margin:auto;padding-left:24px;padding-right:24px}header{padding-top:56px;padding-bottom:32px}.eyebrow{margin:0 0 10px;color:var(--blue);font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}h1{max-width:760px;margin:0;font-size:clamp(2.3rem,7vw,5.3rem);line-height:.94;letter-spacing:-.065em}.intro{max-width:660px;margin:22px 0 0;font-size:1.1rem;line-height:1.55}main{padding-bottom:56px}.notice{margin:0 0 28px;padding:14px 17px;border-left:5px solid var(--yellow);border-radius:8px;background:#fffdf8;font-size:.95rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}.card{min-height:185px;display:flex;flex-direction:column;padding:21px;border:1px solid rgba(23,35,58,.12);border-radius:18px;color:inherit;text-decoration:none;background:rgba(255,255,255,.82);box-shadow:0 8px 22px rgba(23,35,58,.06);transition:transform .18s,box-shadow .18s,background .18s}.card:hover,.card:focus-visible{transform:translateY(-4px);background:#fff;box-shadow:0 14px 30px rgba(23,35,58,.14);outline:3px solid var(--blue);outline-offset:2px}.tag{align-self:flex-start;margin:0 0 13px;padding:4px 8px;border-radius:20px;color:#fff;background:var(--blue);font-size:.72rem;font-weight:700}.card:nth-child(3n+2) .tag{background:var(--coral)}.card:nth-child(3n) .tag{color:var(--ink);background:var(--yellow)}h2{margin:0;font-size:1.25rem;letter-spacing:-.025em}.card p{margin:10px 0 auto;color:#4b5668;line-height:1.4}.go{margin-top:18px;color:var(--blue);font-weight:800}footer{padding:24px;color:#526070;text-align:center;font-size:.85rem}
+</style></head><body>
+<header><p class="eyebrow">PCNRA · Laboratorio interactivo</p><h1>Juegos para explorar, crear y aprender.</h1><p class="intro">Elegí una experiencia para abrirla en una nueva pestaña. Algunas actividades solicitan acceso a la cámara o al micrófono.</p></header>
+<main><p class="notice">Para usar cámara, micrófono o realidad aumentada, abrí el sitio desde un servidor seguro (<strong>HTTPS</strong> o <code>localhost</code>) y aceptá el permiso del navegador.</p><section class="grid" aria-label="Juegos y experiencias">
+<a class="card" href="realidad-aumentada.htm" target="_blank"><span class="tag">Realidad aumentada</span><h2>Marcadores AR</h2><p>Visualizá imágenes sobre marcadores físicos.</p><span class="go">Abrir experiencia →</span></a>
+<a class="card" href="ARBOL/arbol.htm" target="_blank"><span class="tag">Sonido</span><h2>Limonero interactivo</h2><p>Hacé crecer el árbol con el sonido ambiente.</p><span class="go">Jugar →</span></a>
+<a class="card" href="bingo.htm" target="_blank"><span class="tag">Cámara</span><h2>Bingo fotográfico</h2><p>Completá el cartón usando fotos.</p><span class="go">Jugar →</span></a>
+<a class="card" href="ciculos.htm" target="_blank"><span class="tag">Movimiento</span><h2>Formas colisionando</h2><p>Experimentá con círculos en movimiento.</p><span class="go">Jugar →</span></a>
+<a class="card" href="COLORISTA.HTML" target="_blank"><span class="tag">Cámara</span><h2>Detector de colores</h2><p>Descubrí los colores del entorno.</p><span class="go">Abrir →</span></a>
+<a class="card" href="giro.htm" target="_blank"><span class="tag">Movimiento</span><h2>Juego de movimiento</h2><p>Una actividad guiada por el giro.</p><span class="go">Jugar →</span></a>
+<a class="card" href="letras.htm" target="_blank"><span class="tag">Letras</span><h2>Letras rebotando</h2><p>Jugá con letras en movimiento.</p><span class="go">Jugar →</span></a>
+<a class="card" href="morse.htm" target="_blank"><span class="tag">Sonido</span><h2>Código Morse</h2><p>Escuchá y practicá señales sonoras.</p><span class="go">Jugar →</span></a>
+<a class="card" href="qruriel.htm" target="_blank"><span class="tag">Cámara</span><h2>Lector QR</h2><p>Leé códigos QR desde la cámara.</p><span class="go">Abrir →</span></a>
+<a class="card" href="reloj.htm" target="_blank"><span class="tag">Tiempo</span><h2>Relojes de arena</h2><p>Explorá el paso del tiempo.</p><span class="go">Jugar →</span></a>
+<a class="card" href="virus.htm" target="_blank"><span class="tag">Cámara · QR</span><h2>Virus</h2><p>Proyecto interactivo con QR.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/candy.htm" target="_blank"><span class="tag">Estrategia</span><h2>Frutas Match 3</h2><p>Uní frutas iguales para sumar puntos.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/espacio.htm" target="_blank"><span class="tag">Peso</span><h2>Objetos espaciales</h2><p>Compará pesos en el espacio.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/frutas.htm" target="_blank"><span class="tag">Peso</span><h2>Frutas con peso</h2><p>Aprendé comparando frutas.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/frutasreales.htm" target="_blank"><span class="tag">Peso</span><h2>Frutas reales</h2><p>Otra versión de la actividad de peso.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/monedas.htm" target="_blank"><span class="tag">Balanza</span><h2>Juego de la balanza</h2><p>Equilibrá y compará monedas.</p><span class="go">Jugar →</span></a>
+<a class="card" href="LUCAS/boton.html" target="_blank"><span class="tag">Interacción</span><h2>Botón iridiscente</h2><p>Pequeña experiencia visual interactiva.</p><span class="go">Abrir →</span></a>
+<a class="card" href="PALO/palo.html" target="_blank"><span class="tag">Colores</span><h2>Códigos RGB</h2><p>Aprendé a combinar colores RGB.</p><span class="go">Jugar →</span></a>
+<a class="card" href="UMI/crossy.htm" target="_blank"><span class="tag">Arcade</span><h2>Crossy Road</h2><p>Cruzá el camino sin chocar.</p><span class="go">Jugar →</span></a>
+<a class="card" href="UMI/escondidas.htm" target="_blank"><span class="tag">Búsqueda</span><h2>Escondidas</h2><p>Encontrá lo que está oculto.</p><span class="go">Jugar →</span></a>
+<a class="card" href="UMI/fotos.htm" target="_blank"><span class="tag">Cámara</span><h2>Juego de fotos</h2><p>Tomá fotos y ubicálas en el tablero.</p><span class="go">Jugar →</span></a>
+<a class="card" href="UMI/globos.htm" target="_blank"><span class="tag">Arcade</span><h2>Globos y huevos</h2><p>Una actividad de reflejos.</p><span class="go">Jugar →</span></a>
+<a class="card" href="fonts.html" target="_blank"><span class="tag">Recurso</span><h2>Comparador de fuentes</h2><p>Visualizá números con distintas tipografías.</p><span class="go">Abrir recurso →</span></a>
+</section></main><footer>PCNRA · Pintando con Números — Realidad Aumentada</footer></body></html>

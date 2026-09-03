@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realidad aumentada con marcadores</title>
+  <style>body { margin: 0; overflow: hidden; }</style>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/jeromeetienne/ar.js/aframe/build/aframe-ar.js"></script>
+</head>
+<body>
+  <a-scene embedded arjs>
+    <a-marker preset="hiro"><a-image src="imagen1.jpg" scale="4 3 1" rotation="-90 0 0"></a-image></a-marker>
+    <a-marker type="pattern" url="marcador2.patt"><a-image src="imagen2.jpg" scale="4 3 1" rotation="-90 0 0"></a-image></a-marker>
+    <a-marker type="pattern" url="marcador3.patt"><a-image src="imagen3.jpg" scale="4 3 1" rotation="-90 0 0"></a-image></a-marker>
+    <a-marker type="pattern" url="marcador5.patt"><a-image src="imagen3.jpg" scale="4 3 1" rotation="-90 0 0"></a-image></a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
+</body>
+</html>
