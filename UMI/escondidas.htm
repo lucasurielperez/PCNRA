@@ -90,7 +90,9 @@
       const elapsed = (now - roundStartedAt) % 6000;
       if (elapsed < 3000) return;
       const hidden = hidingPlace(hidingObject);
-      const visible = { x: hidden.x, y: hidden.y - Math.max(kidSize * .65, hidingObject.h * .34) };
+      // El centro llega al borde superior: aproximadamente media figura queda afuera,
+      // mientras la otra mitad sigue tapada por el objeto de primer plano.
+      const visible = { x: hidden.x, y: hidingObject.y - hidingObject.h / 2 };
       let progress;
       if (elapsed < 4000) progress = ease((elapsed - 3000) / 1000);
       else if (elapsed < 5000) progress = 1;
