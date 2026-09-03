@@ -23,7 +23,7 @@
       ['🚪', 'ropero', ['#a0522d', '#deb887']], ['🚗', 'auto', ['#e53935', '#263238']], ['🚲', 'bicicleta', ['#e53935', '#222222']], ['🎁', 'regalo', ['#e91e63', '#ffd54f']], ['🎸', 'guitarra', ['#d2691e', '#5d4037']],
       ['🍎', 'manzana', ['#e53935', '#43a047']], ['🌻', 'flor', ['#fdd835', '#6d4c41']], ['🚀', 'cohete', ['#eeeeee', '#e53935', '#1565c0']], ['☂️', 'paraguas', ['#1976d2', '#333333']], ['🐘', 'elefante', ['#9e9e9e', '#616161']]
     ];
-    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, peekRatio = .18, peekPhase = -1, foundUntil = 0, peekGuide = null;
+    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, foundUntil = 0;
 
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
     function randomBetween(min, max) { return min + Math.random() * (max - min); }
@@ -54,50 +54,49 @@
       // En pantallas muy pequeñas se prioriza que ningún objeto se superponga.
       objects = placed;
       hidingObject = objects[Math.floor(Math.random() * objects.length)];
-      kidSize = hidingObject.fontSize * randomBetween(.68, .82);
+      // Es deliberadamente más pequeño que la parte que lo cubre (rueda, tronco, puerta, etc.).
+      kidSize = hidingObject.fontSize * randomBetween(.30, .38);
       kid.x = hidingObject.x;
       roundStartedAt = performance.now();
-      peekPhase = -1;
       foundUntil = 0;
     }
 
-    function drawKid(x, y, size, dancing = false, now = 0) {
+    function drawKid(x, y, size, dancing = false, now = 0, alpha = 1) {
       ctx.save(); ctx.translate(x, y);
       if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
+      ctx.globalAlpha = alpha;
       ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(dancing ? '🕺' : '🧒', 0, 0);
       ctx.restore();
     }
 
-    function drawPeek(now) {
-      // 0-3 s oculto; 3-6 s asoma una parte pequeña y reconocible; el ciclo se repite.
-      const phase = Math.floor((now - roundStartedAt) / 3000);
-      if (phase % 2 === 0) return;
-      if (phase !== peekPhase) { peekPhase = phase; peekRatio = randomBetween(.15, .23); }
-      // Un mínimo de 10 px evita que el asomo sea imperceptible en celulares.
-      const visible = Math.max(10, kidSize * peekRatio);
-      const top = hidingObject.y - hidingObject.h / 2;
-      // La parte restante del personaje queda dentro del área del objeto.
-      kid.y = top + kidSize * .47 - visible;
-      ctx.save();
-      ctx.beginPath(); ctx.rect(kid.x - kidSize / 2, top - visible, kidSize, visible); ctx.clip();
-      // El niño se dibuja primero: el objeto queda siempre delante de él.
-      drawKid(kid.x, kid.y, kidSize);
-      ctx.restore();
-      peekGuide = { x: kid.x, top, visible };
+    function hidingPlace(obj) {
+      // Puntos que corresponden a partes opacas y reconocibles de cada emoji.
+      const offsets = {
+        '🚲': [-.23, .16], '🚗': [-.24, .15], '🌳': [0, .19], '🏠': [0, .16], '📺': [0, .08],
+        '🛏️': [.12, .12], '🚪': [0, .05], '⚽': [0, .04], '🎁': [0, .05], '🎸': [0, .12],
+        '🍎': [0, .04], '🌻': [0, .12], '🚀': [0, .15], '☂️': [0, .08], '🐘': [.12, .12]
+      };
+      const [dx, dy] = offsets[obj.icon] || [0, 0];
+      return { x: obj.x + obj.fontSize * dx, y: obj.y + obj.fontSize * dy };
     }
 
-    function drawPeekGuide() {
-      if (!peekGuide) return;
-      const { x, top, visible } = peekGuide;
-      ctx.save();
-      ctx.strokeStyle = '#ff00a8'; ctx.lineWidth = 5; ctx.setLineDash([8, 5]);
-      ctx.strokeRect(x - kidSize / 2 - 7, top - visible - 7, kidSize + 14, visible + 14); ctx.setLineDash([]);
-      const arrowX = x + kidSize / 2 + 26, arrowY = top - visible / 2;
-      ctx.fillStyle = '#ff00a8'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText('← ¡ACÁ ASOMA!', arrowX, arrowY);
-      ctx.restore();
+    function ease(t) { return t * t * (3 - 2 * t); }
+    function drawHidingKid(now) {
+      // 0–3 s: oculto. 3–4 s: sale. 4–5 s: asoma. 5–6 s: vuelve a entrar.
+      const elapsed = (now - roundStartedAt) % 6000;
+      if (elapsed < 3000) return;
+      const hidden = hidingPlace(hidingObject);
+      const visible = { x: hidden.x, y: hidden.y - Math.max(kidSize * .65, hidingObject.h * .34) };
+      let progress;
+      if (elapsed < 4000) progress = ease((elapsed - 3000) / 1000);
+      else if (elapsed < 5000) progress = 1;
+      else progress = 1 - ease((elapsed - 5000) / 1000);
+      kid.x = hidden.x + (visible.x - hidden.x) * progress;
+      kid.y = hidden.y + (visible.y - hidden.y) * progress;
+      // Se dibuja antes que el objeto: al comenzar y terminar, queda tapado detrás de él.
+      drawKid(kid.x, kid.y, kidSize, false, now, progress);
     }
 
     function drawObject(obj) {
@@ -120,10 +119,8 @@
     function drawScene(now) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#dff4ff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      peekGuide = null;
-      if (hidingObject && !hidingObject.hidden && now >= foundUntil) drawPeek(now);
+      if (hidingObject && !hidingObject.hidden && now >= foundUntil) drawHidingKid(now);
       objects.forEach(drawObject);
-      drawPeekGuide();
       if (now < foundUntil) drawKid(hidingObject.x, hidingObject.y, kidSize * 1.15, true, now);
       drawConfetti();
       if (hidingObject && !hidingObject.hidden) drawColorHint();
