@@ -20,9 +20,10 @@
     const startButton = document.getElementById('startButton');
     const catalog = [
       ['⚽', 'pelota', ['#ffffff', '#222222']], ['🌳', 'árbol', ['#228b22', '#8b4513']], ['🏠', 'casa', ['#d2691e', '#b22222']], ['📺', 'televisor', ['#333333', '#87ceeb']], ['🛏️', 'cama', ['#ffffff', '#8b4513']],
-      ['🚪', 'ropero', ['#a0522d', '#deb887']], ['🚗', 'auto', ['#e53935', '#263238']], ['🚲', 'bicicleta', ['#e53935', '#222222']], ['🎁', 'regalo', ['#e91e63', '#ffd54f']], ['🎸', 'guitarra', ['#d2691e', '#5d4037']],
+      ['🚪', 'ropero', ['#a0522d', '#deb887']], ['🚗', 'auto', ['#e53935', '#263238']], ['🎁', 'regalo', ['#e91e63', '#ffd54f']],
       ['🍎', 'manzana', ['#e53935', '#43a047']], ['🌻', 'flor', ['#fdd835', '#6d4c41']], ['🚀', 'cohete', ['#eeeeee', '#e53935', '#1565c0']], ['☂️', 'paraguas', ['#1976d2', '#333333']], ['🐘', 'elefante', ['#9e9e9e', '#616161']],
-      ['🐶', 'perro', ['#a66b3d', '#ffffff']], ['🚌', 'colectivo', ['#fbc02d', '#263238']], ['🧸', 'oso de peluche', ['#a66b3d', '#f5d6a0']], ['🎂', 'torta', ['#f8bbd0', '#ffffff']], ['🐱', 'gato', ['#ff9800', '#ffffff']]
+      ['🐶', 'perro', ['#a66b3d', '#ffffff']], ['🚌', 'colectivo', ['#fbc02d', '#263238']], ['🧸', 'oso de peluche', ['#a66b3d', '#f5d6a0']], ['🎂', 'torta', ['#f8bbd0', '#ffffff']], ['🐱', 'gato', ['#ff9800', '#ffffff']],
+      ['🎲', 'dado', ['#ffffff', '#222222']], ['📦', 'caja', ['#c47b38', '#5d4037']], ['🍪', 'galleta', ['#d99145', '#5d4037']], ['⏰', 'reloj', ['#f6d743', '#ffffff']], ['🔵', 'pelota azul', ['#1976d2', '#0d47a1']], ['🧱', 'bloque', ['#c75b39', '#8d3928']]
     ];
     const characters = ['🧒', '👧', '👨', '👩', '👴', '👵', '👨‍👩‍👧‍👦'];
     let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, icon: '🧒' }, foundUntil = 0;
@@ -36,6 +37,12 @@
       const screen = Math.min(canvas.width, canvas.height);
       const fontSize = Math.max(76, Math.min(screen * randomBetween(.24, .34), canvas.width * .38, canvas.height * .30));
       return { icon, name, colors, fontSize, w: fontSize * 1.05, h: fontSize * 1.08, x: 0, y: 0, hidden: false };
+    }
+
+    function animatedPosition(obj, now) {
+      const amplitude = Math.min(6, obj.fontSize * .035);
+      const speed = 1250 + (objects.indexOf(obj) % 5) * 220;
+      return { x: obj.x + Math.sin(now / speed + obj.x) * amplitude, y: obj.y + Math.cos(now / (speed * .9) + obj.y) * amplitude };
     }
 
     function placeObject(obj, placed) {
@@ -74,16 +81,18 @@
       ctx.restore();
     }
 
-    function hidingPlace(obj) {
+    function hidingPlace(obj, now) {
       // Puntos que corresponden a partes opacas y reconocibles de cada emoji.
       const offsets = {
-        '🚲': [-.23, .16], '🚗': [-.24, .15], '🌳': [0, .19], '🏠': [0, .16], '📺': [0, .08],
+        '🚗': [-.24, .15], '🌳': [0, .19], '🏠': [0, .16], '📺': [0, .08],
         '🛏️': [.12, .12], '🚪': [0, .05], '⚽': [0, .04], '🎁': [0, .05], '🎸': [0, .12],
         '🍎': [0, .04], '🌻': [0, .12], '🚀': [0, .15], '☂️': [0, .08], '🐘': [.12, .12],
-        '🐶': [0, .10], '🚌': [-.23, .16], '🧸': [0, .08], '🎂': [0, .08], '🐱': [0, .10]
+        '🐶': [0, .10], '🚌': [-.23, .16], '🧸': [0, .08], '🎂': [0, .08], '🐱': [0, .10],
+        '🎲': [0, .05], '📦': [0, .05], '🍪': [0, .05], '⏰': [0, .05], '🔵': [0, .05], '🧱': [0, .05]
       };
       const [dx, dy] = offsets[obj.icon] || [0, 0];
-      return { x: obj.x + obj.fontSize * dx, y: obj.y + obj.fontSize * dy };
+      const position = animatedPosition(obj, now);
+      return { x: position.x + obj.fontSize * dx, y: position.y + obj.fontSize * dy };
     }
 
     function ease(t) { return t * t * (3 - 2 * t); }
@@ -91,13 +100,14 @@
       // 0–3 s: oculto. 3–4 s: sale. 4–5 s: asoma. 5–6 s: vuelve a entrar.
       const elapsed = (now - roundStartedAt) % 6000;
       if (elapsed < 3000) return;
-      const hidden = hidingPlace(hidingObject);
+      const hidden = hidingPlace(hidingObject, now);
       // Cada salida revela 1 px más: comienza casi imperceptible y nunca supera
       // la mitad del asomo anterior, para conservar la dificultad.
       const appearanceNumber = Math.floor((now - roundStartedAt) / 6000);
       const maxPeek = Math.max(3.5, kidSize * .09);
       const peekAmount = Math.min(maxPeek, 1 + appearanceNumber);
-      const visible = { x: hidden.x, y: hidingObject.y - hidingObject.h / 2 + kidSize * .5 - peekAmount };
+      const hidingPosition = animatedPosition(hidingObject, now);
+      const visible = { x: hidden.x, y: hidingPosition.y - hidingObject.h / 2 + kidSize * .5 - peekAmount };
       let progress;
       if (elapsed < 4000) progress = ease((elapsed - 3000) / 1000);
       else if (elapsed < 5000) progress = 1;
@@ -108,10 +118,11 @@
       drawKid(kid.x, kid.y, kidSize, false, now, progress);
     }
 
-    function drawObject(obj) {
+    function drawObject(obj, now) {
       if (obj.hidden) return;
+      const position = animatedPosition(obj, now);
       ctx.save(); ctx.font = `${obj.fontSize}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(obj.icon, obj.x, obj.y); ctx.restore();
+      ctx.fillText(obj.icon, position.x, position.y); ctx.restore();
     }
 
     function addConfetti(x, y) { for (let i = 0; i < 40; i++) confetti.push({ x, y, vx: randomBetween(-5, 5), vy: randomBetween(-8, -2), life: 55, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
@@ -129,8 +140,8 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#dff4ff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       if (hidingObject && !hidingObject.hidden && now >= foundUntil) drawHidingKid(now);
-      objects.forEach(drawObject);
-      if (now < foundUntil) drawKid(hidingObject.x, hidingObject.y, kidSize * 1.15, true, now);
+      objects.forEach(obj => drawObject(obj, now));
+      if (now < foundUntil) { const position = animatedPosition(hidingObject, now); drawKid(position.x, position.y, kidSize * 1.15, true, now); }
       drawConfetti();
       if (hidingObject && !hidingObject.hidden) drawColorHint();
     }
@@ -139,7 +150,8 @@
     canvas.addEventListener('click', event => {
       const rect = canvas.getBoundingClientRect(), scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
       const x = (event.clientX - rect.left) * scaleX, y = (event.clientY - rect.top) * scaleY;
-      const hit = objects.find(obj => !obj.hidden && x > obj.x - obj.w / 2 && x < obj.x + obj.w / 2 && y > obj.y - obj.h / 2 && y < obj.y + obj.h / 2);
+      const now = performance.now();
+      const hit = objects.find(obj => { const position = animatedPosition(obj, now); return !obj.hidden && x > position.x - obj.w / 2 && x < position.x + obj.w / 2 && y > position.y - obj.h / 2 && y < position.y + obj.h / 2; });
       if (!hit) return;
       hit.hidden = true;
       if (hit === hidingObject) {
