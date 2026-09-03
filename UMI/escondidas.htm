@@ -64,11 +64,9 @@
     function drawKid(x, y, size, dancing = false, now = 0) {
       ctx.save(); ctx.translate(x, y);
       if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
-      ctx.fillStyle = '#ffd3b1'; ctx.beginPath(); ctx.arc(0, -size * .27, size * .2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#2a1a12'; ctx.fillRect(-size * .14, -size * .42, size * .28, size * .08);
-      ctx.fillStyle = '#ff5b45'; ctx.fillRect(-size * .18, -size * .06, size * .36, size * .39);
-      ctx.fillStyle = '#346bd3'; ctx.fillRect(-size * .18, size * .33, size * .36, size * .17);
-      ctx.fillStyle = '#ffd3b1'; ctx.fillRect(-size * .16, size * .50, size * .11, size * .21); ctx.fillRect(size * .05, size * .50, size * .11, size * .21);
+      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(dancing ? '🕺' : '🧒', 0, 0);
       ctx.restore();
     }
 
