@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dance VFX Studio - MultiPlayer</title>
+    
+    <script src="efectos_1.js?v=2.2" defer></script>
+    <script src="efectos_2.js?v=2.2" defer></script>
+    <script src="efectos_3.js?v=2.2" defer></script>
+    <script src="efectos_4.js?v=2.2" defer></script>
+    <script src="efectos_5.js?v=2.2" defer></script>
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0; background: #050505; overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh; width: 100vw; color: white; user-select: none;
+        }
+        #container { position: relative; width: 100%; height: 100%; }
+        video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        #tap-zone { position: absolute; width: 100%; height: 100%; z-index: 5; cursor: pointer; }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.1rem; background: rgba(0,0,0,0.9); padding: 16px 32px;
+            border-radius: 50px; border: 1px solid #222; pointer-events: none; z-index: 10;
+            text-align: center; line-height: 1.5;
+        }
+
+        #game-ui {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-family: monospace; font-size: 1.8rem; color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc; z-index: 4; pointer-events: none;
+            text-align: center; font-weight: bold; display: none;
+        }
+
+        #sim-ui {
+            position: absolute; left: 16px; bottom: 16px; z-index: 6;
+            display: none; gap: 8px; align-items: center; flex-wrap: wrap;
+            max-width: calc(100vw - 32px); padding: 10px;
+            background: rgba(8, 10, 14, 0.72); border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 8px; backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+        #sim-ui.visible { display: flex; }
+        .sim-btn {
+            width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(255,255,255,0.08); color: #fff; cursor: pointer;
+            font: 700 0.82rem/1 system-ui, sans-serif;
+        }
+        .sim-btn.active { background: #00ffcc; color: #00110d; border-color: #00ffcc; }
+        .sim-label { color: #b7fff0; font: 700 0.72rem/1.2 monospace; letter-spacing: .04em; }
+
+        /* Menú Modal HUD */
+        #hud-menu {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 92%; max-width: 460px; max-height: 85vh;
+            background: rgba(12, 12, 16, 0.96); border: 2px solid #333;
+            border-radius: 24px; padding: 22px; z-index: 20;
+            display: none; flex-direction: column; gap: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            backdrop-filter: blur(25px); transition: all 0.2s ease;
+            overflow-y: auto;
+        }
+        #hud-menu.open { display: flex; transform: translate(-50%, -50%) scale(1); }
+        
+        .menu-section { display: flex; flex-direction: column; gap: 8px; }
+        .menu-title { font-size: 0.85rem; text-transform: uppercase; color: #666; letter-spacing: 1px; font-weight: bold; }
+        .grid-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        
+        .btn-ui {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            color: #ccc; padding: 12px; border-radius: 12px; font-size: 0.88rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .btn-ui:active { transform: scale(0.96); }
+        .btn-ui.active { background: #00ffcc; color: #000; border-color: #00ffcc; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        .menu-row { display: grid; grid-template-columns: 1fr 118px; gap: 10px; }
+        .select-ui {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+            color: #fff; padding: 0 10px; border-radius: 8px; font-weight: 700;
+            font-size: 0.88rem; outline: none;
+        }
+        .hint-ui { color: #7c8b8f; font-size: 0.72rem; line-height: 1.25; margin-top: 2px; }
+        
+        .btn-close {
+            background: #ff0055; color: white; border: none; padding: 14px;
+            border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 5px;
+            box-shadow: 0 0 15px rgba(255,0,85,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="tap-zone"></div>
+        <div id="game-ui"></div>
+        <div id="sim-ui" aria-hidden="true">
+            <span class="sim-label">SIM</span>
+            <button class="sim-btn active" data-sim="dance" title="Baile">B</button>
+            <button class="sim-btn" data-sim="water" title="Chorros de agua">A</button>
+            <button class="sim-btn" data-sim="fireworks" title="Fuegos artificiales">F</button>
+            <button class="sim-btn" data-sim="two" title="Dos jugadores">2</button>
+        </div>
+        <div id="loading">Cargando IA Multi-Bailarín...<br><small style="color:#aaa;">Puede demorar unos segundos</small></div>
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output_canvas"></canvas>
+        
+        <div id="hud-menu">
+            <div class="menu-section">
+                <div class="menu-title">Orientación e Inversión</div>
+                <div class="grid-buttons">
+                    <button class="btn-ui" id="btn-fliph" onclick="window.toggleFlip('H')">Invertir H (Espejo)</button>
+                    <button class="btn-ui" id="btn-flipv" onclick="window.toggleFlip('V')">Invertir V</button>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Cámara Seleccionada</div>
+                <div class="grid-buttons">
+                    <button class="btn-ui active" id="cam-user" onclick="window.changeCamera('user')">Frontal</button>
+                    <button class="btn-ui" id="cam-environment" onclick="window.changeCamera('environment')">Trasera</button>
+                </div>
+            </div>
+            
+            <div class="menu-section">
+                <div class="menu-title">Cambio Automatico y Gestos</div>
+                <div class="menu-row">
+                    <button class="btn-ui" id="btn-random-fx" onclick="window.toggleRandomFX()">Aleatorio OFF</button>
+                    <select class="select-ui" id="random-fx-seconds" onchange="window.setRandomFXSeconds(this.value)">
+                        <option value="5">5s</option>
+                        <option value="10">10s</option>
+                        <option value="20" selected>20s</option>
+                        <option value="30">30s</option>
+                        <option value="45">45s</option>
+                        <option value="60">60s</option>
+                    </select>
+                </div>
+                <div class="hint-ui">Toca la pantalla y desliza hacia la derecha para el proximo efecto o hacia la izquierda para el anterior.</div>
+            </div>
+            
+            <div class="menu-section">
+                <div class="menu-title">Efectos y Modos Arcade</div>
+                <div class="grid-buttons" id="fx-grid-container"></div>
+            </div>
+            
+            <button class="btn-close" onclick="window.toggleMenu(false)">CERRAR Y PROYECTAR</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+        window.customFXManager = window.customFXManager || { list: [], register: function(fx) { this.list.push(fx); } };
+
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d', { alpha: false, desynchronized: true });
+        const loadingElement = document.getElementById('loading');
+        const hudMenu = document.getElementById('hud-menu');
+        const gameUiElement = document.getElementById('game-ui');
+        
+        let poseLandmarker = null;
+        let currentFXId = 1;
+        window.currentFXId = currentFXId;
+        let currentFacingMode = "user"; 
+        let localStream = null;
+        let flipH = true;  
+        let flipV = false; 
+        let lastVideoTime = -1;
+        const urlParams = new URLSearchParams(window.location.search);
+        const perfMode = urlParams.get('perf') || 'balanced';
+        const defaultCamW = perfMode === 'high' ? 640 : perfMode === 'low' ? 320 : 424;
+        const defaultCamH = perfMode === 'high' ? 480 : perfMode === 'low' ? 240 : 240;
+        const defaultAiFps = perfMode === 'high' ? 24 : perfMode === 'low' ? 12 : 16;
+        const cameraWidth = Math.max(240, Number(urlParams.get('camW')) || defaultCamW);
+        const cameraHeight = Math.max(180, Number(urlParams.get('camH')) || defaultCamH);
+        const targetAiFps = Math.max(8, Math.min(30, Number(urlParams.get('aiFps')) || defaultAiFps));
+        const aiFrameIntervalMs = 1000 / targetAiFps;
+        const simulationMode = urlParams.has('sim');
+        const singleDancerMode = urlParams.get('poses') === '1' || urlParams.get('mode') === 'single';
+        const maxDetectedPoses = singleDancerMode ? 1 : 4;
+        const requestedFX = Number(urlParams.get('fx'));
+        if (Number.isInteger(requestedFX) && requestedFX > 0) currentFXId = requestedFX;
+        let simPreset = urlParams.get('sim') || 'dance';
+        let simStart = performance.now();
+        let randomFXEnabled = urlParams.get('random') === '1';
+        let randomFXSeconds = Math.max(5, Number(urlParams.get('randomSec')) || 20);
+        let nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+        let screenSwipeState = null;
+        let lastPoseDetectAt = 0;
+        let renderLoopRunning = false;
+        document.title = singleDancerMode ? 'Dance VFX Studio - 1 Bailarin' : 'Dance VFX Studio - MultiPlayer';
+        loadingElement.innerHTML = singleDancerMode
+            ? 'Cargando IA 1 Bailarin...<br><small style="color:#aaa;">Puede demorar unos segundos</small>'
+            : 'Cargando IA Multi-Bailarin...<br><small style="color:#aaa;">Puede demorar unos segundos</small>';
+
+        const connections = [
+            [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], 
+            [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28]
+        ];
+
+        function resizeCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
+        resizeCanvas();
+
+        // Funciones UI asignadas al objeto window para que funcionen con type="module"
+        window.toggleMenu = function(show) {
+            if (show) { buildFXMenu(); hudMenu.className = 'open'; } 
+            else { hudMenu.className = ''; }
+        };
+
+        window.toggleFlip = function(axis) {
+            if (axis === 'H') { flipH = !flipH; document.getElementById('btn-fliph').classList.toggle('active', flipH); } 
+            else if (axis === 'V') { flipV = !flipV; document.getElementById('btn-flipv').classList.toggle('active', flipV); }
+        };
+
+        function getEffectPool() {
+            return window.customFXManager.list.filter(fx => fx.id < 16 || fx.id > 20);
+        }
+
+        function updateRandomFXUI() {
+            const btn = document.getElementById('btn-random-fx');
+            const select = document.getElementById('random-fx-seconds');
+            if (btn) {
+                btn.classList.toggle('active', randomFXEnabled);
+                btn.innerText = randomFXEnabled ? 'Aleatorio ON' : 'Aleatorio OFF';
+            }
+            if (select) select.value = String(randomFXSeconds);
+        }
+
+        function updateFXButtons() {
+            document.querySelectorAll('#fx-grid-container .btn-ui').forEach(btn => {
+                btn.classList.toggle('active', Number(btn.dataset.fxId) === currentFXId);
+            });
+        }
+
+        function setActiveFX(fxId, closeMenu = false) {
+            const fx = window.customFXManager.list.find(item => item.id === fxId);
+            if (!fx) return;
+            currentFXId = fx.id;
+            window.currentFXId = currentFXId;
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            if (window.resetFXState) window.resetFXState();
+            if (currentFXId >= 16 && currentFXId <= 20) {
+                gameUiElement.style.display = 'block';
+                if (window.resetGameInstance) window.resetGameInstance(fx.name);
+            } else {
+                gameUiElement.style.display = 'none';
+            }
+            updateFXButtons();
+            if (closeMenu) window.toggleMenu(false);
+        }
+
+        function changeFXByStep(step) {
+            const pool = getEffectPool();
+            if (pool.length === 0) return;
+            const currentIndex = Math.max(0, pool.findIndex(fx => fx.id === currentFXId));
+            const nextIndex = (currentIndex + step + pool.length) % pool.length;
+            setActiveFX(pool[nextIndex].id, false);
+        }
+
+        function pickRandomFX() {
+            const pool = getEffectPool().filter(fx => fx.id !== currentFXId);
+            if (pool.length === 0) return;
+            const next = pool[Math.floor(Math.random() * pool.length)];
+            setActiveFX(next.id, false);
+        }
+
+        function handleRandomFXTimer() {
+            if (!randomFXEnabled) return;
+            const now = performance.now();
+            if (now >= nextRandomFXAt) {
+                pickRandomFX();
+                nextRandomFXAt = now + randomFXSeconds * 1000;
+            }
+        }
+
+        window.toggleRandomFX = function() {
+            randomFXEnabled = !randomFXEnabled;
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            updateRandomFXUI();
+        };
+
+        window.setRandomFXSeconds = function(value) {
+            randomFXSeconds = Math.max(5, Number(value) || 20);
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            updateRandomFXUI();
+        };
+
+        function setupScreenSwipeNavigation() {
+            const zone = document.getElementById('tap-zone');
+            zone.addEventListener('pointerdown', (event) => {
+                if (hudMenu.className === 'open') return;
+                screenSwipeState = {
+                    id: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    startedAt: performance.now(),
+                    moved: false
+                };
+                zone.setPointerCapture(event.pointerId);
+            });
+
+            zone.addEventListener('pointermove', (event) => {
+                if (!screenSwipeState || screenSwipeState.id !== event.pointerId) return;
+                const dx = event.clientX - screenSwipeState.startX;
+                const dy = event.clientY - screenSwipeState.startY;
+                if (Math.abs(dx) > 12 || Math.abs(dy) > 12) screenSwipeState.moved = true;
+            });
+
+            zone.addEventListener('pointerup', (event) => {
+                if (!screenSwipeState || screenSwipeState.id !== event.pointerId) return;
+                const dx = event.clientX - screenSwipeState.startX;
+                const dy = event.clientY - screenSwipeState.startY;
+                const elapsed = performance.now() - screenSwipeState.startedAt;
+                const threshold = Math.max(70, window.innerWidth * 0.12);
+                const isSwipe = elapsed < 900 && Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy) * 1.4;
+                if (isSwipe) {
+                    changeFXByStep(dx > 0 ? 1 : -1);
+                } else if (!screenSwipeState.moved) {
+                    window.toggleMenu(true);
+                }
+                screenSwipeState = null;
+            });
+
+            zone.addEventListener('pointercancel', () => {
+                screenSwipeState = null;
+            });
+        }
+
+        function buildFXMenu() {
+            const container = document.getElementById('fx-grid-container');
+            container.innerHTML = '';
+            document.getElementById('btn-fliph').classList.toggle('active', flipH);
+            document.getElementById('btn-flipv').classList.toggle('active', flipV);
+
+            window.customFXManager.list.forEach(fx => {
+                const btn = document.createElement('button');
+                btn.className = `btn-ui ${fx.id === currentFXId ? 'active' : ''}`;
+                btn.dataset.fxId = fx.id;
+                btn.innerText = fx.name;
+                btn.onclick = () => {
+                    setActiveFX(fx.id, true);
+                };
+                container.appendChild(btn);
+            });
+            updateRandomFXUI();
+        }
+
+        function clearCanvas(activeFX) {
+            if (activeFX && activeFX.isCustomBackground) return;
+            if (activeFX && activeFX.isTrail) {
+                canvasCtx.fillStyle = 'rgba(5, 5, 5, 0.09)';
+                canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            } else {
+                canvasCtx.fillStyle = '#050505';
+                canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            }
+        }
+
+        // --- INICIALIZACIÓN DE LA NUEVA IA MULTIPERSONA ---
+        function updateSimButtons() {
+            document.querySelectorAll('#sim-ui .sim-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sim === simPreset);
+            });
+        }
+
+        function makeSimPose(width, height, t, phase = 0, lane = 0) {
+            const cx = width * (lane === 0 ? 0.5 : lane < 0 ? 0.35 : 0.65) + Math.sin(t * 0.7 + phase) * width * 0.05;
+            const cy = height * 0.52 + Math.sin(t * 1.4 + phase) * height * 0.035;
+            const scale = Math.min(width, height) * 0.25;
+            const pose = Array.from({ length: 33 }, () => ({ x: cx / width, y: cy / height, z: 0, visibility: 1 }));
+            const put = (idx, x, y) => { pose[idx] = { x: x / width, y: y / height, z: 0, visibility: 1 }; };
+            const shoulderY = cy - scale * 0.75;
+            const hipY = cy + scale * 0.05;
+            const shoulderW = scale * 0.62;
+            const hipW = scale * 0.46;
+            const bounce = Math.sin(t * 2 + phase) * scale * 0.08;
+
+            put(0, cx + Math.sin(t + phase) * scale * 0.04, shoulderY - scale * 0.58 + bounce * 0.25);
+            put(11, cx - shoulderW, shoulderY); put(12, cx + shoulderW, shoulderY);
+            put(23, cx - hipW, hipY); put(24, cx + hipW, hipY);
+
+            const water = simPreset === 'water';
+            const fireworks = simPreset === 'fireworks';
+            const armSweep = water ? 0.75 : 1;
+            const leftUp = fireworks ? Math.sin(t * 1.6 + phase) > -0.35 : Math.sin(t * 1.7 + phase);
+            const rightUp = fireworks ? Math.cos(t * 1.5 + phase) > -0.2 : Math.cos(t * 1.5 + phase);
+            const handYBase = shoulderY + (water ? scale * 0.05 : scale * 0.25);
+
+            put(13, cx - shoulderW - scale * 0.25, shoulderY + scale * 0.25 + Math.cos(t + phase) * scale * 0.18);
+            put(14, cx + shoulderW + scale * 0.25, shoulderY + scale * 0.25 + Math.sin(t + phase) * scale * 0.18);
+            put(15, cx - shoulderW - scale * (0.55 + Math.sin(t * 1.2 + phase) * 0.18 * armSweep), handYBase - leftUp * scale * 0.52);
+            put(16, cx + shoulderW + scale * (0.55 + Math.cos(t * 1.2 + phase) * 0.18 * armSweep), handYBase - rightUp * scale * 0.52);
+            put(25, cx - hipW - Math.sin(t + phase) * scale * 0.1, hipY + scale * 0.7);
+            put(26, cx + hipW + Math.sin(t + phase) * scale * 0.1, hipY + scale * 0.7);
+            put(27, cx - hipW - Math.sin(t * 1.2 + phase) * scale * 0.25, hipY + scale * 1.28);
+            put(28, cx + hipW + Math.cos(t * 1.2 + phase) * scale * 0.25, hipY + scale * 1.28);
+            return pose;
+        }
+
+        function processSimFrame(activeFX) {
+            const w = canvasElement.width;
+            const h = canvasElement.height;
+            const t = (performance.now() - simStart) / 1000;
+            const poses = [makeSimPose(w, h, t, 0, 0)];
+            if (simPreset === 'two') poses.push(makeSimPose(w, h, t, 1.9, 1));
+
+            canvasCtx.save();
+            clearCanvas(activeFX);
+            poses.forEach((pose, index) => {
+                if (currentFXId >= 16 && currentFXId <= 20 && index > 0) return;
+                const getPt = (idx) => ({ x: pose[idx].x * w, y: pose[idx].y * h });
+                if (activeFX) activeFX.draw(canvasCtx, pose, w, h, connections, getPt);
+            });
+            canvasCtx.restore();
+        }
+
+        async function initIA() {
+            try {
+                const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+                poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numPoses: maxDetectedPoses,
+                    minPoseDetectionConfidence: 0.5,
+                    minPosePresenceConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                loadingElement.style.display = 'none';
+            } catch (error) {
+                console.error("Error cargando IA Multi-Pose:", error);
+                loadingElement.innerHTML = "Error cargando IA. Revisar conexión.";
+            }
+        }
+
+        window.changeCamera = async function(mode) {
+            currentFacingMode = mode;
+            flipH = (mode === 'user'); 
+            document.getElementById('cam-user').classList.toggle('active', mode === 'user');
+            document.getElementById('cam-environment').classList.toggle('active', mode === 'environment');
+            await startCamera();
+        };
+
+        async function startCamera() {
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: cameraWidth },
+                        height: { ideal: cameraHeight },
+                        frameRate: { ideal: targetAiFps, max: Math.max(targetAiFps, 15) }
+                    },
+                    audio: false
+                });
+                videoElement.srcObject = localStream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    if (!renderLoopRunning) {
+                        renderLoopRunning = true;
+                        requestAnimationFrame(processFrame);
+                    }
+                };
+            } catch (err) { alert("Error de cámara."); }
+        }
+
+        // --- BUCLE DE RENDERIZADO PARA MÚLTIPLES BAILARINES ---
+        async function processFrame() {
+            handleRandomFXTimer();
+            const activeFX = window.customFXManager.list.find(f => f.id === currentFXId);
+            if (simulationMode) {
+                processSimFrame(activeFX);
+                requestAnimationFrame(processFrame);
+                return;
+            }
+            
+            // Si la IA está cargada y el video corre
+            if (poseLandmarker && videoElement.readyState >= 2) {
+                let startTimeMs = performance.now();
+                
+                if (videoElement.currentTime !== lastVideoTime && startTimeMs - lastPoseDetectAt >= aiFrameIntervalMs) {
+                    lastVideoTime = videoElement.currentTime;
+                    lastPoseDetectAt = startTimeMs;
+                    
+                    // Procesar IA
+                    poseLandmarker.detectForVideo(videoElement, startTimeMs, (results) => {
+                        canvasCtx.save();
+                        
+                        // Aplicar Espejo Global UI
+                        canvasCtx.translate(flipH ? canvasElement.width : 0, flipV ? canvasElement.height : 0);
+                        canvasCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+
+                        clearCanvas(activeFX);
+
+                        // SI DETECTA GENTE, RECORRE CADA PERSONA
+                        if (results.landmarks && results.landmarks.length > 0 && activeFX) {
+                            
+                            // MultiPlayer Loop
+                            results.landmarks.forEach((pose, index) => {
+                                // Protección para Juegos: Solo el Bailarín 1 procesa gravedad para no romper físicas
+                                if (currentFXId >= 16 && currentFXId <= 20 && index > 0) return;
+
+                                const w = canvasElement.width;
+                                const h = canvasElement.height;
+                                const getPt = (idx) => ({ x: pose[idx].x * w, y: pose[idx].y * h });
+                                
+                                // Ejecuta el efecto individualmente para este bailarín
+                                activeFX.draw(canvasCtx, pose, w, h, connections, getPt);
+                            });
+                        }
+                        canvasCtx.restore();
+                    });
+                }
+            } else {
+                // Mantener la pantalla viva si la IA sigue cargando
+                canvasCtx.save();
+                canvasCtx.translate(flipH ? canvasElement.width : 0, flipV ? canvasElement.height : 0);
+                canvasCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+                clearCanvas(activeFX);
+                canvasCtx.restore();
+            }
+
+            requestAnimationFrame(processFrame);
+        }
+
+        window.onload = () => {
+            setupScreenSwipeNavigation();
+            if (simulationMode) {
+                loadingElement.style.display = 'none';
+                document.getElementById('sim-ui').classList.add('visible');
+                document.getElementById('sim-ui').addEventListener('click', (event) => {
+                    const btn = event.target.closest('[data-sim]');
+                    if (!btn) return;
+                    simPreset = btn.dataset.sim;
+                    simStart = performance.now();
+                    if (window.resetFXState) window.resetFXState();
+                    updateSimButtons();
+                });
+                updateSimButtons();
+                requestAnimationFrame(processFrame);
+            } else {
+                initIA();
+                startCamera();
+            }
+            setTimeout(buildFXMenu, 1500);
+        };
+    </script>
+</body>
+</html>

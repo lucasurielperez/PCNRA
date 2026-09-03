@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dance VFX Studio - 1 Bailarin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous" async></script>
+
+    <script src="efectos_1.js?v=2.2" defer></script>
+    <script src="efectos_2.js?v=2.2" defer></script>
+    <script src="efectos_3.js?v=2.2" defer></script>
+    <script src="efectos_4.js?v=2.2" defer></script>
+    <script src="efectos_5.js?v=2.2" defer></script>
+
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0; background: #050505; overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh; width: 100vw; color: white; user-select: none;
+        }
+        #container { position: relative; width: 100%; height: 100%; }
+        video { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #tap-zone { position: absolute; width: 100%; height: 100%; z-index: 5; cursor: pointer; touch-action: none; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.1rem; background: rgba(0,0,0,0.9); padding: 16px 32px;
+            border-radius: 50px; border: 1px solid #222; pointer-events: none; z-index: 10;
+            text-align: center; line-height: 1.5;
+        }
+        #game-ui {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-family: monospace; font-size: 1.8rem; color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc; z-index: 4; pointer-events: none;
+            text-align: center; font-weight: bold; display: none;
+        }
+        #hud-menu {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+            width: 92%; max-width: 460px; max-height: 85vh;
+            background: rgba(12, 12, 16, 0.96); border: 2px solid #333;
+            border-radius: 24px; padding: 22px; z-index: 20;
+            display: none; flex-direction: column; gap: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            backdrop-filter: blur(25px); transition: all 0.2s ease;
+            overflow-y: auto;
+        }
+        #hud-menu.open { display: flex; transform: translate(-50%, -50%) scale(1); }
+        .menu-section { display: flex; flex-direction: column; gap: 8px; }
+        .menu-title { font-size: 0.85rem; text-transform: uppercase; color: #666; letter-spacing: 1px; font-weight: bold; }
+        .grid-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .btn-ui {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            color: #ccc; padding: 12px; border-radius: 12px; font-size: 0.88rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .btn-ui:active { transform: scale(0.96); }
+        .btn-ui.active { background: #00ffcc; color: #000; border-color: #00ffcc; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        .menu-row { display: grid; grid-template-columns: 1fr 118px; gap: 10px; }
+        .select-ui {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+            color: #fff; padding: 0 10px; border-radius: 8px; font-weight: 700;
+            font-size: 0.88rem; outline: none;
+        }
+        .hint-ui { color: #7c8b8f; font-size: 0.72rem; line-height: 1.25; margin-top: 2px; }
+        .btn-close {
+            background: #ff0055; color: white; border: none; padding: 14px;
+            border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 5px;
+            box-shadow: 0 0 15px rgba(255,0,85,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="tap-zone"></div>
+        <div id="game-ui"></div>
+        <div id="loading">Cargando IA 1 Bailarin...<br><small style="color:#aaa;">Puede demorar unos segundos</small></div>
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output_canvas"></canvas>
+
+        <div id="hud-menu">
+            <div class="menu-section">
+                <div class="menu-title">Orientacion e Inversion</div>
+                <div class="grid-buttons">
+                    <button class="btn-ui" id="btn-fliph" onclick="toggleFlip('H')">Invertir H (Espejo)</button>
+                    <button class="btn-ui" id="btn-flipv" onclick="toggleFlip('V')">Invertir V</button>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Camara Seleccionada</div>
+                <div class="grid-buttons">
+                    <button class="btn-ui active" id="cam-user" onclick="changeCamera('user')">Frontal</button>
+                    <button class="btn-ui" id="cam-environment" onclick="changeCamera('environment')">Trasera</button>
+                </div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Cambio Automatico y Gestos</div>
+                <div class="menu-row">
+                    <button class="btn-ui" id="btn-random-fx" onclick="toggleRandomFX()">Aleatorio OFF</button>
+                    <select class="select-ui" id="random-fx-seconds" onchange="setRandomFXSeconds(this.value)">
+                        <option value="5">5s</option>
+                        <option value="10">10s</option>
+                        <option value="20" selected>20s</option>
+                        <option value="30">30s</option>
+                        <option value="45">45s</option>
+                        <option value="60">60s</option>
+                    </select>
+                </div>
+                <div class="hint-ui">Toca la pantalla y desliza hacia la derecha para el proximo efecto o hacia la izquierda para el anterior.</div>
+            </div>
+
+            <div class="menu-section">
+                <div class="menu-title">Efectos y Modos Arcade</div>
+                <div class="grid-buttons" id="fx-grid-container"></div>
+            </div>
+
+            <button class="btn-close" onclick="toggleMenu(false)">CERRAR Y PROYECTAR</button>
+        </div>
+    </div>
+
+    <script>
+        window.customFXManager = window.customFXManager || { list: [], register: function(fx) { this.list.push(fx); } };
+
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d', { alpha: false, desynchronized: true });
+        const loadingElement = document.getElementById('loading');
+        const hudMenu = document.getElementById('hud-menu');
+        const gameUiElement = document.getElementById('game-ui');
+        const urlParams = new URLSearchParams(window.location.search);
+        const perfMode = urlParams.get('perf') || 'balanced';
+        const defaultCamW = perfMode === 'high' ? 640 : perfMode === 'low' ? 320 : 424;
+        const defaultCamH = perfMode === 'high' ? 480 : perfMode === 'low' ? 240 : 240;
+        const defaultAiFps = perfMode === 'high' ? 24 : perfMode === 'low' ? 12 : 18;
+        const cameraWidth = Math.max(240, Number(urlParams.get('camW')) || defaultCamW);
+        const cameraHeight = Math.max(180, Number(urlParams.get('camH')) || defaultCamH);
+        const targetAiFps = Math.max(8, Math.min(30, Number(urlParams.get('aiFps')) || defaultAiFps));
+        const aiFrameIntervalMs = 1000 / targetAiFps;
+
+        let currentFXId = Number(urlParams.get('fx')) || 1;
+        window.currentFXId = currentFXId;
+        let pose = null;
+        let currentFacingMode = "user";
+        let localStream = null;
+        let flipH = true;
+        let flipV = false;
+        let randomFXEnabled = urlParams.get('random') === '1';
+        let randomFXSeconds = Math.max(5, Number(urlParams.get('randomSec')) || 20);
+        let nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+        let screenSwipeState = null;
+        let lastPoseSendAt = 0;
+        let renderLoopRunning = false;
+
+        const connections = [
+            [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+            [11, 23], [12, 24], [23, 24],
+            [23, 25], [25, 27], [24, 26], [26, 28]
+        ];
+
+        function resizeCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 300));
+        resizeCanvas();
+
+        function getEffectPool() {
+            return window.customFXManager.list.filter(fx => fx.id < 16 || fx.id > 20);
+        }
+
+        function updateRandomFXUI() {
+            const btn = document.getElementById('btn-random-fx');
+            const select = document.getElementById('random-fx-seconds');
+            if (btn) {
+                btn.classList.toggle('active', randomFXEnabled);
+                btn.innerText = randomFXEnabled ? 'Aleatorio ON' : 'Aleatorio OFF';
+            }
+            if (select) select.value = String(randomFXSeconds);
+        }
+
+        function updateFXButtons() {
+            document.querySelectorAll('#fx-grid-container .btn-ui').forEach(btn => {
+                btn.classList.toggle('active', Number(btn.dataset.fxId) === currentFXId);
+            });
+        }
+
+        function setActiveFX(fxId, closeMenu = false) {
+            const fx = window.customFXManager.list.find(item => item.id === fxId);
+            if (!fx) return;
+            currentFXId = fx.id;
+            window.currentFXId = currentFXId;
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            if (window.resetFXState) window.resetFXState();
+            if (currentFXId >= 16 && currentFXId <= 20) {
+                gameUiElement.style.display = 'block';
+                if (window.resetGameInstance) window.resetGameInstance(fx.name);
+            } else {
+                gameUiElement.style.display = 'none';
+                gameUiElement.innerHTML = '';
+            }
+            updateFXButtons();
+            if (closeMenu) toggleMenu(false);
+        }
+
+        function changeFXByStep(step) {
+            const pool = getEffectPool();
+            if (pool.length === 0) return;
+            const currentIndex = Math.max(0, pool.findIndex(fx => fx.id === currentFXId));
+            const nextIndex = (currentIndex + step + pool.length) % pool.length;
+            setActiveFX(pool[nextIndex].id);
+        }
+
+        function pickRandomFX() {
+            const pool = getEffectPool().filter(fx => fx.id !== currentFXId);
+            if (pool.length === 0) return;
+            setActiveFX(pool[Math.floor(Math.random() * pool.length)].id);
+        }
+
+        function handleRandomFXTimer() {
+            if (!randomFXEnabled) return;
+            const now = performance.now();
+            if (now >= nextRandomFXAt) {
+                pickRandomFX();
+                nextRandomFXAt = now + randomFXSeconds * 1000;
+            }
+        }
+
+        function toggleRandomFX() {
+            randomFXEnabled = !randomFXEnabled;
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            updateRandomFXUI();
+        }
+
+        function setRandomFXSeconds(value) {
+            randomFXSeconds = Math.max(5, Number(value) || 20);
+            nextRandomFXAt = performance.now() + randomFXSeconds * 1000;
+            updateRandomFXUI();
+        }
+
+        function setupScreenSwipeNavigation() {
+            const zone = document.getElementById('tap-zone');
+            zone.addEventListener('pointerdown', (event) => {
+                if (hudMenu.className === 'open') return;
+                screenSwipeState = {
+                    id: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    startedAt: performance.now(),
+                    moved: false
+                };
+                zone.setPointerCapture(event.pointerId);
+            });
+            zone.addEventListener('pointermove', (event) => {
+                if (!screenSwipeState || screenSwipeState.id !== event.pointerId) return;
+                const dx = event.clientX - screenSwipeState.startX;
+                const dy = event.clientY - screenSwipeState.startY;
+                if (Math.abs(dx) > 12 || Math.abs(dy) > 12) screenSwipeState.moved = true;
+            });
+            zone.addEventListener('pointerup', (event) => {
+                if (!screenSwipeState || screenSwipeState.id !== event.pointerId) return;
+                const dx = event.clientX - screenSwipeState.startX;
+                const dy = event.clientY - screenSwipeState.startY;
+                const elapsed = performance.now() - screenSwipeState.startedAt;
+                const threshold = Math.max(70, window.innerWidth * 0.12);
+                const isSwipe = elapsed < 900 && Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy) * 1.4;
+                if (isSwipe) changeFXByStep(dx > 0 ? 1 : -1);
+                else if (!screenSwipeState.moved) toggleMenu(true);
+                screenSwipeState = null;
+            });
+            zone.addEventListener('pointercancel', () => { screenSwipeState = null; });
+        }
+
+        function toggleMenu(show) {
+            if (show) {
+                buildFXMenu();
+                hudMenu.className = 'open';
+            } else {
+                hudMenu.className = '';
+            }
+        }
+
+        function toggleFlip(axis) {
+            if (axis === 'H') {
+                flipH = !flipH;
+                document.getElementById('btn-fliph').classList.toggle('active', flipH);
+            } else if (axis === 'V') {
+                flipV = !flipV;
+                document.getElementById('btn-flipv').classList.toggle('active', flipV);
+            }
+        }
+
+        function buildFXMenu() {
+            const container = document.getElementById('fx-grid-container');
+            container.innerHTML = '';
+            document.getElementById('btn-fliph').classList.toggle('active', flipH);
+            document.getElementById('btn-flipv').classList.toggle('active', flipV);
+
+            window.customFXManager.list.forEach(fx => {
+                const btn = document.createElement('button');
+                btn.className = `btn-ui ${fx.id === currentFXId ? 'active' : ''}`;
+                btn.dataset.fxId = fx.id;
+                btn.innerText = fx.name;
+                btn.onclick = () => setActiveFX(fx.id, true);
+                container.appendChild(btn);
+            });
+            updateRandomFXUI();
+        }
+
+        function clearCanvas(activeFX) {
+            if (activeFX && activeFX.isCustomBackground) return;
+            if (activeFX && activeFX.isTrail) {
+                canvasCtx.fillStyle = 'rgba(5, 5, 5, 0.09)';
+            } else {
+                canvasCtx.fillStyle = '#050505';
+            }
+            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+        }
+
+        function onResults(results) {
+            loadingElement.style.display = 'none';
+            handleRandomFXTimer();
+            const activeFX = window.customFXManager.list.find(f => f.id === currentFXId);
+
+            canvasCtx.save();
+            canvasCtx.translate(flipH ? canvasElement.width : 0, flipV ? canvasElement.height : 0);
+            canvasCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+            clearCanvas(activeFX);
+
+            if (results.poseLandmarks && activeFX) {
+                const landmarks = results.poseLandmarks;
+                const w = canvasElement.width;
+                const h = canvasElement.height;
+                const getPt = (idx) => ({ x: landmarks[idx].x * w, y: landmarks[idx].y * h });
+                activeFX.draw(canvasCtx, landmarks, w, h, connections, getPt);
+            }
+            canvasCtx.restore();
+        }
+
+        async function waitForPoseLibrary() {
+            for (let i = 0; i < 80; i++) {
+                if (typeof window.Pose === 'function') return;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            throw new Error('No se pudo cargar MediaPipe Pose.');
+        }
+
+        async function initPose() {
+            await waitForPoseLibrary();
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+            pose.setOptions({
+                modelComplexity: 0,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.4,
+                minTrackingConfidence: 0.4
+            });
+            pose.onResults(onResults);
+        }
+
+        async function startCamera() {
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: currentFacingMode,
+                        width: { ideal: cameraWidth },
+                        height: { ideal: cameraHeight },
+                        frameRate: { ideal: targetAiFps, max: Math.max(targetAiFps, 15) }
+                    },
+                    audio: false
+                });
+                videoElement.srcObject = localStream;
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    if (!renderLoopRunning) {
+                        renderLoopRunning = true;
+                        processFrame();
+                    }
+                };
+            } catch (err) {
+                alert("Error de camara.");
+                console.error(err);
+            }
+        }
+
+        async function changeCamera(mode) {
+            currentFacingMode = mode;
+            flipH = (mode === 'user');
+            document.getElementById('cam-user').classList.toggle('active', mode === 'user');
+            document.getElementById('cam-environment').classList.toggle('active', mode === 'environment');
+            await startCamera();
+        }
+
+        async function processFrame() {
+            const now = performance.now();
+            if (pose && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA && now - lastPoseSendAt >= aiFrameIntervalMs) {
+                lastPoseSendAt = now;
+                await pose.send({ image: videoElement });
+            } else {
+                handleRandomFXTimer();
+                const activeFX = window.customFXManager.list.find(f => f.id === currentFXId);
+                canvasCtx.save();
+                canvasCtx.translate(flipH ? canvasElement.width : 0, flipV ? canvasElement.height : 0);
+                canvasCtx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+                clearCanvas(activeFX);
+                canvasCtx.restore();
+            }
+            requestAnimationFrame(processFrame);
+        }
+
+        window.onload = async () => {
+            setupScreenSwipeNavigation();
+            try {
+                await initPose();
+                await startCamera();
+                setTimeout(buildFXMenu, 1000);
+            } catch (error) {
+                console.error(error);
+                loadingElement.innerHTML = 'Error cargando IA 1 Bailarin.<br><small style="color:#aaa;">Revisar conexion.</small>';
+            }
+        };
+    </script>
+</body>
+</html>
