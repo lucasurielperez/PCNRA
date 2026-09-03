@@ -92,8 +92,11 @@
       const elapsed = (now - roundStartedAt) % 6000;
       if (elapsed < 3000) return;
       const hidden = hidingPlace(hidingObject);
-      // Sale apenas una franja: un mínimo evita que se pierda en pantallas chicas.
-      const peekAmount = Math.max(7, kidSize * .18);
+      // Cada salida revela 1 px más: comienza casi imperceptible y nunca supera
+      // la mitad del asomo anterior, para conservar la dificultad.
+      const appearanceNumber = Math.floor((now - roundStartedAt) / 6000);
+      const maxPeek = Math.max(3.5, kidSize * .09);
+      const peekAmount = Math.min(maxPeek, 1 + appearanceNumber);
       const visible = { x: hidden.x, y: hidingObject.y - hidingObject.h / 2 + kidSize * .5 - peekAmount };
       let progress;
       if (elapsed < 4000) progress = ease((elapsed - 3000) / 1000);
