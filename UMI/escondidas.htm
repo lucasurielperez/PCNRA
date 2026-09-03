@@ -1,371 +1,123 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Juego de Escondidas</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-        }
-        canvas {
-            display: none;
-        }
-        #startButton {
-            font-size: 24px;
-            padding: 20px 40px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        #startButton:hover {
-            background-color: #45a049;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Juego de Escondidas</title>
+  <style>
+    body { margin: 0; overflow: hidden; display: grid; place-items: center; min-height: 100vh; background: #dff4ff; font-family: Arial, sans-serif; }
+    canvas { display: none; width: 100vw; height: 100vh; cursor: pointer; touch-action: manipulation; }
+    #startButton { font-size: clamp(1.2rem, 4vw, 1.6rem); padding: 18px 36px; background: #4caf50; color: white; border: 0; border-radius: 12px; cursor: pointer; box-shadow: 0 6px 0 #2d7d32; }
+    #startButton:hover { background: #45a049; }
+  </style>
 </head>
 <body>
-    <button id="startButton">Comenzar</button>
-    <canvas id="gameCanvas"></canvas>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const startButton = document.getElementById('startButton');
+  <button id="startButton" type="button">Comenzar a buscar</button>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startButton = document.getElementById('startButton');
+    const catalog = [
+      ['⚽', 'pelota'], ['🌳', 'árbol'], ['🏠', 'casa'], ['📺', 'televisor'], ['🛏️', 'cama'],
+      ['🚪', 'ropero'], ['🚗', 'auto'], ['🚲', 'bicicleta'], ['🎁', 'regalo'], ['🎸', 'guitarra'],
+      ['🍎', 'manzana'], ['🌻', 'flor'], ['🚀', 'cohete'], ['☂️', 'paraguas'], ['🐘', 'elefante']
+    ];
+    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0 }, peekRatio = .035, peekPhase = -1;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
+    function randomBetween(min, max) { return min + Math.random() * (max - min); }
+    function shuffled(items) { return [...items].sort(() => Math.random() - .5); }
+    function overlaps(a, b, gap = 18) { return a.x - a.w / 2 - gap < b.x + b.w / 2 && a.x + a.w / 2 + gap > b.x - b.w / 2 && a.y - a.h / 2 - gap < b.y + b.h / 2 && a.y + a.h / 2 + gap > b.y - b.h / 2; }
 
-        const kidSize = 100;
-        const objects = [
-            { draw: drawBeachBall, x: 0, y: 0, size: kidSize * 1.3 * 0.5, hidden: false, hintColors: ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ffffff'] },
-            { draw: drawTree, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hintColors: ['#8B4513', '#228B22'] },
-            { draw: drawHouse, x: 0, y: 0, size: kidSize * 1.6, hidden: false, hintColors: ['#D2691E', '#8B0000', '#DEB887'] },
-            { draw: drawTV, x: 0, y: 0, size: kidSize * 1.4 * 2, hidden: false, hintColors: ['#333333', '#87CEEB', '#666666'] },
-            { draw: drawBed, x: 0, y: 0, size: kidSize * 1.5 * 2, hidden: false, hintColors: ['#8B4513', '#F0F8FF', '#FFFFFF'] },
-            { draw: drawWardrobe, x: 0, y: 0, size: kidSize * 1.5, hidden: false, hintColors: ['#A0522D', '#CD853F'] }
-        ];
+    function makeObject([icon, name]) {
+      const screen = Math.min(canvas.width, canvas.height);
+      const fontSize = Math.max(44, Math.min(screen * randomBetween(.13, .22), canvas.width * .25, canvas.height * .25));
+      return { icon, name, fontSize, w: fontSize * 1.05, h: fontSize * 1.08, x: 0, y: 0, hidden: false };
+    }
 
-        let kid = { x: 0, y: 0, size: kidSize, dancing: false, angle: 0, moveX: 0, moveY: 0, moveSpeed: 5 };
-        let hidingObject = null;
-        let gameStarted = false;
-        let confetti = [];
+    function placeObject(obj, placed) {
+      const padding = 12;
+      for (let attempt = 0; attempt < 400; attempt++) {
+        obj.x = randomBetween(obj.w / 2 + padding, canvas.width - obj.w / 2 - padding);
+        obj.y = randomBetween(obj.h / 2 + padding, canvas.height - obj.h / 2 - padding);
+        if (!placed.some(other => overlaps(obj, other))) return true;
+      }
+      return false;
+    }
 
-        // Clase Confetti
-        class Confetti {
-            constructor(x, y, color, scale = 1) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.speedX = (Math.random() - 0.5) * 12;
-                this.speedY = (Math.random() - 0.5) * 12;
-                this.life = 60;
-                this.rotation = 0;
-                this.rotSpeed = (Math.random() - 0.5) * 0.5;
-                this.scale = scale;
-                this.width = Math.random() * 15 * scale;
-                this.height = Math.random() * 15 * scale;
-            }
+    function newRound() {
+      const wanted = Math.random() < .5 ? 6 : 7;
+      const selected = shuffled(catalog).slice(0, wanted).map(makeObject);
+      const placed = [];
+      selected.forEach(obj => { if (placeObject(obj, placed)) placed.push(obj); });
+      // En pantallas muy pequeñas se prioriza que ningún objeto se superponga.
+      objects = placed;
+      hidingObject = objects[Math.floor(Math.random() * objects.length)];
+      kidSize = hidingObject.fontSize * randomBetween(.68, .82);
+      kid.x = hidingObject.x;
+      roundStartedAt = performance.now();
+      peekPhase = -1;
+    }
 
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.speedY += 0.15;
-                this.rotation += this.rotSpeed;
-                this.life--;
-                if (this.life <= 0) {
-                    confetti = confetti.filter(c => c !== this);
-                }
-            }
+    function drawKid(x, y, size) {
+      ctx.save(); ctx.translate(x, y);
+      ctx.fillStyle = '#ffd3b1'; ctx.beginPath(); ctx.arc(0, -size * .27, size * .2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a1a12'; ctx.fillRect(-size * .14, -size * .42, size * .28, size * .08);
+      ctx.fillStyle = '#ff5b45'; ctx.fillRect(-size * .18, -size * .06, size * .36, size * .39);
+      ctx.fillStyle = '#346bd3'; ctx.fillRect(-size * .18, size * .33, size * .36, size * .17);
+      ctx.fillStyle = '#ffd3b1'; ctx.fillRect(-size * .16, size * .50, size * .11, size * .21); ctx.fillRect(size * .05, size * .50, size * .11, size * .21);
+      ctx.restore();
+    }
 
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                ctx.fillStyle = this.color;
-                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-                ctx.restore();
-            }
-        }
+    function drawPeek(now) {
+      // 0-3 s oculto; 3-6 s asoma solo entre 2% y 5%; el ciclo se repite.
+      const phase = Math.floor((now - roundStartedAt) / 3000);
+      if (phase % 2 === 0) return;
+      if (phase !== peekPhase) { peekPhase = phase; peekRatio = randomBetween(.02, .05); }
+      const visible = kidSize * peekRatio;
+      const top = hidingObject.y - hidingObject.h / 2;
+      // La parte restante del personaje queda dentro del área del objeto.
+      kid.y = top + kidSize * .47 - visible;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(kid.x - kidSize / 2, top - visible, kidSize, visible); ctx.clip();
+      // El niño se dibuja primero: el objeto queda siempre delante de él.
+      drawKid(kid.x, hidingObject.y, kidSize);
+      ctx.restore();
+    }
 
-        // Funciones de dibujo de objetos
-        function drawBeachBall(x, y, size) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.fill();
-            ctx.closePath();
-            const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
-            const sectionAngle = (Math.PI * 2) / 6;
-            for (let i = 0; i < 6; i++) {
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.arc(x, y, size, i * sectionAngle, (i + 1) * sectionAngle);
-                ctx.fillStyle = colors[i];
-                ctx.fill();
-                ctx.closePath();
-            }
-            ctx.restore();
-        }
+    function drawObject(obj) {
+      if (obj.hidden) return;
+      ctx.save(); ctx.font = `${obj.fontSize}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(obj.icon, obj.x, obj.y); ctx.restore();
+    }
 
-        function drawTree(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(x - size / 4, y, size / 2, size);
-            ctx.beginPath();
-            ctx.arc(x, y - size / 2, size * 0.75, 0, Math.PI * 2);
-            ctx.fillStyle = '#228B22';
-            ctx.fill();
-            ctx.closePath();
-            ctx.restore();
-        }
+    function addConfetti(x, y) { for (let i = 0; i < 40; i++) confetti.push({ x, y, vx: randomBetween(-5, 5), vy: randomBetween(-8, -2), life: 55, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
+    function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, 7, 7); }); }
 
-        function drawHouse(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#D2691E';
-            ctx.fillRect(x - size / 2, y - size / 2, size, size);
-            ctx.beginPath();
-            ctx.moveTo(x - size / 1.5, y - size / 2);
-            ctx.lineTo(x + size / 1.5, y - size / 2);
-            ctx.lineTo(x, y - size);
-            ctx.fillStyle = '#8B0000';
-            ctx.fill();
-            ctx.closePath();
-            ctx.fillStyle = '#DEB887';
-            ctx.fillRect(x - size / 6, y + size / 4, size / 3, size / 4);
-            ctx.restore();
-        }
+    function drawScene(now) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#dff4ff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (hidingObject) drawPeek(now);
+      objects.forEach(drawObject);
+      drawConfetti();
+      if (hidingObject && !hidingObject.hidden) {
+        const label = `Pista: buscá donde está escondido`; const boxW = Math.min(310, canvas.width - 32);
+        ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(16, 16, boxW, 40); ctx.fillStyle = '#16324f'; ctx.font = 'bold 16px Arial'; ctx.fillText(label, 28, 41);
+      }
+    }
 
-        function drawTV(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#333333';
-            ctx.fillRect(x - size / 2, y - size / 3, size, size / 1.5);
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(x - size / 2.5, y - size / 4, size * 0.8, size / 2);
-            ctx.fillStyle = '#666666';
-            ctx.fillRect(x - size / 4, y + size / 3, size / 2, size / 10);
-            ctx.restore();
-        }
-
-        function drawBed(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(x - size / 2, y - size / 4, size, size / 2);
-            ctx.fillStyle = '#F0F8FF';
-            ctx.fillRect(x - size / 2, y - size / 4, size * 0.9, size / 3);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(x - size / 2, y - size / 4, size / 4, size / 6);
-            ctx.restore();
-        }
-
-        function drawWardrobe(x, y, size) {
-            ctx.save();
-            ctx.fillStyle = '#A0522D';
-            ctx.fillRect(x - size / 2, y - size, size, size);
-            ctx.fillStyle = '#CD853F';
-            ctx.fillRect(x - size / 2.2, y - size * 0.9, size / 2.5, size * 0.8);
-            ctx.fillRect(x + size / 20, y - size * 0.9, size / 2.5, size * 0.8);
-            ctx.restore();
-        }
-
-        function drawKid(x, y, size, dancing) {
-            ctx.save();
-            if (dancing) {
-                ctx.translate(x + kid.moveX, y + kid.moveY);
-                ctx.rotate(Math.sin(kid.angle) * 0.2);
-            } else {
-                ctx.translate(x, y);
-            }
-
-            // Cabeza con ojos
-            ctx.beginPath();
-            ctx.arc(0, -size / 2, size / 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#FFDAB9';
-            ctx.fill();
-            ctx.closePath();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(-size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2);
-            ctx.arc(size / 8, -size / 2 - size / 20, size / 15, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Cuerpo
-            ctx.fillStyle = '#FF4500';
-            ctx.fillRect(-size / 4, -size / 6, size / 2, size / 1.5);
-
-            // Brazos
-            ctx.fillRect(-size / 2, -size / 6, size / 4, size / 2);
-            ctx.fillRect(size / 4, -size / 6, size / 4, size / 2);
-
-            // Pantalón
-            ctx.fillStyle = '#0000FF';
-            ctx.fillRect(-size / 4, size / 3, size / 2, size / 3);
-
-            // Piernas
-            ctx.fillStyle = '#FFDAB9';
-            ctx.fillRect(-size / 4, size / 3 + size / 3, size / 4, size / 2);
-            ctx.fillRect(0, size / 3 + size / 3, size / 4, size / 2);
-
-            ctx.restore();
-        }
-
-        // Verificar superposición
-        function isOverlapping(x, y, size, placedObjects) {
-            for (let obj of placedObjects) {
-                const dx = x - obj.x;
-                const dy = y - obj.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < (size + obj.size) * 0.7) return true;
-            }
-            return false;
-        }
-
-        // Posicionar objetos sin superposición
-        function placeObjects() {
-            const placedObjects = [];
-            objects.forEach(obj => {
-                let attempts = 0;
-                let placed = false;
-                while (!placed && attempts < 100) {
-                    obj.x = Math.random() * (canvas.width - obj.size * 2) + obj.size;
-                    obj.y = Math.random() * (canvas.height - obj.size * 2) + obj.size;
-                    if (!isOverlapping(obj.x, obj.y, obj.size, placedObjects)) {
-                        placedObjects.push(obj);
-                        placed = true;
-                    }
-                    attempts++;
-                }
-                obj.hidden = false;
-            });
-            hidingObject = objects[Math.floor(Math.random() * objects.length)];
-            kid.x = hidingObject.x;
-            kid.y = hidingObject.y;
-            kid.dancing = false;
-            kid.moveX = 0;
-            kid.moveY = 0;
-        }
-
-        // Dibujar escena con confeti y pista
-        function drawScene() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Dibujar al nene primero si no está bailando (para que quede detrás)
-            if (!kid.dancing) {
-                drawKid(kid.x, kid.y, kid.size, false);
-            }
-
-            // Dibujar objetos encima del nene
-            objects.forEach(obj => {
-                if (!obj.hidden) obj.draw(obj.x, obj.y, obj.size);
-            });
-
-            // Dibujar al nene encima si está bailando
-            if (kid.dancing) {
-                drawKid(kid.x, kid.y, kid.size, true);
-                kid.angle += 0.2;
-                kid.moveX += Math.sin(kid.angle) * kid.moveSpeed;
-                kid.moveY += Math.cos(kid.angle) * kid.moveSpeed / 2;
-                kid.moveX = Math.max(-canvas.width / 4, Math.min(canvas.width / 4, kid.moveX));
-                kid.moveY = Math.max(-canvas.height / 4, Math.min(canvas.height / 4, kid.moveY));
-            }
-
-            confetti.forEach(c => {
-                c.update();
-                c.draw();
-            });
-
-            // Dibujar recuadro de pista
-            if (gameStarted && hidingObject) {
-                const hintSize = 100;
-                const hintX = canvas.width - hintSize - 20;
-                const hintY = canvas.height - hintSize - 200;
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(hintX - 10, hintY - 10, hintSize + 20, hintSize + 20);
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(hintX - 10, hintY - 10, hintSize + 20, hintSize + 20);
-
-                const colors = hidingObject.hintColors;
-                const barHeight = hintSize / colors.length;
-                for (let i = 0; i < colors.length; i++) {
-                    ctx.fillStyle = colors[i];
-                    ctx.fillRect(hintX, hintY + i * barHeight, hintSize, barHeight);
-                }
-            }
-        }
-
-        // Función para generar explosión de confeti
-        function triggerConfetiExplosion(x, y) {
-            for (let j = 0; j < 40; j++) {
-                const colors = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
-                confetti.push(new Confetti(x, y, colors[Math.floor(Math.random() * colors.length)], 2));
-            }
-        }
-
-        // Iniciar juego
-        function startGame() {
-            gameStarted = true;
-            startButton.style.display = 'none';
-            canvas.style.display = 'block';
-            placeObjects();
-            drawScene();
-        }
-
-        // Manejar clics con confeti
-        canvas.addEventListener('click', (e) => {
-            if (!gameStarted) return;
-            const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            for (let i = 0; i < objects.length; i++) {
-                const obj = objects[i];
-                if (!obj.hidden &&
-                    clickX > obj.x - obj.size && clickX < obj.x + obj.size &&
-                    clickY > obj.y - obj.size && clickY < obj.y + obj.size) {
-                    obj.hidden = true;
-
-                    // Confeti normal
-                    for (let j = 0; j < 20; j++) {
-                        const colors = ['#ff0000', '#ffff00', '#00ff00', '#0000ff'];
-                        confetti.push(new Confetti(obj.x, obj.y, colors[Math.floor(Math.random() * colors.length)]));
-                    }
-
-                    if (obj === hidingObject) {
-                        kid.dancing = true;
-                        // Tres explosiones de confeti separadas por 0.3 segundos
-                        triggerConfetiExplosion(obj.x, obj.y);
-                        setTimeout(() => triggerConfetiExplosion(obj.x, obj.y), 300);
-                        setTimeout(() => triggerConfetiExplosion(obj.x, obj.y), 600);
-                        setTimeout(() => {
-                            placeObjects();
-                            drawScene();
-                            kid.dancing = false;
-                        }, 2000);
-                    }
-                    drawScene();
-                    break;
-                }
-            }
-        });
-
-        // Animación
-        function animate() {
-            if (gameStarted) drawScene();
-            requestAnimationFrame(animate);
-        }
-
-        // Evento del botón
-        startButton.addEventListener('click', startGame);
-
-        // Iniciar animación
-        animate();
-    </script>
+    function startGame() { gameStarted = true; startButton.style.display = 'none'; canvas.style.display = 'block'; resizeCanvas(); }
+    canvas.addEventListener('click', event => {
+      const rect = canvas.getBoundingClientRect(), scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+      const x = (event.clientX - rect.left) * scaleX, y = (event.clientY - rect.top) * scaleY;
+      const hit = objects.find(obj => !obj.hidden && x > obj.x - obj.w / 2 && x < obj.x + obj.w / 2 && y > obj.y - obj.h / 2 && y < obj.y + obj.h / 2);
+      if (!hit) return;
+      hit.hidden = true;
+      if (hit === hidingObject) { addConfetti(hit.x, hit.y); setTimeout(newRound, 1800); }
+    });
+    function animate(now) { if (gameStarted) drawScene(now); requestAnimationFrame(animate); }
+    window.addEventListener('resize', resizeCanvas); startButton.addEventListener('click', startGame); animate();
+  </script>
 </body>
 </html>
