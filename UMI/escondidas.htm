@@ -39,6 +39,20 @@
       ['🐶', 'perro', ['#a66b3d', '#ffffff']], ['🚌', 'colectivo', ['#fbc02d', '#263238']], ['🧸', 'oso de peluche', ['#a66b3d', '#f5d6a0']], ['🎂', 'torta', ['#f8bbd0', '#ffffff']], ['🐱', 'gato', ['#ff9800', '#ffffff']],
       ['🎲', 'dado', ['#ffffff', '#222222']], ['📦', 'caja', ['#c47b38', '#5d4037']], ['🍪', 'galleta', ['#d99145', '#5d4037']], ['⏰', 'reloj', ['#f6d743', '#ffffff']], ['🔵', 'pelota azul', ['#1976d2', '#0d47a1']], ['🧱', 'bloque', ['#c75b39', '#8d3928']]
     ];
+    // Solo tonos dominantes que una persona usaría para reconocer el objeto.
+    const characteristicColors = {
+      '⚽': [['Blanco', '#ffffff'], ['Negro', '#222222']], '🌳': [['Verde hoja', '#3f9b39'], ['Marrón tronco', '#795548']],
+      '🏠': [['Naranja pared', '#d2691e'], ['Rojo techo', '#b22222']], '📺': [['Negro', '#333333'], ['Azul pantalla', '#69bce0']],
+      '🛏️': [['Blanco', '#ffffff'], ['Marrón madera', '#8b4513']], '🚪': [['Marrón', '#a0522d'], ['Beige', '#deb887']],
+      '🚗': [['Rojo', '#e53935'], ['Negro rueda', '#263238']], '🎁': [['Rosa', '#e91e63'], ['Amarillo cinta', '#ffd54f']],
+      '🍎': [['Rojo manzana', '#e53935'], ['Verde hoja', '#43a047']], '🌻': [['Amarillo pétalo', '#fdd835'], ['Marrón centro', '#6d4c41']],
+      '🚀': [['Blanco', '#eeeeee'], ['Rojo', '#e53935']], '☂️': [['Azul', '#1976d2'], ['Negro', '#333333']],
+      '🐘': [['Gris', '#9e9e9e']], '🐶': [['Marrón', '#a66b3d']], '🚌': [['Amarillo', '#fbc02d'], ['Negro', '#263238']],
+      '🧸': [['Marrón peluche', '#a66b3d']], '🎂': [['Rosa', '#f8bbd0'], ['Blanco crema', '#ffffff']], '🐱': [['Naranja', '#ff9800']],
+      '🎲': [['Blanco', '#ffffff'], ['Negro puntos', '#222222']], '📦': [['Marrón cartón', '#c47b38']], '🍪': [['Dorado', '#d99145']],
+      '⏰': [['Amarillo', '#f6d743'], ['Blanco', '#ffffff']], '🔵': [['Azul', '#1976d2']],
+      '🧱': [['Naranja ladrillo', '#e85d34'], ['Gris cemento', '#b0a7a1']]
+    };
     const characterCatalog = [
       { id: 'steve', name: 'Aventurero', skin: '#f1c27d', hair: '#5d4037', shirt: '#26a69a', pants: '#3949ab' },
       { id: 'alex', name: 'Exploradora', skin: '#f1c27d', hair: '#e67e22', shirt: '#6d9eeb', pants: '#4b3f72' },
@@ -172,11 +186,16 @@
     function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, c.size, c.size); }); }
     function drawColorHint() {
       if (performance.now() - roundStartedAt < 10000 || hidingObject.hidden) return;
-      const boxW = Math.min(250, canvas.width - 32), boxH = 78;
+      const colors = characteristicColors[hidingObject.icon] || hidingObject.colors.map(color => ['', color]);
+      const boxW = Math.min(300, canvas.width - 32), boxH = 49 + colors.length * 27;
       ctx.fillStyle = 'rgba(255,255,255,.94)'; ctx.fillRect(16, 16, boxW, boxH);
       ctx.strokeStyle = '#16324f'; ctx.lineWidth = 2; ctx.strokeRect(16, 16, boxW, boxH);
-      ctx.fillStyle = '#16324f'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Pista: colores del escondite', 28, 41);
-      hidingObject.colors.forEach((color, index) => { ctx.beginPath(); ctx.arc(43 + index * 48, 62, 14, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = '#16324f'; ctx.stroke(); });
+      ctx.fillStyle = '#16324f'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText('Pista: colores característicos', 28, 41);
+      colors.forEach(([name, color], index) => {
+        const y = 63 + index * 27;
+        ctx.fillStyle = color; ctx.fillRect(29, y - 14, 19, 19); ctx.strokeStyle = '#16324f'; ctx.strokeRect(29, y - 14, 19, 19);
+        ctx.fillStyle = '#16324f'; ctx.font = '15px Arial'; ctx.fillText(name, 58, y + 1);
+      });
     }
 
     function drawScene(now) {
