@@ -23,6 +23,7 @@
   <button id="adminButton" type="button">⚙️ Admin</button>
   <aside id="adminPanel" hidden aria-label="Configuración del juego">
     <h2>Configuración</h2><p>Elegí qué objetos y personajes pueden aparecer en la próxima ronda.</p>
+    <label for="objectCount"><strong>Objetos por ronda</strong> (1 a 8): <input id="objectCount" type="number" min="1" max="8" value="6"></label>
     <h3>Objetos</h3><div id="objectOptions" class="admin-grid"></div>
     <h3>Personajes blocky</h3><div id="characterOptions" class="admin-grid"></div>
     <div class="admin-actions"><button id="saveAdmin" type="button">Aplicar selección</button><button id="closeAdmin" type="button">Cancelar</button></div>
@@ -63,14 +64,15 @@
     const selectedObjectNames = new Set(catalog.map(([, name]) => name));
     const selectedCharacterIds = new Set(characterCatalog.map(({ id }) => id));
     const adminButton = document.getElementById('adminButton'), adminPanel = document.getElementById('adminPanel');
-    const objectOptions = document.getElementById('objectOptions'), characterOptions = document.getElementById('characterOptions');
-    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, character: characterCatalog[0] }, foundUntil = 0;
+    const objectOptions = document.getElementById('objectOptions'), characterOptions = document.getElementById('characterOptions'), objectCountInput = document.getElementById('objectCount');
+    let objectsPerRound = 6, objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, character: characterCatalog[0] }, foundUntil = 0;
 
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
     function randomBetween(min, max) { return min + Math.random() * (max - min); }
     function shuffled(items) { return [...items].sort(() => Math.random() - .5); }
     function overlaps(a, b, gap = 18) { return a.x - a.w / 2 - gap < b.x + b.w / 2 && a.x + a.w / 2 + gap > b.x - b.w / 2 && a.y - a.h / 2 - gap < b.y + b.h / 2 && a.y + a.h / 2 + gap > b.y - b.h / 2; }
     function renderAdmin() {
+      objectCountInput.value = objectsPerRound;
       objectOptions.innerHTML = catalog.map(([icon, name]) => `<label class="admin-option"><input type="checkbox" value="${name}" ${selectedObjectNames.has(name) ? 'checked' : ''}><span>${icon}</span>${name}</label>`).join('');
       characterOptions.innerHTML = characterCatalog.map(character => `<label class="admin-option"><input type="checkbox" value="${character.id}" ${selectedCharacterIds.has(character.id) ? 'checked' : ''}><span>🧱</span>${character.name}</label>`).join('');
     }
@@ -80,6 +82,7 @@
       if (!chosenObjects.length || !chosenCharacters.length) { alert('Elegí al menos un objeto y un personaje.'); return; }
       selectedObjectNames.clear(); chosenObjects.forEach(input => selectedObjectNames.add(input.value));
       selectedCharacterIds.clear(); chosenCharacters.forEach(input => selectedCharacterIds.add(input.value));
+      objectsPerRound = Math.max(1, Math.min(8, Number.parseInt(objectCountInput.value, 10) || 6));
       adminPanel.hidden = true; if (gameStarted) newRound();
     }
 
@@ -90,7 +93,7 @@
     }
 
     function animatedPosition(obj, now) {
-      const amplitude = Math.min(3, obj.fontSize * .0175);
+      const amplitude = Math.min(6, obj.fontSize * .035);
       const speed = 1250 + (objects.indexOf(obj) % 5) * 220;
       return { x: obj.x + Math.sin(now / speed + obj.x) * amplitude, y: obj.y + Math.cos(now / (speed * .9) + obj.y) * amplitude };
     }
@@ -108,7 +111,7 @@
     function newRound() {
       const allowedObjects = catalog.filter(([, name]) => selectedObjectNames.has(name));
       const allowedCharacters = characterCatalog.filter(({ id }) => selectedCharacterIds.has(id));
-      const wanted = Math.min(allowedObjects.length, Math.random() < .5 ? 6 : 7);
+      const wanted = Math.min(allowedObjects.length, objectsPerRound);
       const selected = shuffled(allowedObjects).slice(0, wanted).map(makeObject);
       const placed = [];
       selected.forEach(obj => { if (placeObject(obj, placed)) placed.push(obj); });
@@ -125,7 +128,7 @@
 
     function drawKid(x, y, size, dancing = false, now = 0, alpha = 1) {
       ctx.save(); ctx.translate(x, y);
-      if (dancing) { ctx.translate(Math.sin(now / 95) * size * .08, Math.abs(Math.sin(now / 120)) * -size * .06); ctx.rotate(Math.sin(now / 130) * .09); }
+      if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
       ctx.globalAlpha = alpha;
       const unit = size / 8, character = kid.character;
       ctx.fillStyle = character.pants; ctx.fillRect(-2 * unit, 1 * unit, 1.8 * unit, 3 * unit); ctx.fillRect(.2 * unit, 1 * unit, 1.8 * unit, 3 * unit);
@@ -182,7 +185,7 @@
       ctx.fillText(obj.icon, position.x, position.y); ctx.restore();
     }
 
-    function addConfetti(x, y, count = 20, scale = .5) { for (let i = 0; i < count; i++) confetti.push({ x, y, vx: randomBetween(-5, 5) * scale, vy: randomBetween(-8, -2) * scale, life: 55 * scale, size: 7 * scale, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
+    function addConfetti(x, y, count = 40, scale = 1) { for (let i = 0; i < count; i++) confetti.push({ x, y, vx: randomBetween(-5, 5) * scale, vy: randomBetween(-8, -2) * scale, life: 55 * scale, size: 7 * scale, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
     function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, c.size, c.size); }); }
     function drawColorHint() {
       if (performance.now() - roundStartedAt < 10000 || hidingObject.hidden) return;
@@ -221,7 +224,7 @@
         addConfetti(hitPosition.x, hitPosition.y);
         foundUntil = performance.now() + 1800;
         setTimeout(newRound, 1800);
-      } else addConfetti(hitPosition.x, hitPosition.y, 6, .225);
+      } else addConfetti(hitPosition.x, hitPosition.y, 12, .45);
     });
     function animate(now) { if (gameStarted) drawScene(now); requestAnimationFrame(animate); }
     adminButton.addEventListener('click', showAdmin);
