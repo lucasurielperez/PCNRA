@@ -7,12 +7,26 @@
   <style>
     body { margin: 0; overflow: hidden; display: grid; place-items: center; min-height: 100vh; background: #dff4ff; font-family: Arial, sans-serif; }
     canvas { display: none; width: 100vw; height: 100vh; cursor: pointer; touch-action: manipulation; }
-    #startButton { font-size: clamp(1.2rem, 4vw, 1.6rem); padding: 18px 36px; background: #4caf50; color: white; border: 0; border-radius: 12px; cursor: pointer; box-shadow: 0 6px 0 #2d7d32; }
-    #startButton:hover { background: #45a049; }
+    #startButton, #adminButton { font-size: clamp(1.05rem, 4vw, 1.5rem); padding: 16px 30px; color: white; border: 0; border-radius: 12px; cursor: pointer; box-shadow: 0 6px 0 #2d7d32; }
+    #startButton { background: #4caf50; } #startButton:hover { background: #45a049; }
+    #adminButton { position: fixed; right: 18px; top: 18px; z-index: 5; background: #285b8f; box-shadow: 0 4px 0 #183e63; font-size: .95rem; padding: 10px 15px; }
+    #adminPanel { position: fixed; z-index: 10; inset: 5vh 5vw; overflow: auto; padding: 22px; border-radius: 18px; background: #fffdf8; color: #16324f; box-shadow: 0 16px 50px rgba(0,0,0,.35); }
+    #adminPanel[hidden] { display: none; } #adminPanel h2 { margin: 0 0 6px; } #adminPanel p { margin: 0 0 16px; }
+    .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 18px; }
+    .admin-option { display: flex; align-items: center; gap: 7px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; }
+    .admin-option span { font-size: 1.35rem; } .admin-actions { display: flex; gap: 10px; position: sticky; bottom: 0; padding-top: 12px; background: #fffdf8; }
+    .admin-actions button { padding: 11px 16px; border: 0; border-radius: 8px; font-weight: bold; cursor: pointer; } #saveAdmin { background: #4caf50; color: white; } #closeAdmin { background: #dce5ee; }
   </style>
 </head>
 <body>
   <button id="startButton" type="button">Comenzar a buscar</button>
+  <button id="adminButton" type="button">⚙️ Admin</button>
+  <aside id="adminPanel" hidden aria-label="Configuración del juego">
+    <h2>Configuración</h2><p>Elegí qué objetos y personajes pueden aparecer en la próxima ronda.</p>
+    <h3>Objetos</h3><div id="objectOptions" class="admin-grid"></div>
+    <h3>Personajes blocky</h3><div id="characterOptions" class="admin-grid"></div>
+    <div class="admin-actions"><button id="saveAdmin" type="button">Aplicar selección</button><button id="closeAdmin" type="button">Cancelar</button></div>
+  </aside>
   <canvas id="gameCanvas"></canvas>
   <script>
     const canvas = document.getElementById('gameCanvas');
@@ -25,13 +39,35 @@
       ['🐶', 'perro', ['#a66b3d', '#ffffff']], ['🚌', 'colectivo', ['#fbc02d', '#263238']], ['🧸', 'oso de peluche', ['#a66b3d', '#f5d6a0']], ['🎂', 'torta', ['#f8bbd0', '#ffffff']], ['🐱', 'gato', ['#ff9800', '#ffffff']],
       ['🎲', 'dado', ['#ffffff', '#222222']], ['📦', 'caja', ['#c47b38', '#5d4037']], ['🍪', 'galleta', ['#d99145', '#5d4037']], ['⏰', 'reloj', ['#f6d743', '#ffffff']], ['🔵', 'pelota azul', ['#1976d2', '#0d47a1']], ['🧱', 'bloque', ['#c75b39', '#8d3928']]
     ];
-    const characters = ['🧒', '👧', '👨', '👩', '👴', '👵', '👨‍👩‍👧‍👦'];
-    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, icon: '🧒' }, foundUntil = 0;
+    const characterCatalog = [
+      { id: 'steve', name: 'Aventurero', skin: '#f1c27d', hair: '#5d4037', shirt: '#26a69a', pants: '#3949ab' },
+      { id: 'alex', name: 'Exploradora', skin: '#f1c27d', hair: '#e67e22', shirt: '#6d9eeb', pants: '#4b3f72' },
+      { id: 'creeper', name: 'Creeper', skin: '#49a942', hair: '#2d7b2e', shirt: '#49a942', pants: '#49a942' },
+      { id: 'enderman', name: 'Enderman', skin: '#25212b', hair: '#25212b', shirt: '#25212b', pants: '#25212b' },
+      { id: 'villager', name: 'Aldeano', skin: '#a86d48', hair: '#7c4f32', shirt: '#8f5a3c', pants: '#5e4a42' }
+    ];
+    const selectedObjectNames = new Set(catalog.map(([, name]) => name));
+    const selectedCharacterIds = new Set(characterCatalog.map(({ id }) => id));
+    const adminButton = document.getElementById('adminButton'), adminPanel = document.getElementById('adminPanel');
+    const objectOptions = document.getElementById('objectOptions'), characterOptions = document.getElementById('characterOptions');
+    let objects = [], hidingObject, roundStartedAt = 0, gameStarted = false, confetti = [], kidSize = 100, kid = { x: 0, y: 0, character: characterCatalog[0] }, foundUntil = 0;
 
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameStarted) newRound(); }
     function randomBetween(min, max) { return min + Math.random() * (max - min); }
     function shuffled(items) { return [...items].sort(() => Math.random() - .5); }
     function overlaps(a, b, gap = 18) { return a.x - a.w / 2 - gap < b.x + b.w / 2 && a.x + a.w / 2 + gap > b.x - b.w / 2 && a.y - a.h / 2 - gap < b.y + b.h / 2 && a.y + a.h / 2 + gap > b.y - b.h / 2; }
+    function renderAdmin() {
+      objectOptions.innerHTML = catalog.map(([icon, name]) => `<label class="admin-option"><input type="checkbox" value="${name}" ${selectedObjectNames.has(name) ? 'checked' : ''}><span>${icon}</span>${name}</label>`).join('');
+      characterOptions.innerHTML = characterCatalog.map(character => `<label class="admin-option"><input type="checkbox" value="${character.id}" ${selectedCharacterIds.has(character.id) ? 'checked' : ''}><span>🧱</span>${character.name}</label>`).join('');
+    }
+    function showAdmin() { renderAdmin(); adminPanel.hidden = false; }
+    function saveAdmin() {
+      const chosenObjects = [...objectOptions.querySelectorAll('input:checked')], chosenCharacters = [...characterOptions.querySelectorAll('input:checked')];
+      if (!chosenObjects.length || !chosenCharacters.length) { alert('Elegí al menos un objeto y un personaje.'); return; }
+      selectedObjectNames.clear(); chosenObjects.forEach(input => selectedObjectNames.add(input.value));
+      selectedCharacterIds.clear(); chosenCharacters.forEach(input => selectedCharacterIds.add(input.value));
+      adminPanel.hidden = true; if (gameStarted) newRound();
+    }
 
     function makeObject([icon, name, colors]) {
       const screen = Math.min(canvas.width, canvas.height);
@@ -56,8 +92,10 @@
     }
 
     function newRound() {
-      const wanted = Math.random() < .5 ? 6 : 7;
-      const selected = shuffled(catalog).slice(0, wanted).map(makeObject);
+      const allowedObjects = catalog.filter(([, name]) => selectedObjectNames.has(name));
+      const allowedCharacters = characterCatalog.filter(({ id }) => selectedCharacterIds.has(id));
+      const wanted = Math.min(allowedObjects.length, Math.random() < .5 ? 6 : 7);
+      const selected = shuffled(allowedObjects).slice(0, wanted).map(makeObject);
       const placed = [];
       selected.forEach(obj => { if (placeObject(obj, placed)) placed.push(obj); });
       // En pantallas muy pequeñas se prioriza que ningún objeto se superponga.
@@ -66,7 +104,7 @@
       // Es deliberadamente más pequeño que la parte que lo cubre (rueda, tronco, puerta, etc.).
       kidSize = hidingObject.fontSize * randomBetween(.30, .38);
       kid.x = hidingObject.x;
-      kid.icon = characters[Math.floor(Math.random() * characters.length)];
+      kid.character = allowedCharacters[Math.floor(Math.random() * allowedCharacters.length)];
       roundStartedAt = performance.now();
       foundUntil = 0;
     }
@@ -75,9 +113,14 @@
       ctx.save(); ctx.translate(x, y);
       if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
       ctx.globalAlpha = alpha;
-      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(kid.icon, 0, 0);
+      const unit = size / 8, character = kid.character;
+      ctx.fillStyle = character.pants; ctx.fillRect(-2 * unit, 1 * unit, 1.8 * unit, 3 * unit); ctx.fillRect(.2 * unit, 1 * unit, 1.8 * unit, 3 * unit);
+      ctx.fillStyle = character.shirt; ctx.fillRect(-2.2 * unit, -1.2 * unit, 4.4 * unit, 2.4 * unit); ctx.fillRect(-3 * unit, -1 * unit, .8 * unit, 2.4 * unit); ctx.fillRect(2.2 * unit, -1 * unit, .8 * unit, 2.4 * unit);
+      ctx.fillStyle = character.skin; ctx.fillRect(-2 * unit, -4 * unit, 4 * unit, 3 * unit);
+      ctx.fillStyle = character.hair; ctx.fillRect(-2 * unit, -4 * unit, 4 * unit, .65 * unit); ctx.fillRect(-2 * unit, -3.35 * unit, .65 * unit, 1.2 * unit);
+      if (character.id === 'creeper') { ctx.fillStyle = '#173d1c'; ctx.fillRect(-1.1 * unit, -3 * unit, .75 * unit, .75 * unit); ctx.fillRect(.35 * unit, -3 * unit, .75 * unit, .75 * unit); ctx.fillRect(-.45 * unit, -2.2 * unit, .9 * unit, .85 * unit); }
+      else if (character.id === 'enderman') { ctx.fillStyle = '#e675f3'; ctx.fillRect(-1.3 * unit, -2.75 * unit, .8 * unit, .3 * unit); ctx.fillRect(.5 * unit, -2.75 * unit, .8 * unit, .3 * unit); }
+      else { ctx.fillStyle = '#242424'; ctx.fillRect(-1.15 * unit, -2.75 * unit, .5 * unit, .5 * unit); ctx.fillRect(.65 * unit, -2.75 * unit, .5 * unit, .5 * unit); }
       ctx.restore();
     }
 
@@ -125,8 +168,8 @@
       ctx.fillText(obj.icon, position.x, position.y); ctx.restore();
     }
 
-    function addConfetti(x, y) { for (let i = 0; i < 40; i++) confetti.push({ x, y, vx: randomBetween(-5, 5), vy: randomBetween(-8, -2), life: 55, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
-    function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, 7, 7); }); }
+    function addConfetti(x, y, count = 40, scale = 1) { for (let i = 0; i < count; i++) confetti.push({ x, y, vx: randomBetween(-5, 5) * scale, vy: randomBetween(-8, -2) * scale, life: 55 * scale, size: 7 * scale, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
+    function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, c.size, c.size); }); }
     function drawColorHint() {
       if (performance.now() - roundStartedAt < 10000 || hidingObject.hidden) return;
       const boxW = Math.min(250, canvas.width - 32), boxH = 78;
@@ -154,13 +197,17 @@
       const hit = objects.find(obj => { const position = animatedPosition(obj, now); return !obj.hidden && x > position.x - obj.w / 2 && x < position.x + obj.w / 2 && y > position.y - obj.h / 2 && y < position.y + obj.h / 2; });
       if (!hit) return;
       hit.hidden = true;
+      const hitPosition = animatedPosition(hit, now);
       if (hit === hidingObject) {
-        addConfetti(hit.x, hit.y);
+        addConfetti(hitPosition.x, hitPosition.y);
         foundUntil = performance.now() + 1800;
         setTimeout(newRound, 1800);
-      }
+      } else addConfetti(hitPosition.x, hitPosition.y, 12, .45);
     });
     function animate(now) { if (gameStarted) drawScene(now); requestAnimationFrame(animate); }
+    adminButton.addEventListener('click', showAdmin);
+    document.getElementById('saveAdmin').addEventListener('click', saveAdmin);
+    document.getElementById('closeAdmin').addEventListener('click', () => { adminPanel.hidden = true; });
     window.addEventListener('resize', resizeCanvas); startButton.addEventListener('click', startGame); animate();
   </script>
 </body>
