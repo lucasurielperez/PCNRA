@@ -76,7 +76,7 @@
     }
 
     function animatedPosition(obj, now) {
-      const amplitude = Math.min(6, obj.fontSize * .035);
+      const amplitude = Math.min(3, obj.fontSize * .0175);
       const speed = 1250 + (objects.indexOf(obj) % 5) * 220;
       return { x: obj.x + Math.sin(now / speed + obj.x) * amplitude, y: obj.y + Math.cos(now / (speed * .9) + obj.y) * amplitude };
     }
@@ -111,7 +111,7 @@
 
     function drawKid(x, y, size, dancing = false, now = 0, alpha = 1) {
       ctx.save(); ctx.translate(x, y);
-      if (dancing) { ctx.translate(Math.sin(now / 95) * size * .16, Math.abs(Math.sin(now / 120)) * -size * .12); ctx.rotate(Math.sin(now / 130) * .18); }
+      if (dancing) { ctx.translate(Math.sin(now / 95) * size * .08, Math.abs(Math.sin(now / 120)) * -size * .06); ctx.rotate(Math.sin(now / 130) * .09); }
       ctx.globalAlpha = alpha;
       const unit = size / 8, character = kid.character;
       ctx.fillStyle = character.pants; ctx.fillRect(-2 * unit, 1 * unit, 1.8 * unit, 3 * unit); ctx.fillRect(.2 * unit, 1 * unit, 1.8 * unit, 3 * unit);
@@ -168,7 +168,7 @@
       ctx.fillText(obj.icon, position.x, position.y); ctx.restore();
     }
 
-    function addConfetti(x, y, count = 40, scale = 1) { for (let i = 0; i < count; i++) confetti.push({ x, y, vx: randomBetween(-5, 5) * scale, vy: randomBetween(-8, -2) * scale, life: 55 * scale, size: 7 * scale, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
+    function addConfetti(x, y, count = 20, scale = .5) { for (let i = 0; i < count; i++) confetti.push({ x, y, vx: randomBetween(-5, 5) * scale, vy: randomBetween(-8, -2) * scale, life: 55 * scale, size: 7 * scale, color: `hsl(${Math.random() * 360} 85% 55%)` }); }
     function drawConfetti() { confetti = confetti.filter(c => c.life-- > 0); confetti.forEach(c => { c.x += c.vx; c.y += c.vy; c.vy += .22; ctx.fillStyle = c.color; ctx.fillRect(c.x, c.y, c.size, c.size); }); }
     function drawColorHint() {
       if (performance.now() - roundStartedAt < 10000 || hidingObject.hidden) return;
@@ -202,7 +202,7 @@
         addConfetti(hitPosition.x, hitPosition.y);
         foundUntil = performance.now() + 1800;
         setTimeout(newRound, 1800);
-      } else addConfetti(hitPosition.x, hitPosition.y, 12, .45);
+      } else addConfetti(hitPosition.x, hitPosition.y, 6, .225);
     });
     function animate(now) { if (gameStarted) drawScene(now); requestAnimationFrame(animate); }
     adminButton.addEventListener('click', showAdmin);
