@@ -654,8 +654,14 @@ export default function App() {
       roundsCompleted: 0,
     });
     startNewRound();
-    if (sdk) {
-      sdk.startGame();
+    // El SDK de Playground solo está disponible cuando el juego corre embebido.
+    // En una página estática su objeto puede existir, pero sin canal inicializado.
+    if (sdk && window.parent !== window) {
+      try {
+        sdk.startGame();
+      } catch (error) {
+        console.warn('No se pudo iniciar el SDK embebido.', error);
+      }
     }
   }, [sdk, startNewRound]);
 

@@ -2826,8 +2826,12 @@ function App() {
       roundsCompleted: 0
     });
     startNewRound();
-    if (sdk) {
-      sdk.startGame();
+    if (sdk && window.parent !== window) {
+      try {
+        sdk.startGame();
+      } catch (error) {
+        console.warn("No se pudo iniciar el SDK embebido.", error);
+      }
     }
   }, [sdk, startNewRound]);
   const handleInteractionAt = useCallback2(
