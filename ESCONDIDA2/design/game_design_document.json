@@ -1,0 +1,110 @@
+{
+  "title": "Escondite Cubo",
+  "hook": "Find cute hiding blocky friends",
+  "game_overview": "An engaging children's hide-and-seek game where adorable blocky characters hide behind large objects, featuring peek animations and color-based hints.",
+  "artstyle": "cartoon",
+  "genre": "puzzle",
+  "winning_condition": "Tap the correct hiding object to reveal and celebrate the hidden blocky character.",
+  "losing_condition": "None (stress-free exploration with gentle visual feedback on incorrect guesses).",
+  "player_mode": "single_player",
+  "supported_orientations": [
+    "landscape",
+    "portrait",
+    "square",
+    "wide",
+    "tall",
+    "any"
+  ],
+  "input_methods": [
+    "touch",
+    "mouse"
+  ],
+  "score_options": {
+    "score_type": "points",
+    "score_order": "higher_is_better"
+  },
+  "low_end_device_support": true,
+  "mobile_playable": true,
+  "tv_playable": false,
+  "language": [
+    "es",
+    "en"
+  ],
+  "content_descriptors": [],
+  "controls": [
+    {
+      "input": "Tap / Click on Hiding Object",
+      "action": "Inspect the object to find the hidden blocky character."
+    },
+    {
+      "input": "Tap 'Admin' Button",
+      "action": "Open configuration drawer to toggle objects, characters, and count per round (1-8)."
+    },
+    {
+      "input": "Tap 'Siguiente / Jugar' Button",
+      "action": "Start a new round with the configured settings."
+    }
+  ],
+  "sections": [
+    {
+      "title": "Design Pillars",
+      "content": "1. Intuitive Delight: Large, vibrant tactile objects with gentle floating micro-animations. 2. Progressive Peeking: The hidden character stays concealed for 3 seconds, then playfully peeks with subtle transparency and gradual reveal tiers. 3. Friendly Guidance: After 10 seconds without a correct guess, clear bilingual color badges (e.g., 'Naranja Ladrillo' & 'Gris Cemento') guide the young player without pressure.",
+      "summary": "Core pillars: Intuitive Delight, Child-Centric Accessibility, and Playful Discovery."
+    },
+    {
+      "title": "Core Loop",
+      "content": "At the start of each round, a selected blocky buddy swiftly runs behind one of the active hiding objects. For the first 3 seconds, the character remains fully hidden while the objects gently sway. At 3.0s, peeking animations begin periodically revealing subtle angles. At 10.0s, a distinct color clue ribbon highlights 1 or 2 specific prominent hues of the hiding spot. Tapping the correct object triggers a joyful victory dance and bursting confetti, while wrong guesses produce gentle pastel puffs.",
+      "summary": "Round starts -> Character hides -> Subtle peeks begin after 3s -> Clue at 10s -> Correct tap triggers dance & grand confetti -> Next round."
+    },
+    {
+      "title": "Core Mechanics",
+      "content": "1. Non-Overlapping Procedural Placement: Automatically distributes 1 to 8 large objects across the screen adapted for both portrait and landscape viewports. 2. Staged Reveal System: Initial 3s total stealth, followed by incremental peeks (ears/hat peak, side peek, half face peek with fade-in/out). 3. Precise Color Clue: Two-color curated swatch pills with clear friendly names matching the target object. 4. Admin Management: In-game modal allowing real-time selection of active objects, enabled voxel characters, and round object counts.",
+      "summary": "Dynamic object placement, progressive peeking system, targeted color hints, and full Admin panel customization."
+    },
+    {
+      "title": "Movement & Scrolling Alignment",
+      "content": "Scrolling Axis: Static single-screen viewport with automatic responsive resizing. Asset Orientation: All objects and characters face forward/slightly isometric. Movement Physics: Smooth sine-wave idle swaying for objects and spring-damped bouncing for character reveals. Camera Behavior: Locked widescreen/portrait responsive camera.",
+      "summary": "Fixed single-screen playfield with responsive CSS/Canvas coordinates and micro-floating dynamics."
+    },
+    {
+      "title": "Visual Hierarchy & Layering",
+      "content": "Layer Separation: Soft sky and meadow gradient backdrop in the background layer (zero interaction). Midground holds the large stylized hiding objects and character peeking z-indices. Foreground hosts interactive particles, celebratory confetti, and the clean top HUD ribbon with Admin toggle.",
+      "summary": "High contrast playfield with crisp foreground layers and clean pastel backdrop."
+    },
+    {
+      "title": "Characters & Enemies",
+      "content": "1. Cubito el Explorador: Blue cap, beige jacket, cute pixel eyes. 2. Robo-Bloque: Metallic teal cube with glowing cyan visor and antenna. 3. Dino-Cubo: Lime green blocky dinosaur with yellow dorsal spikes. 4. Gatito Pixel: Orange tabby voxel kitten with cute whiskers and pointy ears. No enemies; pure discovery and celebration.",
+      "summary": "Four original friendly voxel avatars: Cubito el Explorador, Robo-Bloque, Dino-Cubo, and Gatito Pixel."
+    },
+    {
+      "title": "Fairness Tools",
+      "content": "After 10 seconds of searching, an animated clue banner pops up showing exact color swatches with descriptive labels (e.g., 'Verde Pino' & 'Caf\u00e9 Roble'). Missing an object gives soft, encouraging feedback without penalty.",
+      "summary": "Timed multi-color hint system and gentle feedback on miss."
+    },
+    {
+      "title": "Juice & Game Feel",
+      "content": "Anticipation Juice: Floating object idle sway and cursor hover squash. State Change Juice: Color hint badge pop with glowing pulse. Impact/Resolution Juice: Massive multi-colored confetti fountain, golden star particles, and celebratory character dance accompanied by playful procedural audio synthesis.",
+      "summary": "Bouncy squash-and-stretch taps, multi-colored particle confetti bursts, and celebratory victory dance."
+    },
+    {
+      "title": "Social Mechanics & Audience",
+      "content": "Designed for toddlers, preschoolers, and early learners with big tap targets, clear visual language, and no reading barrier required to play.",
+      "summary": "Child-friendly singleplayer game suitable for early childhood, families, and classrooms."
+    },
+    {
+      "title": "Accessibility",
+      "content": "Generous touch targets (>80px), distinct object silhouettes, labeled color hints with high-contrast text badges, and full keyboard/touch/mouse compatibility.",
+      "summary": "High-contrast visual cues, large interactive hitboxes, responsive touch support, and colorblind-safe labeled hints."
+    },
+    {
+      "title": "Structural Integrity",
+      "content": "Instant play on load -> Smooth round transitions -> Overlay Admin Drawer with persistent settings saved in localStorage -> No loading screens or disruptive popups.",
+      "summary": "Clean single-screen flow with seamless Admin Drawer and instant round resets."
+    },
+    {
+      "title": "Virtual Touch Controls Implementation",
+      "content": "All gameplay elements use pointerdown/touchstart listeners with touch-action: manipulation to eliminate mobile tap latency, prevent accidental scrolling, and support rapid fluid tapping.",
+      "summary": "Native responsive touch interaction across all screen sizes and orientations."
+    }
+  ]
+}
