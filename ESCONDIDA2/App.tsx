@@ -55,28 +55,28 @@ import {
   SpriteAnimationState,
 } from './SpriteRenderer';
 
-const BACKGROUND_MUSIC_URL = 'assets/audio/bgm_playful_hideout.mp3';
+const BACKGROUND_MUSIC_URL = './assets/audio/bgm_playful_hideout.mp3';
 
 const ASSETS_MANIFEST: Record<string, string> = {
-  bg_playfield: 'assets/images/bg_playfield.png',
-  obj_brick_house: 'assets/images/obj_brick_house.png',
-  obj_toy_rocket: 'assets/images/obj_toy_rocket.png',
-  obj_hay_bale: 'assets/images/obj_hay_bale.png',
-  obj_camping_tent: 'assets/images/obj_camping_tent.png',
-  obj_giant_mushroom: 'assets/images/obj_giant_mushroom.png',
-  obj_toy_chest: 'assets/images/obj_toy_chest.png',
-  obj_enchanted_tree: 'assets/images/obj_enchanted_tree.png',
-  obj_wooden_barrel: 'assets/images/obj_wooden_barrel.png',
-  char_dino_block: 'assets/images/char_dino_block.png',
-  char_cubito_explorer_idle: 'assets/images/char_cubito_explorer_idle.png',
-  char_cubito_explorer_run: 'assets/images/char_cubito_explorer_run.png',
-  char_cubito_explorer_jump: 'assets/images/char_cubito_explorer_jump.png',
-  char_robo_block_idle: 'assets/images/char_robo_block_idle.png',
-  char_robo_block_run: 'assets/images/char_robo_block_run.png',
-  char_robo_block_jump: 'assets/images/char_robo_block_jump.png',
-  char_pixel_cat_quad_idle: 'assets/images/char_pixel_cat_quad_idle.png',
-  char_pixel_cat_quad_running: 'assets/images/char_pixel_cat_quad_running.png',
-  char_pixel_cat_quad_jump: 'assets/images/char_pixel_cat_quad_jump.png',
+  bg_playfield: './assets/images/bg_playfield.png',
+  obj_brick_house: './assets/images/obj_brick_house.png',
+  obj_toy_rocket: './assets/images/obj_toy_rocket.png',
+  obj_hay_bale: './assets/images/obj_hay_bale.png',
+  obj_camping_tent: './assets/images/obj_camping_tent.png',
+  obj_giant_mushroom: './assets/images/obj_giant_mushroom.png',
+  obj_toy_chest: './assets/images/obj_toy_chest.png',
+  obj_enchanted_tree: './assets/images/obj_enchanted_tree.png',
+  obj_wooden_barrel: './assets/images/obj_wooden_barrel.png',
+  char_dino_block: './assets/images/char_dino_block.png',
+  char_cubito_explorer_idle: './assets/images/char_cubito_explorer_idle.png',
+  char_cubito_explorer_run: './assets/images/char_cubito_explorer_run.png',
+  char_cubito_explorer_jump: './assets/images/char_cubito_explorer_jump.png',
+  char_robo_block_idle: './assets/images/char_robo_block_idle.png',
+  char_robo_block_run: './assets/images/char_robo_block_run.png',
+  char_robo_block_jump: './assets/images/char_robo_block_jump.png',
+  char_pixel_cat_quad_idle: './assets/images/char_pixel_cat_quad_idle.png',
+  char_pixel_cat_quad_running: './assets/images/char_pixel_cat_quad_running.png',
+  char_pixel_cat_quad_jump: './assets/images/char_pixel_cat_quad_jump.png',
 };
 
 // Spritesheet configs for animated characters
